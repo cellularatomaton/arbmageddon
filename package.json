@@ -1,0 +1,24 @@
+{
+  "name": "crypto-tools",
+  "version": "1.0.0",
+  "description": "Cryptfolio management toolset based on node server.",
+  "main": "calc-weights.js",
+  "dependencies": {
+    "bitfinex-api-node": "^1.0.1",
+    "gdax": "^0.4.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cellularatomaton/crypto-tools.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cellularatomaton/crypto-tools/issues"
+  },
+  "homepage": "https://github.com/cellularatomaton/crypto-tools#readme"
+}
