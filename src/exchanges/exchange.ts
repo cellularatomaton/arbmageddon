@@ -59,4 +59,16 @@ export class Exchange {
             market.best_ask = Number(best_bid);
         }
     }
+
+    public log(){
+        console.log(`Exchange: ${this.name}`.green);
+        this.hubs.forEach((hub: Hub, symbol: string)=>{
+            console.log(`Hub: ${symbol}`.blue);
+            let market_list: string[] = [];
+            hub.markets.forEach((market: Market, market_symbol: string)=>{
+                market_list.push(market_symbol);
+            });
+            console.log(`Markets: ${market_list.join(',')}`.magenta);
+        });
+    }
 };

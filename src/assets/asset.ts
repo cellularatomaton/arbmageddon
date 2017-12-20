@@ -1,4 +1,5 @@
 import { Hub, Market } from '../markets';
+import 'colors';
 
 export class Asset {
     public hubs: Hub[] = [];
@@ -14,5 +15,12 @@ export class Asset {
             map.set(symbol, asset);
         }
         return asset;
+    }
+    public log(){
+        console.log(`Asset: ${this.symbol}`.yellow);
+        console.log(`Hub count: ${this.hubs.length}`.green);
+        const exchanges = this.hubs.map(h=>{h.exchange.name}).join(',');
+        console.log(`Exchanges: ${exchanges}`.green);
+        console.log(`Market Count: ${this.markets.length}`.blue);
     }
 };

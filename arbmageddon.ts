@@ -2,7 +2,6 @@ import { Asset } from './src/assets';
 import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from './src/exchanges';
 import { Hub, Market } from './src/markets';
 import { Arb, ArbType } from './src/strategies';
-import 'colors';
 
 const asset_map = new Map<string, Asset>();
 const exchanges: Exchange[] = [
@@ -14,12 +13,7 @@ const exchanges: Exchange[] = [
 const print_assets = function(){
     console.log(`*************** PRINT ASSETS ***************`.red);
     asset_map.forEach((asset_value: Asset, asset_key: string) => {
-        console.log(`Asset: ${asset_key}`.yellow);
-        console.log(`Hub count: ${asset_value.hubs.length}`.green);
-        const exchanges = asset_value.hubs.map(h=>{h.exchange.name}).join(',');
-        console.log(`Exchanges: ${exchanges}`.green);
-        console.log(`Market Count: ${asset_value.markets.length}`.blue);
-        console.log(`Markets: `.blue)
+        asset_value.log();
     });
     // setTimeout(print_assets, 5000);
 }
@@ -27,15 +21,7 @@ const print_exchanges = function(){
     console.log(`*************** PRINT Exchanges ***************`.red);
     console.log(`Timestamp: ${Date.now()}`.yellow);
     exchanges.forEach( (exchange: Exchange) => {
-        console.log(`Exchange: ${exchange.name}`.green);
-        exchange.hubs.forEach((hub: Hub, symbol: string)=>{
-            console.log(`Hub: ${symbol}`.blue);
-            let market_list: string[] = [];
-            hub.markets.forEach((market: Market, market_symbol: string)=>{
-                market_list.push(market_symbol);
-            });
-            console.log(`Markets: ${market_list.join(',')}`.magenta);
-        });
+        exchange.log();
     });
     // setTimeout(print_exchanges, 5000);
 }

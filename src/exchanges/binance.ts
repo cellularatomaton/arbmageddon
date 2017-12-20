@@ -46,7 +46,7 @@ export class BinanceExchange extends Exchange {
                 }
             }
             if(hub_symbol === `NOHUB`){
-                console.log(`Binance failed to parse ticker symbol ${key}`);
+                console.log(`Binance malformed symbol ${key}`);
             }else{
                 exchange.map_ticker(
                     hub_symbol,
