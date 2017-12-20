@@ -1,2 +1,2 @@
-# crypto-tools
-Cryptfolio management toolset based on node server.
+# ArbMageddon
+Cryptocurrency cross exchange arbitrage toolset based on node.
