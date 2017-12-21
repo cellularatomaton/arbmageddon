@@ -2,7 +2,7 @@ import { Hub, Market } from '../markets';
 import { Asset } from '../assets';
 
 export class Exchange {
-    hubs: Map<string, Hub>;
+    public hubs: Map<string, Hub>;
     constructor(
         public name: string,
         public asset_map: Map<string, Asset>

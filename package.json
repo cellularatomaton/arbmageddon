@@ -1,22 +1,30 @@
 {
-  "name": "crypto-tools",
+  "name": "arbmageddon",
   "version": "1.0.0",
   "description": "Cryptfolio management toolset based on node server.",
-  "main": "calc-weights.js",
   "dependencies": {
     "@types/colors": "^1.1.3",
+    "@types/node": "^8.5.1",
     "autobahn": "^17.5.2",
+    "body-parser": "~1.18.2",
     "colors": "^1.1.2",
+    "cookie-parser": "~1.4.3",
+    "debug": "~2.6.9",
+    "express": "~4.15.5",
     "gdax": "github:coinbase/gdax-node",
+    "hbs": "~4.0.1",
+    "morgan": "~1.9.0",
     "node-binance-api": "^0.2.11",
+    "serve-favicon": "~2.4.5",
+    "vis": "^4.21.0",
     "ws": "^2.3.1"
   },
   "devDependencies": {
-    "@types/node": "^8.5.1",
     "typescript": "^2.6.2"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "ts-node ./app/bin/www"
   },
   "repository": {
     "type": "git",

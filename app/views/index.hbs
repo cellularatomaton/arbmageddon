@@ -1,0 +1,46 @@
+<h1>{{title}}</h1>
+<div id="crypto-network"></div>
+<script type="text/javascript">
+    const loadGraph = function() {
+        const xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = function() {
+            if (xmlhttp.readyState == XMLHttpRequest.DONE) {   // XMLHttpRequest.DONE == 4
+            if (xmlhttp.status == 200) {
+                const graph = JSON.parse(xmlhttp.responseText);
+                const nodes = new vis.DataSet(graph.nodes);
+                const edges = new vis.DataSet(graph.edges);
+                const container = document.getElementById('crypto-network');
+                const data = {
+                    nodes: nodes,
+                    edges: edges
+                };
+                const options = {
+                    nodes: {
+                        shape: 'dot',
+                        scaling: {
+                            customScalingFunction: function (min,max,total,value) {
+                                return value/total;
+                            },
+                            min:10,
+                            max:1000
+                        }
+                    }
+                };
+                
+                // initialize your network!
+                const network = new vis.Network(container, data, options);
+            }
+            else if (xmlhttp.status == 400) {
+                alert('There was an error 400');
+            }
+            else {
+                alert('something else other than 200 was returned');
+            }
+            }
+        };
+
+        xmlhttp.open("GET", "graph", true);
+        xmlhttp.send();
+    }
+    loadGraph();
+</script>
