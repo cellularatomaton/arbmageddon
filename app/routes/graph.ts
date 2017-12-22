@@ -36,7 +36,6 @@ module.exports = function(exchanges: Exchange[]) {
         graph.nodes.push(hub_node);
         const hub_edge = {from: `e${exchange_index}`, to: `h${hub_index}`};
         graph.edges.push(hub_edge);
-        hub_index++;
         // console.log(`Processing ${hub.markets.size} markets...`)
         hub.markets.forEach((market: Market, key: string)=>{
           const market_node: any = {id: `m${market_index}`, label: market.asset.symbol, color: 'green', value: 1};
@@ -45,6 +44,7 @@ module.exports = function(exchanges: Exchange[]) {
           graph.edges.push(market_edge);
           market_index++;
         });
+        hub_index++;
       });  
     });
     res.send(JSON.stringify(graph));
