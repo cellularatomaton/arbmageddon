@@ -13,4 +13,7 @@ export class Market {
             this.asset = Asset.get_asset(asset_symbol, asset_map);
             this.asset.markets.push(this);
     }
+    get_id(){
+        return `${this.hub.exchange.get_id()}_${this.hub.get_id()}_${this.asset.symbol}`;
+    }
 };

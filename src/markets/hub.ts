@@ -13,4 +13,7 @@ export class Hub {
             this.asset.hubs.push(this);
             this.markets = new Map<string, Market>();
     }
+    get_id(){
+        return `${this.exchange.get_id()}_${this.asset.symbol}`;
+    }
 }

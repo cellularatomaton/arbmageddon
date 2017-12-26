@@ -25,7 +25,7 @@ export class PoloniexExchange extends Exchange {
                     const hub_symbol = symbols[0];
                     const market_symbol = symbols[1];
 
-                    exchange.map_ticker(
+                    exchange.update_market(
                         hub_symbol,
                         market_symbol,
                         Number(ticker.highestBid),

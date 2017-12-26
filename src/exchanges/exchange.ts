@@ -9,12 +9,16 @@ export class Exchange {
     ){
         this.hubs = new Map<string, Hub>();
     }
+    get_id(){
+        return this.name;
+    }
+
     marketBuy(){}
     marketSell(){}
     fillHandler(callback: any){}
     positionHandler(callback: any){}
-    update_tickers(){}
-    map_symbols(
+
+    map_market(
         hub_symbol: string,
         market_symbol: string): any {
         if(!this.hubs.has(hub_symbol)){
@@ -43,13 +47,14 @@ export class Exchange {
             return market;
         }
     }
-    map_ticker(
+
+    update_market(
         hub_symbol: string,
         market_symbol: string,
         best_bid: number,
         best_ask: number,
     ){
-        const response = this.map_symbols(
+        const response = this.map_market(
             hub_symbol,
             market_symbol
         );

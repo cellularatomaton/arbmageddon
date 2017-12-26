@@ -10,8 +10,10 @@ const bodyParser = require('body-parser');
 const index = require('./routes/index');
 const users = require('./routes/users');
 const graph = require('./routes/graph');
+const enableWs = require('express-ws');
 
 const app = express();
+enableWs(app);
 const asset_map = new Map<string, Asset>();
 const exchanges: Exchange[] = [
     new GdaxExchange(asset_map),
