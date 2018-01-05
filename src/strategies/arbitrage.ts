@@ -32,7 +32,7 @@ export class Arb {
         const sell_exchange = sell_market.hub.exchange;
         const sell_conversion_hub = sell_exchange.hubs.get(buy_market.hub.asset.symbol);
         this.sell_conversion = sell_conversion_hub ? sell_conversion_hub.markets.get(sell_market.hub.asset.symbol) : null;
-        if(buy_market.best_ask === 0 || sell_market.best_bid === 0){
+        if(buy_market.statistics.get_best_ask_avg() === 0 || sell_market.statistics.get_best_bid_avg() === 0){
             this.type = ArbType.NONE;
             this.conversion_type = ArbConversionType.NONE;
         }
@@ -99,22 +99,22 @@ export class Arb {
     // }
 
     get_spread(){
-        const spread = this.sell_market.best_bid - this.buy_market.best_ask;
+        const spread = this.sell_market.statistics.get_best_bid_avg() - this.buy_market.statistics.get_best_ask_avg();
         return spread;
     }
 
     get_spread_percent(){
         const spread = this.get_spread();
-        if(this.buy_market.best_ask === 0){
+        if(this.buy_market.statistics.get_best_ask_avg() === 0){
             return Number.NaN;
         }else{
-            return spread / this.buy_market.best_ask;
+            return spread / this.buy_market.statistics.get_best_ask_avg();
         }
     }
 
     get_buy_conversion_spread(){
         if(this.buy_conversion){
-            return this.sell_market.best_bid - this.buy_market.best_ask * this.buy_conversion.best_ask;
+            return this.sell_market.statistics.get_best_bid_avg() - this.buy_market.statistics.get_best_ask_avg() * this.buy_conversion.statistics.get_best_ask_avg();
         }else{
             return Number.NaN;
         }
@@ -122,7 +122,7 @@ export class Arb {
 
     get_buy_conversion_spread_percent(){
         if(this.buy_conversion){
-            const initial_value = this.buy_market.best_ask * this.buy_conversion.best_ask;
+            const initial_value = this.buy_market.statistics.get_best_ask_avg() * this.buy_conversion.statistics.get_best_ask_avg();
             if(initial_value === 0){
                 return Number.NaN;
             }else{
@@ -135,7 +135,7 @@ export class Arb {
 
     get_sell_conversion_spread(){
         if(this.sell_conversion){
-            return this.sell_market.best_bid * this.sell_conversion.best_bid - this.buy_market.best_ask;
+            return this.sell_market.statistics.get_best_bid_avg() * this.sell_conversion.statistics.get_best_bid_avg() - this.buy_market.statistics.get_best_ask_avg();
         }else{
             return Number.NaN;
         }
@@ -143,7 +143,7 @@ export class Arb {
 
     get_sell_conversion_spread_percent(){
         if(this.sell_conversion){
-            const initial_value = this.buy_market.best_ask;
+            const initial_value = this.buy_market.statistics.get_best_ask_avg();
             if(initial_value === 0){
                 return Number.NaN;
             }else{
@@ -189,7 +189,7 @@ export class Arb {
     public get_buy_log_string(){
         const buy_exchange = this.buy_market.hub.exchange.name.blue;
         const buy_symbol = `${this.buy_market.asset.symbol}/${this.buy_market.hub.asset.symbol}`.blue;
-        const buy_price = this.buy_market.best_ask.toString().blue;
+        const buy_price = this.buy_market.statistics.get_best_ask_avg().toString().blue;
         const buy_text = `Buy ${buy_exchange} ${buy_symbol} ${buy_price}`.blue;
         return buy_text;
     }
@@ -197,23 +197,31 @@ export class Arb {
     public get_sell_log_string(){
         const sell_exchange = this.sell_market.hub.exchange.name.cyan;
         const sell_symbol = `${this.sell_market.asset.symbol}/${this.sell_market.hub.asset.symbol}`.cyan;
-        const sell_price = this.sell_market.best_bid.toString().cyan;
+        const sell_price = this.sell_market.statistics.get_best_bid_avg().toString().cyan;
         const sell_text = `Sell ${sell_exchange} ${sell_symbol} ${sell_price}`.cyan;
         return sell_text;
     }
 
     public get_buy_conv_log_string(){
-        const buy_conversion_price = this.buy_conversion.best_ask.toString().blue;
-        const buy_conversion_symbol = `${this.buy_conversion.asset.symbol}/${this.buy_conversion.hub.asset.symbol}`.blue;
-        const buy_convert_text = `Buy Convert: ${buy_conversion_symbol} ${buy_conversion_price}`.blue;
-        return buy_convert_text;
+        if(this.buy_conversion){
+            const buy_conversion_price = this.buy_conversion.statistics.get_best_ask_avg().toString().blue;
+            const buy_conversion_symbol = `${this.buy_conversion.asset.symbol}/${this.buy_conversion.hub.asset.symbol}`.blue;
+            const buy_convert_text = `Buy Convert: ${buy_conversion_symbol} ${buy_conversion_price}`.blue;
+            return buy_convert_text;
+        }else{
+            return `Undefined Buy Conversion!`;
+        }
     }
 
     public get_sell_conv_log_string(){
-        const sell_conversion_price = this.sell_conversion.best_ask.toString().cyan;
-        const sell_conversion_symbol = `${this.sell_conversion.asset.symbol}/${this.sell_conversion.hub.asset.symbol}`.cyan;
-        const sell_convert_text = `Sell Convert: ${sell_conversion_symbol} ${sell_conversion_price}`.cyan;
-        return sell_convert_text;
+        if(this.sell_conversion){
+            const sell_conversion_price = this.sell_conversion.statistics.get_best_bid_avg().toString().cyan;
+            const sell_conversion_symbol = `${this.sell_conversion.asset.symbol}/${this.sell_conversion.hub.asset.symbol}`.cyan;
+            const sell_convert_text = `Sell Convert: ${sell_conversion_symbol} ${sell_conversion_price}`.cyan;
+            return sell_convert_text;
+        }else{
+            return `Undefined Sell Conversion!`;
+        }
     }
 
     public log_arb(){

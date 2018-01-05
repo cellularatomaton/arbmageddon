@@ -1,5 +1,5 @@
 import { Exchange } from './exchange';
-import { Hub, Market } from '../markets';
+import { Hub, Market, Graph, TradeType } from '../markets';
 import { Asset } from '../assets';
 
 const binance = require('node-binance-api');
@@ -11,39 +11,36 @@ const hub_symbols = new Set([
 ]);
 
 export class BinanceExchange extends Exchange {
+    symbol_list: string[];
     constructor(
-        asset_map: Map<string, Asset>
+        graph: Graph
     ){
-        super('BINA', asset_map);
-        this.update_exchange_info();
-        this.bina_market_update_loop();
+        super('BINA', graph);
+        this.update_exchange_info()
+            .then(() => {
+                this.setup_websockets(this.symbol_list);
+            });
     }
     marketBuy(){}
     marketSell(){}
     
-    update_exchange_info(){
+    update_exchange_info() : Promise <void> {
         const exchange = this;
-        binance.exchangeInfo((info: any)=>{
-            
-            const markets = info.symbols;
-            markets.forEach((market: any)=>{
-                const hub_symbol = market.quoteAsset;
-                const market_symbol = market.baseAsset;
-                console.log(`Binance mapping symbols: Hub ${hub_symbol} -> Market ${market_symbol}`);
-                exchange.map_market(hub_symbol, market_symbol);
+        return new Promise((resolve, reject) => {
+            binance.exchangeInfo((info: any)=>{     
+                const markets = info.symbols;
+                markets.forEach((market: any)=>{
+                    const hub_symbol = market.quoteAsset;
+                    const market_symbol = market.baseAsset;
+                    // console.log(`Binance mapping symbols: Hub ${hub_symbol} -> Market ${market_symbol}`);
+                    exchange.map_market(hub_symbol, market_symbol);
+                });
+                this.symbol_list = markets.map((m: any) => {return m.symbol;});
+                resolve();
             });
         });
     }
-    
-    bina_market_update_loop(){
-        const exchange = this;    
-        binance.bookTickers(function(tickers: any) {
-            // console.log("bookTickers", ticker);
-            exchange.handle_tickers(tickers);
-        });
-        setTimeout(this.bina_market_update_loop, 1000);
-    }
-    
+      
     parse_symbols(key: string) : string[]{
         let market_symbol = `NOMARKET`;
         let hub_symbol = `NOHUB`;
@@ -64,23 +61,51 @@ export class BinanceExchange extends Exchange {
         return [hub_symbol, market_symbol];
     }
 
-    handle_tickers(tickers: any){
+    setup_websockets(symbols: string[]){
         const exchange = this;
-        Object.keys(tickers).forEach((key) => {
-            const ticker = tickers[key];
-            const parsed_symbols = this.parse_symbols(key);
-            const hub_symbol = parsed_symbols[0];
-            const market_symbol = parsed_symbols[1];
-            if(hub_symbol === `NOHUB`){
-                console.log(`Binance malformed symbol ${key}`);
-            }else{
-                exchange.update_market(
-                    hub_symbol,
-                    market_symbol,
-                    Number(ticker.bid),
-                    Number(ticker.ask)
-                );
-            }
-        });
+        binance.websockets.trades(symbols, function(trades: any) {
+            // let {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId} = trades;
+            // console.log(symbol+" trade update. price: "+price+", quantity: "+quantity+", maker: "+maker);
+            const parsed_symbols = exchange.parse_symbols(trades.s);
+
+            exchange.update_ticker({
+                hub_symbol: parsed_symbols[0],
+                market_symbol: parsed_symbols[1],
+                price: Number(trades.p),
+                side: trades.m ? TradeType.SELL : TradeType.BUY,
+                time: new Date(trades.T),
+                size: Number(trades.q)
+            });
+          });
     }
+
+    // static bina_market_update_loop(exchange: BinanceExchange){
+    //     // const exchange = this;    
+    //     binance.bookTickers(function(tickers: any) {
+    //         // console.log("bookTickers", ticker);
+    //         exchange.handle_tickers(tickers);
+    //     });
+    //     setTimeout(() => {BinanceExchange.bina_market_update_loop(exchange);}, 1000);
+    // }
+
+    // handle_tickers(tickers: any){
+    //     const exchange = this;
+    //     Object.keys(tickers).forEach((key) => {
+    //         const ticker = tickers[key];
+    //         const parsed_symbols = this.parse_symbols(key);
+    //         const hub_symbol = parsed_symbols[0];
+    //         const market_symbol = parsed_symbols[1];
+    //         if(hub_symbol === `NOHUB`){
+    //             console.log(`Binance malformed symbol ${key}`);
+    //         }else{
+    //             exchange.update_market(
+    //                 hub_symbol,
+    //                 market_symbol,
+    //                 Number(ticker.bid),
+    //                 Number(ticker.ask)
+    //             );
+                
+    //         }
+    //     });
+    // } 
 }

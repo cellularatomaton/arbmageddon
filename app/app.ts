@@ -1,4 +1,5 @@
 import { Asset } from '../src/assets';
+import { Hub, Market, Graph, GraphEvent, GraphEdge, GraphNode } from '../src/markets';
 import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from '../src/exchanges';
 
 const express = require('express');
@@ -7,19 +8,13 @@ const favicon = require('serve-favicon');
 const logger = require('morgan');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
-const index = require('./routes/index');
-const users = require('./routes/users');
-const graph = require('./routes/graph');
-const enableWs = require('express-ws');
+const index_route = require('./routes/index');
+const users_route = require('./routes/users');
+const graph_route = require('./routes/graph');
+const WebSocket = require('ws');
 
 const app = express();
-enableWs(app);
-const asset_map = new Map<string, Asset>();
-const exchanges: Exchange[] = [
-    new GdaxExchange(asset_map),
-    new BinanceExchange(asset_map),
-    new PoloniexExchange(asset_map)
-];
+const graph_model = new Graph(); 
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -35,9 +30,29 @@ const dataPath = path.join(path.dirname(__dirname), 'node_modules/vis/dist');
 app.use(express.static(dataPath));
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', index);
-app.use('/users', users);
-app.use('/graph', graph(exchanges));
+app.use('/', index_route);
+app.use('/users', users_route);
+app.use('/graph', graph_route(graph_model));
+
+// Websocket:
+const wss = new WebSocket.Server({ port: 8080 });
+// Broadcast to all.
+wss.broadcast = (event: any) => {
+  wss.clients.forEach((client: any) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(event));
+    }
+  });
+};
+
+graph_model.set_event_handler({
+  handle_edge_event(edge_event: GraphEvent<GraphEdge>){
+    wss.broadcast(edge_event);
+  },
+  handle_node_event(node_event: GraphEvent<GraphNode>){
+    wss.broadcast(node_event);
+  }
+});
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

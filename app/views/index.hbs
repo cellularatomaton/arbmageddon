@@ -1,11 +1,23 @@
 <h1>{{title}}</h1>
 <div id="crypto-network"></div>
 <script type="text/javascript">
-    const loadGraph = function() {
+    const setup_websocket = (edges) => {
+        const ws = new WebSocket('ws://localhost:8080/');
+        ws.addEventListener('message', function(message){
+            const event = JSON.parse(message.data);
+            if(event.type === 0){ // Spread Update
+
+            }else if(event.type === 1){ // Flow Update
+                edges.update(event.data);
+            }
+        }); 
+    };
+
+    const loadGraph = () => {
         const xmlhttp = new XMLHttpRequest();
         xmlhttp.onreadystatechange = function() {
-            if (xmlhttp.readyState == XMLHttpRequest.DONE) {   // XMLHttpRequest.DONE == 4
-            if (xmlhttp.status == 200) {
+            if (xmlhttp.readyState === XMLHttpRequest.DONE) {   // XMLHttpRequest.DONE == 4
+            if (xmlhttp.status === 200) {
                 const graph = JSON.parse(xmlhttp.responseText);
                 const nodes = new vis.DataSet(graph.nodes);
                 const edges = new vis.DataSet(graph.edges);
@@ -15,6 +27,9 @@
                     edges: edges
                 };
                 const options = {
+                    layout: {
+                        improvedLayout: false
+                    },
                     nodes: {
                         shape: 'dot',
                         scaling: {
@@ -24,13 +39,22 @@
                             min:10,
                             max:1000
                         }
+                    },
+                    physics: {
+                        forceAtlas2Based: {
+                            springLength: 100
+                        },
+                        minVelocity: 0.75,
+                        solver: "forceAtlas2Based"
                     }
                 };
                 
-                // initialize your network!
                 const network = new vis.Network(container, data, options);
+                network.on('startStabilizing', () => {
+                    setup_websocket(edges);
+                });
             }
-            else if (xmlhttp.status == 400) {
+            else if (xmlhttp.status === 400) {
                 alert('There was an error 400');
             }
             else {

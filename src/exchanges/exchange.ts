@@ -1,12 +1,18 @@
-import { Hub, Market } from '../markets';
+import { Hub, Market, Graph, Ticker, TradeType } from '../markets';
 import { Asset } from '../assets';
+
+export interface HubMarketPair {
+    hub_symbol: string;
+    market_symbol: string;
+}
 
 export class Exchange {
     public hubs: Map<string, Hub>;
     constructor(
         public name: string,
-        public asset_map: Map<string, Asset>
+        public graph: Graph
     ){
+
         this.hubs = new Map<string, Hub>();
     }
     get_id(){
@@ -26,8 +32,8 @@ export class Exchange {
                 hub_symbol, 
                 new Hub(
                     hub_symbol,
-                    this.asset_map,
-                    this
+                    this,
+                    this.graph,
                 )
             );
         }
@@ -37,8 +43,8 @@ export class Exchange {
                 market_symbol, 
                 new Market(
                     market_symbol,
-                    this.asset_map,
-                    hub
+                    hub,
+                    this.graph
                 )
             );
         }
@@ -61,8 +67,19 @@ export class Exchange {
         if(response){
             const market = response;
             market.best_bid = Number(best_bid);
-            market.best_ask = Number(best_bid);
+            market.best_ask = Number(best_ask);
         }
+    }
+
+    update_ticker(ticker: Ticker){
+        const response = this.map_market(
+            ticker.hub_symbol,
+            ticker.market_symbol
+        );
+        if(response){
+            const market = response;
+            market.update_statistics(ticker);
+        }  
     }
 
     public log(){
