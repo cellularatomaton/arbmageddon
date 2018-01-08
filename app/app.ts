@@ -11,6 +11,7 @@ const bodyParser = require('body-parser');
 const index_route = require('./routes/index');
 const users_route = require('./routes/users');
 const graph_route = require('./routes/graph');
+const arb_route = require('./routes/arb');
 const WebSocket = require('ws');
 
 const app = express();
@@ -33,6 +34,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', index_route);
 app.use('/users', users_route);
 app.use('/graph', graph_route(graph_model));
+app.use('/arb', arb_route(graph_model));
 
 // Websocket:
 const wss = new WebSocket.Server({ port: 8080 });

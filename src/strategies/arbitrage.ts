@@ -1,5 +1,7 @@
 import { Market } from '../markets';
 import 'colors';
+import { TradeType } from '../markets/ticker';
+import { ExecutionStrategy } from './execution';
 
 export enum ArbType {
     SIMPLE,
@@ -12,6 +14,19 @@ export enum ArbConversionType {
     SELL_SIDE,
     EITHER_SIDE,
     NONE
+}
+
+export interface ExecutionOperation {
+    exchange: string;
+    hub: string;
+    market: string;
+    type: TradeType;
+    price: number;
+}
+
+export interface ExecutionInstruction {
+    operations: ExecutionOperation[];
+    spread: number;
 }
 
 export class Arb {
@@ -66,37 +81,6 @@ export class Arb {
         const is_simple = (is_same_hub && !is_same_exchange);
         return is_simple;
     }
-
-    // log_arb_type() {
-    //     let arb_type = ArbType.NONE;
-    //     const buy_hub = this.buy_market.hub.asset.symbol;
-    //     const buy_exchange = this.buy_market.hub.exchange.name;
-    //     const sell_hub = this.sell_market.hub.asset.symbol;
-    //     const sell_exchange = this.sell_market.hub.exchange.name;
-    //     const is_same_hub = buy_hub === sell_hub;
-    //     const is_same_exchange = buy_exchange === sell_exchange;
-    //     // const is_simple = this.is_simple_arb();
-    //     // const is_complex = (is_same_hub) !is_same_exchange;
-    //     // Logging:
-    //     const is_simple_text = this.type === ArbType. ? is_simple.toString().green : is_simple.toString().red;
-    //     const is_same_hub_text = is_same_hub ? is_same_hub.toString().green : is_same_hub.toString().red;
-    //     const is_same_exchange_text = is_same_exchange ? is_same_exchange.toString().green : is_same_exchange.toString().red;
-    //     const buy_hub_text = buy_hub.blue;
-    //     const buy_market_text = buy_market.asset.symbol.blue;
-    //     const buy_exchange_text = buy_exchange.blue;
-    //     const sell_hub_text = sell_hub.magenta;
-    //     const sell_market_text = sell_market.asset.symbol.magenta;
-    //     const sell_exchange_text = sell_exchange.magenta;
-    
-        
-    //     if(is_simple){
-    //         arb_type = ArbType.SIMPLE;
-    //     }else if (is_complex){
-    //         arb_type = ArbType.COMPLEX;
-    //     }
-    //     console.log(`${ArbType[this.type]}: Buy ${buy_market_text} ${buy_hub_text} ${buy_exchange_text}, Sell ${sell_market_text} ${sell_hub_text} ${sell_exchange_text}, Same Hub? ${is_same_hub_text}, Same Exchange ${is_same_exchange_text}`);
-    //     return arb_type;
-    // }
 
     get_spread(){
         const spread = this.sell_market.statistics.get_best_bid_avg() - this.buy_market.statistics.get_best_ask_avg();
@@ -194,12 +178,32 @@ export class Arb {
         return buy_text;
     }
 
+    public get_buy_operation() : ExecutionOperation {
+        return {
+            exchange: this.buy_market.hub.exchange.name,
+            hub: this.buy_market.hub.asset.symbol,
+            market: this.buy_market.asset.symbol,
+            type: TradeType.BUY,
+            price: this.buy_market.statistics.get_best_ask_avg()
+        };
+    }
+
     public get_sell_log_string(){
         const sell_exchange = this.sell_market.hub.exchange.name.cyan;
         const sell_symbol = `${this.sell_market.asset.symbol}/${this.sell_market.hub.asset.symbol}`.cyan;
         const sell_price = this.sell_market.statistics.get_best_bid_avg().toString().cyan;
         const sell_text = `Sell ${sell_exchange} ${sell_symbol} ${sell_price}`.cyan;
         return sell_text;
+    }
+
+    public get_sell_operation() : ExecutionOperation {
+        return {
+            exchange: this.sell_market.hub.exchange.name,
+            hub: this.sell_market.hub.asset.symbol,
+            market: this.sell_market.asset.symbol,
+            type: TradeType.SELL,
+            price: this.sell_market.statistics.get_best_bid_avg()
+        };
     }
 
     public get_buy_conv_log_string(){
@@ -213,6 +217,20 @@ export class Arb {
         }
     }
 
+    public get_buy_conv_operation() : ExecutionOperation | null {
+        if(this.buy_conversion){
+            return {
+                exchange: this.buy_conversion.hub.exchange.name,
+                hub: this.buy_conversion.hub.asset.symbol,
+                market: this.buy_conversion.asset.symbol,
+                type: TradeType.BUY,
+                price: this.buy_conversion.statistics.get_best_ask_avg()
+            };
+        }else{
+            return null;
+        }
+    }
+
     public get_sell_conv_log_string(){
         if(this.sell_conversion){
             const sell_conversion_price = this.sell_conversion.statistics.get_best_bid_avg().toString().cyan;
@@ -221,6 +239,20 @@ export class Arb {
             return sell_convert_text;
         }else{
             return `Undefined Sell Conversion!`;
+        }
+    }
+
+    public get_sell_conv_operation() : ExecutionOperation | null {
+        if(this.sell_conversion){
+            return {
+                exchange: this.sell_conversion.hub.exchange.name,
+                hub: this.sell_conversion.hub.asset.symbol,
+                market: this.sell_conversion.asset.symbol,
+                type: TradeType.SELL,
+                price: this.sell_conversion.statistics.get_best_bid_avg()
+            };
+        }else{
+            return null;
         }
     }
 
@@ -259,5 +291,95 @@ export class Arb {
         }else{
             console.log(`No Arb Type.`);
         }
+    }
+
+    public get_simple_instructions() : ExecutionInstruction | null {
+        const spread = this.get_spread_percent();
+        const buy = this.get_buy_operation();
+        const sell = this.get_sell_operation();
+        const operations: ExecutionOperation[] = [];
+        const instructions = {
+            operations: operations,
+            spread: spread
+        };
+        instructions.operations.push(buy);
+        instructions.operations.push(sell);
+        return instructions;
+    }
+
+    public get_buy_convert_instructions() : ExecutionInstruction | null {
+        const buy_convert_spread = this.get_buy_conversion_spread_percent();
+        const buy = this.get_buy_operation();
+        const sell = this.get_sell_operation();
+        const buy_convert = this.get_buy_conv_operation();
+        if(buy_convert){
+            const operations: ExecutionOperation[] = [];
+            const instructions = {
+                operations: operations,
+                spread: buy_convert_spread
+            };
+            instructions.operations.push(buy_convert);
+            instructions.operations.push(buy);
+            instructions.operations.push(sell);
+            return instructions;
+        }else{
+            return null;
+        }
+    }
+
+    public get_sell_convert_instructions() : ExecutionInstruction | null {
+        const sell_convert_spread = this.get_sell_conversion_spread_percent();
+        const buy = this.get_buy_operation();
+        const sell = this.get_sell_operation();
+        const sell_convert = this.get_sell_conv_operation();
+        if(sell_convert){
+            const operations: ExecutionOperation[] = [];
+            const instructions = {
+                operations: operations,
+                spread: sell_convert_spread
+            };
+            instructions.operations.push(buy);
+            instructions.operations.push(sell);
+            instructions.operations.push(sell_convert);
+            return instructions;
+        }else{
+            return null;
+        }
+    }
+
+    public get_instructions() : ExecutionInstruction[] {
+        const instructions: ExecutionInstruction[] = [];
+        if(this.type === ArbType.SIMPLE){
+            const instruction = this.get_simple_instructions();
+            if(instruction){
+                instructions.push(instruction);
+            }
+        }else if(this.type === ArbType.COMPLEX){
+            if(this.conversion_type === ArbConversionType.EITHER_SIDE){
+                const sell_convert_instruction = this.get_sell_convert_instructions();
+                if(sell_convert_instruction){
+                    instructions.push(sell_convert_instruction);
+                }
+                const buy_convert_instruction = this.get_buy_convert_instructions();
+                if(buy_convert_instruction){
+                    instructions.push(buy_convert_instruction);
+                }
+            }else if(this.conversion_type === ArbConversionType.BUY_SIDE){
+                const buy_convert_instruction = this.get_buy_convert_instructions();
+                if(buy_convert_instruction){
+                    instructions.push(buy_convert_instruction);
+                }
+            }else if(this.conversion_type === ArbConversionType.SELL_SIDE){
+                const sell_convert_instruction = this.get_sell_convert_instructions();
+                if(sell_convert_instruction){
+                    instructions.push(sell_convert_instruction);
+                }
+            }else{
+                console.log(`No Conversion Type.`);
+            }
+        }else{
+            console.log(`No Arb Type.`);
+        }
+        return instructions;
     }
 }

@@ -8,7 +8,7 @@
             if(event.type === 0){ // Spread Update
 
             }else if(event.type === 1){ // Flow Update
-                edges.update(event.data);
+                //edges.update(event.data);
             }
         }); 
     };
@@ -51,6 +51,14 @@
                 
                 const network = new vis.Network(container, data, options);
                 network.on('startStabilizing', () => {
+                    
+                });
+                network.on('stabilized', () => {
+                    network.setOptions({
+                        physics:{
+                            enabled: false
+                        }
+                    });
                     setup_websocket(edges);
                 });
             }

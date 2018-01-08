@@ -72,7 +72,7 @@ export class TickerStatistics {
             const edge_event = {
                 type: GraphEventType.SPREAD_UPDATE,
                 data: {
-                    id: `E_${this.market.hub.get_id()}`,
+                    id: `E_${this.market.get_id()}`,
                     from: this.market.hub.get_id(),
                     to: this.market.get_id(),
                     value: this.get_bid_ask_spread()
@@ -84,7 +84,7 @@ export class TickerStatistics {
             const edge_event = {
                 type: GraphEventType.FLOW_UPDATE,
                 data: {
-                    id: `E_${this.market.hub.get_id()}`,
+                    id: `E_${this.market.get_id()}`,
                     from: this.market.hub.get_id(),
                     to: this.market.get_id(),
                     value: 0
