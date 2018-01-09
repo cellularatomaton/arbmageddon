@@ -78,7 +78,8 @@ export class Exchange {
         );
         if(response){
             const market = response;
-            market.update_statistics(ticker);
+            // market.update_statistics(ticker);
+            market.update_vwap(ticker);
         }  
     }
 

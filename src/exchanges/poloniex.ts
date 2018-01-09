@@ -92,6 +92,7 @@ export class PoloniexExchange extends Exchange {
                         if(pair){
                             const trade_id: number = Number(m[1]);
                             exchange.update_ticker({
+                                exchange_symbol: exchange.name,
                                 hub_symbol: pair.hub_symbol,
                                 market_symbol: pair.market_symbol,
                                 side: m[2] ? TradeType.BUY : TradeType.SELL,

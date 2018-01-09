@@ -55,6 +55,7 @@ export class GdaxExchange extends Exchange {
         // console.log(data);
         const symbols = data.product_id.split('-');
         exchange.update_ticker({
+            exchange_symbol: this.name,
             hub_symbol: symbols[0],
             market_symbol: symbols[1],
             best_ask: Number(data.best_ask),
@@ -62,7 +63,7 @@ export class GdaxExchange extends Exchange {
             price: Number(data.price),
             side: data.side === 'buy' ? TradeType.BUY : TradeType.SELL,
             time: new Date(data.time),
-            size: Number(data.size)
+            size: Number(data.last_size)
         });
     }
 

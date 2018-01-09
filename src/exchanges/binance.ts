@@ -69,6 +69,7 @@ export class BinanceExchange extends Exchange {
             const parsed_symbols = exchange.parse_symbols(trades.s);
 
             exchange.update_ticker({
+                exchange_symbol: exchange.name,
                 hub_symbol: parsed_symbols[0],
                 market_symbol: parsed_symbols[1],
                 price: Number(trades.p),

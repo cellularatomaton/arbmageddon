@@ -47,7 +47,7 @@ export class Arb {
         const sell_exchange = sell_market.hub.exchange;
         const sell_conversion_hub = sell_exchange.hubs.get(buy_market.hub.asset.symbol);
         this.sell_conversion = sell_conversion_hub ? sell_conversion_hub.markets.get(sell_market.hub.asset.symbol) : null;
-        if(buy_market.statistics.get_best_ask_avg() === 0 || sell_market.statistics.get_best_bid_avg() === 0){
+        if(buy_market.vwap_sell_stats.get_vwap() === 0 || sell_market.vwap_buy_stats.get_vwap() === 0){
             this.type = ArbType.NONE;
             this.conversion_type = ArbConversionType.NONE;
         }
@@ -83,22 +83,22 @@ export class Arb {
     }
 
     get_spread(){
-        const spread = this.sell_market.statistics.get_best_bid_avg() - this.buy_market.statistics.get_best_ask_avg();
+        const spread = this.sell_market.vwap_buy_stats.get_vwap() - this.buy_market.vwap_sell_stats.get_vwap();
         return spread;
     }
 
     get_spread_percent(){
         const spread = this.get_spread();
-        if(this.buy_market.statistics.get_best_ask_avg() === 0){
+        if(this.buy_market.vwap_sell_stats.get_vwap() === 0){
             return Number.NaN;
         }else{
-            return spread / this.buy_market.statistics.get_best_ask_avg();
+            return spread / this.buy_market.vwap_sell_stats.get_vwap();
         }
     }
 
     get_buy_conversion_spread(){
         if(this.buy_conversion){
-            return this.sell_market.statistics.get_best_bid_avg() - this.buy_market.statistics.get_best_ask_avg() * this.buy_conversion.statistics.get_best_ask_avg();
+            return this.sell_market.vwap_buy_stats.get_vwap() - this.buy_market.vwap_sell_stats.get_vwap() * this.buy_conversion.vwap_sell_stats.get_vwap();
         }else{
             return Number.NaN;
         }
@@ -106,7 +106,7 @@ export class Arb {
 
     get_buy_conversion_spread_percent(){
         if(this.buy_conversion){
-            const initial_value = this.buy_market.statistics.get_best_ask_avg() * this.buy_conversion.statistics.get_best_ask_avg();
+            const initial_value = this.buy_market.vwap_sell_stats.get_vwap() * this.buy_conversion.vwap_sell_stats.get_vwap();
             if(initial_value === 0){
                 return Number.NaN;
             }else{
@@ -119,7 +119,7 @@ export class Arb {
 
     get_sell_conversion_spread(){
         if(this.sell_conversion){
-            return this.sell_market.statistics.get_best_bid_avg() * this.sell_conversion.statistics.get_best_bid_avg() - this.buy_market.statistics.get_best_ask_avg();
+            return this.sell_market.vwap_buy_stats.get_vwap() * this.sell_conversion.vwap_buy_stats.get_vwap() - this.buy_market.vwap_sell_stats.get_vwap();
         }else{
             return Number.NaN;
         }
@@ -127,7 +127,7 @@ export class Arb {
 
     get_sell_conversion_spread_percent(){
         if(this.sell_conversion){
-            const initial_value = this.buy_market.statistics.get_best_ask_avg();
+            const initial_value = this.buy_market.vwap_sell_stats.get_vwap();
             if(initial_value === 0){
                 return Number.NaN;
             }else{
@@ -173,7 +173,7 @@ export class Arb {
     public get_buy_log_string(){
         const buy_exchange = this.buy_market.hub.exchange.name.blue;
         const buy_symbol = `${this.buy_market.asset.symbol}/${this.buy_market.hub.asset.symbol}`.blue;
-        const buy_price = this.buy_market.statistics.get_best_ask_avg().toString().blue;
+        const buy_price = this.buy_market.vwap_sell_stats.get_vwap().toString().blue;
         const buy_text = `Buy ${buy_exchange} ${buy_symbol} ${buy_price}`.blue;
         return buy_text;
     }
@@ -184,14 +184,14 @@ export class Arb {
             hub: this.buy_market.hub.asset.symbol,
             market: this.buy_market.asset.symbol,
             type: TradeType.BUY,
-            price: this.buy_market.statistics.get_best_ask_avg()
+            price: this.buy_market.vwap_sell_stats.get_vwap()
         };
     }
 
     public get_sell_log_string(){
         const sell_exchange = this.sell_market.hub.exchange.name.cyan;
         const sell_symbol = `${this.sell_market.asset.symbol}/${this.sell_market.hub.asset.symbol}`.cyan;
-        const sell_price = this.sell_market.statistics.get_best_bid_avg().toString().cyan;
+        const sell_price = this.sell_market.vwap_buy_stats.get_vwap().toString().cyan;
         const sell_text = `Sell ${sell_exchange} ${sell_symbol} ${sell_price}`.cyan;
         return sell_text;
     }
@@ -202,13 +202,13 @@ export class Arb {
             hub: this.sell_market.hub.asset.symbol,
             market: this.sell_market.asset.symbol,
             type: TradeType.SELL,
-            price: this.sell_market.statistics.get_best_bid_avg()
+            price: this.sell_market.vwap_buy_stats.get_vwap()
         };
     }
 
     public get_buy_conv_log_string(){
         if(this.buy_conversion){
-            const buy_conversion_price = this.buy_conversion.statistics.get_best_ask_avg().toString().blue;
+            const buy_conversion_price = this.buy_conversion.vwap_sell_stats.get_vwap().toString().blue;
             const buy_conversion_symbol = `${this.buy_conversion.asset.symbol}/${this.buy_conversion.hub.asset.symbol}`.blue;
             const buy_convert_text = `Buy Convert: ${buy_conversion_symbol} ${buy_conversion_price}`.blue;
             return buy_convert_text;
@@ -224,7 +224,7 @@ export class Arb {
                 hub: this.buy_conversion.hub.asset.symbol,
                 market: this.buy_conversion.asset.symbol,
                 type: TradeType.BUY,
-                price: this.buy_conversion.statistics.get_best_ask_avg()
+                price: this.buy_conversion.vwap_sell_stats.get_vwap()
             };
         }else{
             return null;
@@ -233,7 +233,7 @@ export class Arb {
 
     public get_sell_conv_log_string(){
         if(this.sell_conversion){
-            const sell_conversion_price = this.sell_conversion.statistics.get_best_bid_avg().toString().cyan;
+            const sell_conversion_price = this.sell_conversion.vwap_buy_stats.get_vwap().toString().cyan;
             const sell_conversion_symbol = `${this.sell_conversion.asset.symbol}/${this.sell_conversion.hub.asset.symbol}`.cyan;
             const sell_convert_text = `Sell Convert: ${sell_conversion_symbol} ${sell_conversion_price}`.cyan;
             return sell_convert_text;
@@ -249,7 +249,7 @@ export class Arb {
                 hub: this.sell_conversion.hub.asset.symbol,
                 market: this.sell_conversion.asset.symbol,
                 type: TradeType.SELL,
-                price: this.sell_conversion.statistics.get_best_bid_avg()
+                price: this.sell_conversion.vwap_buy_stats.get_vwap()
             };
         }else{
             return null;
@@ -351,27 +351,27 @@ export class Arb {
         const instructions: ExecutionInstruction[] = [];
         if(this.type === ArbType.SIMPLE){
             const instruction = this.get_simple_instructions();
-            if(instruction){
+            if(instruction && !Number.isNaN(instruction.spread)){
                 instructions.push(instruction);
             }
         }else if(this.type === ArbType.COMPLEX){
             if(this.conversion_type === ArbConversionType.EITHER_SIDE){
                 const sell_convert_instruction = this.get_sell_convert_instructions();
-                if(sell_convert_instruction){
+                if(sell_convert_instruction && !Number.isNaN(sell_convert_instruction.spread)){
                     instructions.push(sell_convert_instruction);
                 }
                 const buy_convert_instruction = this.get_buy_convert_instructions();
-                if(buy_convert_instruction){
+                if(buy_convert_instruction && ! !Number.isNaN(buy_convert_instruction.spread)){
                     instructions.push(buy_convert_instruction);
                 }
             }else if(this.conversion_type === ArbConversionType.BUY_SIDE){
                 const buy_convert_instruction = this.get_buy_convert_instructions();
-                if(buy_convert_instruction){
+                if(buy_convert_instruction && !Number.isNaN(buy_convert_instruction.spread)){
                     instructions.push(buy_convert_instruction);
                 }
             }else if(this.conversion_type === ArbConversionType.SELL_SIDE){
                 const sell_convert_instruction = this.get_sell_convert_instructions();
-                if(sell_convert_instruction){
+                if(sell_convert_instruction && !Number.isNaN(sell_convert_instruction.spread)){
                     instructions.push(sell_convert_instruction);
                 }
             }else{
