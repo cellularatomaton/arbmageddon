@@ -286,8 +286,6 @@ export class Arb {
             }else{
                 console.log(`No Conversion Type.`);
             }
-
-            
         }else{
             console.log(`No Arb Type.`);
         }

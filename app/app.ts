@@ -9,6 +9,7 @@ const logger = require('morgan');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const index_route = require('./routes/index');
+const index_dash = require('./routes/dash');
 const users_route = require('./routes/users');
 const graph_route = require('./routes/graph');
 const arb_route = require('./routes/arb');
@@ -18,8 +19,9 @@ const app = express();
 const graph_model = new Graph(); 
 
 // view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'hbs');
+app.set('views', __dirname + '/views');
+app.engine('.html', require('ejs').renderFile);
+// app.set('view engine', 'ejs');
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -32,9 +34,14 @@ app.use(express.static(dataPath));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', index_route);
+app.get('/dash', function (req, res)
+{
+    res.render('dash.html');
+});
+
 app.use('/users', users_route);
 app.use('/graph', graph_route(graph_model));
-app.use('/arb', arb_route(graph_model));
+app.use('/arbs', arb_route(graph_model));
 
 // Websocket:
 const wss = new WebSocket.Server({ port: 8080 });
@@ -71,7 +78,7 @@ app.use(function(err, req, res, next) {
 
   // render the error page
   res.status(err.status || 500);
-  res.render('error');
+  res.render('error.html');
 });
 
 module.exports = app;
