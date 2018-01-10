@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Arbmageddon</title>
+    <script type="text/javascript" src="vis.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-resource@1.3.5"></script>
+    <link href="vis.css" rel="stylesheet" type="text/css" />
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <style type="text/css">
+        .app-container {
+            position: absolute;
+            height: 100%;
+            width: 100%;
+        }
+        .flex-row {
+            display: flex; /* or inline-flex */
+            flex-direction: row;
+            align-items: stretch;
+        }
+        .flex-col {
+            display: flex; /* or inline-flex */
+            flex-direction: column;
+            /* height: 100%; */
+        }
+        .flex-child-grow {
+            flex-grow: 1; /* default 0 */
+        }
+        .header {
+            height: 60;
+        }
+        .left-panel {
+            overflow-y: auto;
+        }
+        .operation {
+            margin-right: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-dash" class="app-container flex-col">
+        <div class="header">
+            <h2>Arbmageddon</h2>
+        </div>
+        <div class="flex-row flex-child-grow">
+            <div class="left-panel">
+                <table>
+                    <thead>
+                        <th>Arb</th>
+                        <th>Spread</th>
+                    </thead>
+                    <tbody>
+                        <tr v-for="inst in execution_instructions">
+                            <td><span class="operation" v-for="op in inst.operations">{{ op_string(op) }}</span></td>
+                            <td>{{ inst_spread(inst) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex-child-grow">
+                <iframe :src="multicharts_url" height="100%" width="100%"></iframe>
+            </div>
+        </div>
+    </div>
+    <script>
+        const appDash = new Vue({
+            el: '#app-dash',
+            data: {
+                execution_instructions: [],
+                multicharts_url: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC'
+            },
+            methods: {
+                get_arbs: function() {
+                    Vue.http.get('/arbs').then(response => {
+                        appDash.execution_instructions = response.body;
+                    }, response => {
+                        // error callback
+                    });
+                },
+                inst_spread: function(i) { return `${(i.spread*100).toFixed(2)}%`; },
+                op_string: function(op) {
+                    const t = op.type === 0 ? 'B' : 'S';
+                    return `${t}:${op.exchange}:${op.hub}:${op.market}`;
+                }
+            }
+        });
+        appDash.get_arbs();
+    </script>
+</body>
+</html>
