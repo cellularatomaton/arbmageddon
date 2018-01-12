@@ -63,27 +63,21 @@
         .op-kvp-list {
             background: white;
             color: black;
-            margin: 5px;
-            padding: 5px;
-        }
-        .op-kvp {
-            background: white;
-            color: black;
         }
         .full-width {
             width: 100%;
         }
-        .std-pad {
+        .elbow-room {
             margin: 5px;
             padding: 5px;
         }
     </style>
     <script type="text/x-template" id="operation-template">
-        <div class="operation flex-col">
+        <div class="elbow-room flex-col">
             <div>
                 <h3 class="op-title">{{ title }}</h3>
             </div>
-            <div class="flex-child-grow flex-row flex-wrap flex-stretch op-kvp-list">
+            <div class="flex-child-grow flex-row flex-wrap flex-stretch op-kvp-list elbow-room">
                 <div class="flex-child-grow">
                     <span>VWAP</span>
                     <span>{{ operation.price }}</span>
@@ -97,7 +91,7 @@
                     <span>{{ operation.position }}</span>
                 </div>
             </div>
-            <div class="flex-child-grow flex-row flex-wrap flex-stretch op-kvp-list">
+            <div class="flex-child-grow flex-row flex-wrap flex-stretch op-kvp-list elbow-room">
                 <div class="flex-child-grow">
                     <span>Open Bids</span>
                     <span>{{ operation.open_bids }}</span>
@@ -107,20 +101,18 @@
                     <span>{{ operation.open_asks }}</span>
                 </div>
             </div>
-            <div>
-                <button class="full-width">Execute!</button>
-            </div>
+            <button class="elbow-room">Execute!</button>
         </div>
     </script>
 </head>
 <body>
-    <div id="app-dash" class="app-container flex-col">
+    <div id="app-dash" class="app-container flex-col elbow-room">
         <div>
             <div class="flex-row flex-stretch">
-                <execution-component class="buy-convert-op flex-child-grow" title="Buy Convert" operation="selected_inst.convert"></execution-component>
-                <execution-component class="buy-op flex-child-grow" title="Buy" operation="selected_inst.buy"></execution-component>
-                <execution-component class="sell-op flex-child-grow" title="Sell" operation="selected_inst.sell"></execution-component>
-                <execution-component class="sell-convert-op flex-child-grow" title="Sell Convert" operation="selected_inst.convert"></execution-component>
+                <execution-component v-if="selected_inst.type === 1" class="buy-convert-op flex-child-grow" title="Buy Convert" :operation="selected_inst.convert"></execution-component>
+                <execution-component class="buy-op flex-child-grow" title="Buy" :operation="selected_inst.buy"></execution-component>
+                <execution-component class="sell-op flex-child-grow" title="Sell" :operation="selected_inst.sell"></execution-component>
+                <execution-component v-if="selected_inst.type === 2" class="sell-convert-op flex-child-grow" title="Sell Convert" :operation="selected_inst.convert"></execution-component>
             </div>
         </div>
         <div class="flex-row flex-child-grow flex-stretch">
