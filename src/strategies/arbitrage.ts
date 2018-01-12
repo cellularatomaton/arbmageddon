@@ -16,17 +16,26 @@ export enum ArbConversionType {
     NONE
 }
 
+export enum InstructionType {
+    DIRECT,
+    ORIGIN_CONVERSION,
+    DESTINATION_CONVERSION
+}
+
 export interface ExecutionOperation {
     exchange: string;
     hub: string;
     market: string;
-    type: TradeType;
     price: number;
 }
 
 export interface ExecutionInstruction {
     operations: ExecutionOperation[];
     spread: number;
+    type: InstructionType;
+    buy: ExecutionOperation;
+    sell: ExecutionOperation;
+    convert?: ExecutionOperation;
 }
 
 export class Arb {
@@ -73,9 +82,9 @@ export class Arb {
 
     is_simple_arb() : boolean {
         const buy_hub = this.buy_market.hub.asset.symbol;
-        const buy_exchange = this.buy_market.hub.exchange.name;
+        const buy_exchange = this.buy_market.hub.exchange.id;
         const sell_hub = this.sell_market.hub.asset.symbol;
-        const sell_exchange = this.sell_market.hub.exchange.name;
+        const sell_exchange = this.sell_market.hub.exchange.id;
         const is_same_hub = buy_hub === sell_hub;
         const is_same_exchange = buy_exchange === sell_exchange;
         const is_simple = (is_same_hub && !is_same_exchange);
@@ -171,7 +180,7 @@ export class Arb {
     }
 
     public get_buy_log_string(){
-        const buy_exchange = this.buy_market.hub.exchange.name.blue;
+        const buy_exchange = this.buy_market.hub.exchange.id.blue;
         const buy_symbol = `${this.buy_market.asset.symbol}/${this.buy_market.hub.asset.symbol}`.blue;
         const buy_price = this.buy_market.vwap_sell_stats.get_vwap().toString().blue;
         const buy_text = `Buy ${buy_exchange} ${buy_symbol} ${buy_price}`.blue;
@@ -180,16 +189,15 @@ export class Arb {
 
     public get_buy_operation() : ExecutionOperation {
         return {
-            exchange: this.buy_market.hub.exchange.name,
+            exchange: this.buy_market.hub.exchange.id,
             hub: this.buy_market.hub.asset.symbol,
             market: this.buy_market.asset.symbol,
-            type: TradeType.BUY,
             price: this.buy_market.vwap_sell_stats.get_vwap()
         };
     }
 
     public get_sell_log_string(){
-        const sell_exchange = this.sell_market.hub.exchange.name.cyan;
+        const sell_exchange = this.sell_market.hub.exchange.id.cyan;
         const sell_symbol = `${this.sell_market.asset.symbol}/${this.sell_market.hub.asset.symbol}`.cyan;
         const sell_price = this.sell_market.vwap_buy_stats.get_vwap().toString().cyan;
         const sell_text = `Sell ${sell_exchange} ${sell_symbol} ${sell_price}`.cyan;
@@ -198,10 +206,9 @@ export class Arb {
 
     public get_sell_operation() : ExecutionOperation {
         return {
-            exchange: this.sell_market.hub.exchange.name,
+            exchange: this.sell_market.hub.exchange.id,
             hub: this.sell_market.hub.asset.symbol,
             market: this.sell_market.asset.symbol,
-            type: TradeType.SELL,
             price: this.sell_market.vwap_buy_stats.get_vwap()
         };
     }
@@ -220,10 +227,9 @@ export class Arb {
     public get_buy_conv_operation() : ExecutionOperation | null {
         if(this.buy_conversion){
             return {
-                exchange: this.buy_conversion.hub.exchange.name,
+                exchange: this.buy_conversion.hub.exchange.id,
                 hub: this.buy_conversion.hub.asset.symbol,
                 market: this.buy_conversion.asset.symbol,
-                type: TradeType.BUY,
                 price: this.buy_conversion.vwap_sell_stats.get_vwap()
             };
         }else{
@@ -245,10 +251,9 @@ export class Arb {
     public get_sell_conv_operation() : ExecutionOperation | null {
         if(this.sell_conversion){
             return {
-                exchange: this.sell_conversion.hub.exchange.name,
+                exchange: this.sell_conversion.hub.exchange.id,
                 hub: this.sell_conversion.hub.asset.symbol,
                 market: this.sell_conversion.asset.symbol,
-                type: TradeType.SELL,
                 price: this.sell_conversion.vwap_buy_stats.get_vwap()
             };
         }else{
@@ -298,10 +303,11 @@ export class Arb {
         const operations: ExecutionOperation[] = [];
         const instructions = {
             operations: operations,
-            spread: spread
+            spread: spread,
+            type: InstructionType.DIRECT,
+            buy: buy,
+            sell: sell
         };
-        instructions.operations.push(buy);
-        instructions.operations.push(sell);
         return instructions;
     }
 
@@ -314,11 +320,12 @@ export class Arb {
             const operations: ExecutionOperation[] = [];
             const instructions = {
                 operations: operations,
-                spread: buy_convert_spread
+                spread: buy_convert_spread,
+                type: InstructionType.ORIGIN_CONVERSION,
+                buy: buy,
+                sell: sell,
+                convert: buy_convert
             };
-            instructions.operations.push(buy_convert);
-            instructions.operations.push(buy);
-            instructions.operations.push(sell);
             return instructions;
         }else{
             return null;
@@ -334,11 +341,12 @@ export class Arb {
             const operations: ExecutionOperation[] = [];
             const instructions = {
                 operations: operations,
-                spread: sell_convert_spread
+                spread: sell_convert_spread,
+                type: InstructionType.DESTINATION_CONVERSION,
+                buy: buy,
+                sell: sell,
+                convert: sell_convert
             };
-            instructions.operations.push(buy);
-            instructions.operations.push(sell);
-            instructions.operations.push(sell_convert);
             return instructions;
         }else{
             return null;

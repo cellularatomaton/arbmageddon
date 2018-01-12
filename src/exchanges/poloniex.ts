@@ -13,7 +13,7 @@ export class PoloniexExchange extends Exchange {
     constructor(
         graph: Graph
     ){
-        super('POLO', graph);
+        super('PLX', 'POLONIEX', graph);
         this.id_to_symbol_map = new Map<number, HubMarketPair>();
         this.update_products()
             .then(() => { this.setup_websocket(); });
@@ -92,7 +92,7 @@ export class PoloniexExchange extends Exchange {
                         if(pair){
                             const trade_id: number = Number(m[1]);
                             exchange.update_ticker({
-                                exchange_symbol: exchange.name,
+                                exchange_symbol: exchange.id,
                                 hub_symbol: pair.hub_symbol,
                                 market_symbol: pair.market_symbol,
                                 side: m[2] ? TradeType.BUY : TradeType.SELL,

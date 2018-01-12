@@ -19,7 +19,7 @@ export class Asset {
     public log(){
         console.log(`Asset: ${this.symbol}`.yellow);
         console.log(`Hub count: ${this.hubs.length}`.green);
-        const exchanges = this.hubs.map(h=>{h.exchange.name}).join(',');
+        const exchanges = this.hubs.map(h=>{h.exchange.id}).join(',');
         console.log(`Exchanges: ${exchanges}`.green);
         console.log(`Market Count: ${this.markets.length}`.blue);
     }

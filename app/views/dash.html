@@ -35,6 +35,9 @@
         .operation {
             margin-right: 3px;
         }
+        .selected {
+            background-color: aqua;
+        }
     </style>
 </head>
 <body>
@@ -50,9 +53,11 @@
                         <th>Spread</th>
                     </thead>
                     <tbody>
-                        <tr v-for="inst in execution_instructions">
-                            <td><span class="operation" v-for="op in inst.operations">{{ op_string(op) }}</span></td>
-                            <td>{{ inst_spread(inst) }}</td>
+                        <tr v-for="inst in execution_inst">
+                            <td>{{ inst_string(inst) }}</td>
+                            <td><button 
+                                v-on:click="set_multicharts(inst)"
+                                v-bind:class="{ selected: inst.selected }">{{ inst_spread(inst) }}</button></td>
                         </tr>
                     </tbody>
                 </table>
@@ -63,28 +68,101 @@
         </div>
     </div>
     <script>
+        let exch_map = {};
+        let last_inst = null;
+        const get_coinigy_symbol = function(op){
+            return `${exch_map[op.exchange]}:${op.market}${op.hub}`;
+        }
+        const get_mcc_query_string = function(inst){
+            const buy = get_coinigy_symbol(inst.buy);
+            const sell = get_coinigy_symbol(inst.sell);
+            if(inst.type === 0){ // Buy Spread
+                return `?chart=${buy}&chart=${sell}&chart=${sell}-${buy}`;
+            }else { // Conversion
+                const convert = get_coinigy_symbol(inst.convert);
+                if(inst.type === 1){ // Origin Conversion
+                    return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}-${buy}*${convert}`;
+                }else if(inst.type === 2){ // Destination Conversion
+                    return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}*${convert}-${buy}`;
+                }else{
+                    return null;
+                }
+            }
+        }
+        const get_inst_string = function(inst){
+            const b_hub = `${inst.buy.exchange}:${inst.buy.hub}`;
+            const b_mkt = `${inst.buy.exchange}:${inst.buy.market}`;
+            const s_hub = `${inst.sell.exchange}:${inst.sell.hub}`;
+            const s_mkt = `${inst.sell.exchange}:${inst.sell.market}`;
+            if(inst.type === 0){ // Direct
+                return `B: ${b_hub}->${b_mkt}->${s_hub}`;
+            }else { // Conversion
+                const c_hub = `${inst.convert.exchange}:${inst.convert.hub}`;
+                const c_mkt = `${inst.convert.exchange}:${inst.convert.market}`;
+                if(inst.type === 1){ // Origin Conversion
+                    return `OC: ${c_hub}->${c_mkt}->${b_mkt}->${s_hub}`; // (b_mkt/c_hub) = (s_mkt/s_hub) 
+                }else if(inst.type === 2){ // Destination Conversion
+                    return `DC: ${b_hub}->${s_mkt}->${c_mkt}->${c_hub}`; // (b_mkt/b_hub) = (s_mkt/s_hub)*(c_mkt/c_hub) = (s_mkt/c_hub)
+                }else{
+                    return null;
+                }
+            }
+        }
         const appDash = new Vue({
             el: '#app-dash',
             data: {
-                execution_instructions: [],
+                exchanges: [],
+                execution_inst: [],
                 multicharts_url: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC'
             },
             methods: {
                 get_arbs: function() {
-                    Vue.http.get('/arbs').then(response => {
-                        appDash.execution_instructions = response.body;
-                    }, response => {
-                        // error callback
+                    return new Promise(function(resolve, reject) {
+                        Vue.http.get('/arbs').then(response => {
+                            appDash.execution_inst = response.body;
+                            resolve();
+                        }, response => {
+                            reject();
+                        });
+                    });
+                },
+                get_exchanges: function(){
+                    return new Promise(function(resolve, reject) {
+                        Vue.http.get('/graph/exchanges').then(response => {
+                            appDash.exchanges = response.body;
+                            exch_map = appDash.exchanges.reduce(function(map, exch){
+                                map[exch.id] = exch.name;
+                                return map;
+                            }, {});
+                            resolve();
+                        }, response => {
+                            reject();
+                        });
                     });
                 },
                 inst_spread: function(i) { return `${(i.spread*100).toFixed(2)}%`; },
-                op_string: function(op) {
-                    const t = op.type === 0 ? 'B' : 'S';
-                    return `${t}:${op.exchange}:${op.hub}:${op.market}`;
+                inst_string: function(inst){
+                    return get_inst_string(inst);
+                },
+                set_multicharts: function(inst){
+                    const query_string = get_mcc_query_string(inst);
+                    appDash.multicharts_url = `https://www.multicoincharts.com/${query_string}`;
+                    inst.selected = true;
+                    if(last_inst && last_inst.selected){
+                        last_inst.selected = false;
+                    }
+                    last_inst = inst;
                 }
             }
         });
-        appDash.get_arbs();
+        appDash
+            .get_exchanges()
+            .then(function(){
+                return appDash.get_arbs();
+            })
+            .then(function(){
+                appDash.set_multicharts(appDash.execution_inst[0]);
+            });
     </script>
 </body>
 </html>

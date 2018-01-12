@@ -23,7 +23,7 @@ export class GdaxExchange extends Exchange {
     constructor(
         graph: Graph
     ){
-        super('GDAX', graph);
+        super('GDX', 'COINBASE', graph);
         this.update_products()
             .then(() => { this.setup_websocket(); });
     }
@@ -55,7 +55,7 @@ export class GdaxExchange extends Exchange {
         // console.log(data);
         const symbols = data.product_id.split('-');
         exchange.update_ticker({
-            exchange_symbol: this.name,
+            exchange_symbol: this.id,
             hub_symbol: symbols[0],
             market_symbol: symbols[1],
             best_ask: Number(data.best_ask),

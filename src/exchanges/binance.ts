@@ -15,7 +15,7 @@ export class BinanceExchange extends Exchange {
     constructor(
         graph: Graph
     ){
-        super('BINA', graph);
+        super('BIN', 'BINANCE', graph);
         this.update_exchange_info()
             .then(() => {
                 this.setup_websockets(this.symbol_list);
@@ -69,7 +69,7 @@ export class BinanceExchange extends Exchange {
             const parsed_symbols = exchange.parse_symbols(trades.s);
 
             exchange.update_ticker({
-                exchange_symbol: exchange.name,
+                exchange_symbol: exchange.id,
                 hub_symbol: parsed_symbols[0],
                 market_symbol: parsed_symbols[1],
                 price: Number(trades.p),

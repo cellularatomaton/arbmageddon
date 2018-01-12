@@ -40,7 +40,7 @@ export class Graph {
         this.asset_map = new Map<string, Asset>();
         this.exchanges = [
             new GdaxExchange(this),
-            // new BinanceExchange(this),
+            new BinanceExchange(this),
             new PoloniexExchange(this)
         ];
     }
@@ -75,7 +75,7 @@ export class Graph {
             // Add node
             const node: GraphNode = {
                 id: `${exchange.get_id()}`, 
-                label: exchange.name, 
+                label: exchange.id, 
                 color: 'blue', 
                 value: 10
             };

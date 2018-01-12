@@ -9,14 +9,16 @@ export interface HubMarketPair {
 export class Exchange {
     public hubs: Map<string, Hub>;
     constructor(
+        public id: string,
         public name: string,
         public graph: Graph
     ){
 
         this.hubs = new Map<string, Hub>();
     }
+    
     get_id(){
-        return this.name;
+        return this.id;
     }
 
     marketBuy(){}
@@ -84,7 +86,7 @@ export class Exchange {
     }
 
     public log(){
-        console.log(`Exchange: ${this.name}`.green);
+        console.log(`Exchange: ${this.id}`.green);
         this.hubs.forEach((hub: Hub, symbol: string)=>{
             console.log(`Hub: ${symbol}`.blue);
             let market_list: string[] = [];
