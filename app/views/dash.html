@@ -16,7 +16,6 @@
         .flex-row {
             display: flex; /* or inline-flex */
             flex-direction: row;
-            align-items: stretch;
         }
         .flex-col {
             display: flex; /* or inline-flex */
@@ -26,41 +25,125 @@
         .flex-child-grow {
             flex-grow: 1; /* default 0 */
         }
-        .header {
-            height: 60;
+        .flex-wrap {
+            flex-wrap: wrap;
         }
-        .left-panel {
+        .flex-stretch {
+            align-items: stretch;
+        }
+        .arb-list {
             overflow-y: auto;
         }
         .operation {
-            margin-right: 3px;
+            margin: 5px;
+            padding: 5px;
         }
         .selected {
             background-color: aqua;
         }
+        .buy-convert-op {
+            background-color:darkgreen;
+            color: white;
+        }
+        .buy-op {
+            background-color: darkblue;
+            color: white;
+        }
+        .sell-op {
+            background-color: darkred;
+            color: white;
+        }
+        .sell-convert-op {
+            background-color: darkorange;
+            color: white;
+        }
+        .op-title {
+            text-align: center;
+        }
+        .op-kvp-list {
+            background: white;
+            color: black;
+            margin: 5px;
+            padding: 5px;
+        }
+        .op-kvp {
+            background: white;
+            color: black;
+        }
+        .full-width {
+            width: 100%;
+        }
+        .std-pad {
+            margin: 5px;
+            padding: 5px;
+        }
     </style>
+    <script type="text/x-template" id="operation-template">
+        <div class="operation flex-col">
+            <div>
+                <h3 class="op-title">{{ title }}</h3>
+            </div>
+            <div class="flex-child-grow flex-row flex-wrap flex-stretch op-kvp-list">
+                <div class="flex-child-grow">
+                    <span>VWAP</span>
+                    <span>{{ operation.price }}</span>
+                </div>
+                <div class="flex-child-grow">
+                    <span>Time Window</span>
+                    <span>{{ operation.window }}</span>
+                </div>
+                <div class="flex-child-grow">
+                    <span>Position</span>
+                    <span>{{ operation.position }}</span>
+                </div>
+            </div>
+            <div class="flex-child-grow flex-row flex-wrap flex-stretch op-kvp-list">
+                <div class="flex-child-grow">
+                    <span>Open Bids</span>
+                    <span>{{ operation.open_bids }}</span>
+                </div>
+                <div class="flex-child-grow">
+                    <span>Open Asks</span>
+                    <span>{{ operation.open_asks }}</span>
+                </div>
+            </div>
+            <div>
+                <button class="full-width">Execute!</button>
+            </div>
+        </div>
+    </script>
 </head>
 <body>
     <div id="app-dash" class="app-container flex-col">
-        <div class="header">
-            <h2>Arbmageddon</h2>
+        <div>
+            <div class="flex-row flex-stretch">
+                <execution-component class="buy-convert-op flex-child-grow" title="Buy Convert" operation="selected_inst.convert"></execution-component>
+                <execution-component class="buy-op flex-child-grow" title="Buy" operation="selected_inst.buy"></execution-component>
+                <execution-component class="sell-op flex-child-grow" title="Sell" operation="selected_inst.sell"></execution-component>
+                <execution-component class="sell-convert-op flex-child-grow" title="Sell Convert" operation="selected_inst.convert"></execution-component>
+            </div>
         </div>
-        <div class="flex-row flex-child-grow">
-            <div class="left-panel">
-                <table>
-                    <thead>
-                        <th>Arb</th>
-                        <th>Spread</th>
-                    </thead>
-                    <tbody>
-                        <tr v-for="inst in execution_inst">
-                            <td>{{ inst_string(inst) }}</td>
-                            <td><button 
-                                v-on:click="set_multicharts(inst)"
-                                v-bind:class="{ selected: inst.selected }">{{ inst_spread(inst) }}</button></td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="flex-row flex-child-grow flex-stretch">
+            <div class="flex-col">
+                <div>
+                    <button v-on:click="load_arbs()">Reload Arbs</button>
+                </div>
+                <div class="flex-child-grow arb-list">
+                    <table>
+                        <thead>
+                            <th>Arb</th>
+                            <th>Spread</th>
+                        </thead>
+                        <tbody>
+                            <tr v-for="inst in execution_inst">
+                                <td>{{ inst_string(inst) }}</td>
+                                <td><button 
+                                    v-on:click="set_multicharts(inst)"
+                                    v-bind:class="{ selected: inst.selected }">{{ inst_spread(inst) }}</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
             <div class="flex-child-grow">
                 <iframe :src="multicharts_url" height="100%" width="100%"></iframe>
@@ -69,7 +152,6 @@
     </div>
     <script>
         let exch_map = {};
-        let last_inst = null;
         const get_coinigy_symbol = function(op){
             return `${exch_map[op.exchange]}:${op.market}${op.hub}`;
         }
@@ -100,19 +182,25 @@
                 const c_hub = `${inst.convert.exchange}:${inst.convert.hub}`;
                 const c_mkt = `${inst.convert.exchange}:${inst.convert.market}`;
                 if(inst.type === 1){ // Origin Conversion
-                    return `OC: ${c_hub}->${c_mkt}->${b_mkt}->${s_hub}`; // (b_mkt/c_hub) = (s_mkt/s_hub) 
+                    return `OC: ${c_hub}->${c_mkt}->${b_mkt}->${s_hub}`;
                 }else if(inst.type === 2){ // Destination Conversion
-                    return `DC: ${b_hub}->${s_mkt}->${c_mkt}->${c_hub}`; // (b_mkt/b_hub) = (s_mkt/s_hub)*(c_mkt/c_hub) = (s_mkt/c_hub)
+                    return `DC: ${b_hub}->${s_mkt}->${c_mkt}->${c_hub}`;
                 }else{
                     return null;
                 }
             }
         }
+        // register
+        Vue.component('execution-component', {
+            template: '#operation-template',
+            props: ['title', 'operation']
+        });
         const appDash = new Vue({
             el: '#app-dash',
             data: {
                 exchanges: [],
                 execution_inst: [],
+                selected_inst: null,
                 multicharts_url: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC'
             },
             methods: {
@@ -148,21 +236,25 @@
                     const query_string = get_mcc_query_string(inst);
                     appDash.multicharts_url = `https://www.multicoincharts.com/${query_string}`;
                     inst.selected = true;
-                    if(last_inst && last_inst.selected){
-                        last_inst.selected = false;
+                    if(appDash.selected_inst && appDash.selected_inst.selected){
+                        appDash.selected_inst.selected = false;
                     }
-                    last_inst = inst;
+                    appDash.selected_inst = inst;
+                },
+                load_arbs: function(){
+                    appDash
+                        .get_exchanges()
+                        .then(function(){
+                            return appDash.get_arbs();
+                        })
+                        .then(function(){
+                            appDash.set_multicharts(appDash.execution_inst[0]);
+                        }
+                    );
                 }
             }
         });
-        appDash
-            .get_exchanges()
-            .then(function(){
-                return appDash.get_arbs();
-            })
-            .then(function(){
-                appDash.set_multicharts(appDash.execution_inst[0]);
-            });
+        appDash.load_arbs();
     </script>
 </body>
 </html>

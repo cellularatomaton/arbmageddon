@@ -30,7 +30,6 @@ export interface ExecutionOperation {
 }
 
 export interface ExecutionInstruction {
-    operations: ExecutionOperation[];
     spread: number;
     type: InstructionType;
     buy: ExecutionOperation;
@@ -300,9 +299,7 @@ export class Arb {
         const spread = this.get_spread_percent();
         const buy = this.get_buy_operation();
         const sell = this.get_sell_operation();
-        const operations: ExecutionOperation[] = [];
         const instructions = {
-            operations: operations,
             spread: spread,
             type: InstructionType.DIRECT,
             buy: buy,
@@ -317,9 +314,7 @@ export class Arb {
         const sell = this.get_sell_operation();
         const buy_convert = this.get_buy_conv_operation();
         if(buy_convert){
-            const operations: ExecutionOperation[] = [];
             const instructions = {
-                operations: operations,
                 spread: buy_convert_spread,
                 type: InstructionType.ORIGIN_CONVERSION,
                 buy: buy,
@@ -338,9 +333,7 @@ export class Arb {
         const sell = this.get_sell_operation();
         const sell_convert = this.get_sell_conv_operation();
         if(sell_convert){
-            const operations: ExecutionOperation[] = [];
             const instructions = {
-                operations: operations,
                 spread: sell_convert_spread,
                 type: InstructionType.DESTINATION_CONVERSION,
                 buy: buy,
