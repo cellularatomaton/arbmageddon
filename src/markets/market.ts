@@ -25,10 +25,6 @@ export class Market {
         return `${this.hub.get_id()}_${this.asset.symbol}`;
     }
 
-    // update_statistics(ticker: Ticker){
-    //     this.statistics.add_ticker(ticker);
-    // }
-
     update_vwap(ticker: Ticker){
         // console.log(`Adding ticker: ${JSON.stringify(ticker)}`);
         if(ticker.side as TradeType === TradeType.BUY){

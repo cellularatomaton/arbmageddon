@@ -10,7 +10,6 @@ const logger = require('morgan');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const index_route = require('./routes/index');
-// const index_dash = require('./routes/dash');
 const users_route = require('./routes/users');
 const graph_route = require('./routes/graph');
 const arb_route = require('./routes/arb');
@@ -22,7 +21,6 @@ const graph_model = new Graph();
 // view engine setup
 app.set('views', __dirname + '/views');
 app.engine('.html', require('ejs').renderFile);
-// app.set('view engine', 'ejs');
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -54,15 +52,6 @@ wss.broadcast = (event: any) => {
     }
   });
 };
-
-// graph_model.set_event_handler({
-//   handle_edge_event(edge_event: GraphEvent<GraphEdge>){
-//     wss.broadcast(edge_event);
-//   },
-//   handle_node_event(node_event: GraphEvent<GraphNode>){
-//     wss.broadcast(node_event);
-//   }
-// });
 
 graph_model.arb.on((inst?: ExecutionInstruction)=>{
   // console.log(`Graph Triggered Instructions: ${JSON.stringify(inst)}`)

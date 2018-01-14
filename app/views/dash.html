@@ -176,28 +176,6 @@
                 }
             }
         }
-        // const get_inst_string = function(inst){
-        //     if(inst){
-        //         const b_hub = `${inst.buy.exchange}:${inst.buy.hub}`;
-        //         const b_mkt = `${inst.buy.exchange}:${inst.buy.market}`;
-        //         const s_hub = `${inst.sell.exchange}:${inst.sell.hub}`;
-        //         const s_mkt = `${inst.sell.exchange}:${inst.sell.market}`;
-        //         if(inst.type === 0){ // Direct
-        //             return `B: ${b_hub}->${b_mkt}->${s_hub}`;
-        //         }else { // Conversion
-        //             const c_hub = `${inst.convert.exchange}:${inst.convert.hub}`;
-        //             const c_mkt = `${inst.convert.exchange}:${inst.convert.market}`;
-        //             if(inst.type === 1){ // Origin Conversion
-        //                 return `OC: ${c_hub}->${c_mkt}->${b_mkt}->${s_hub}`;
-        //             }else if(inst.type === 2){ // Destination Conversion
-        //                 return `DC: ${b_hub}->${s_mkt}->${c_mkt}->${c_hub}`;
-        //             }else{
-        //                 return null;
-        //             }
-        //         }
-        //     }
-        // }
-        // register
         Vue.component('execution-component', {
             template: '#operation-template',
             props: ['title', 'side', 'operation']
@@ -212,16 +190,6 @@
                 multicharts_url: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC'
             },
             methods: {
-                // get_arbs: function() {
-                //     return new Promise(function(resolve, reject) {
-                //         Vue.http.get('/arbs').then(response => {
-                //             appDash.execution_inst = response.body;
-                //             resolve();
-                //         }, response => {
-                //             reject();
-                //         });
-                //     });
-                // },
                 get_exchanges: function(){
                     return new Promise(function(resolve, reject) {
                         Vue.http.get('/graph/exchanges').then(response => {

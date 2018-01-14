@@ -8,7 +8,6 @@ const router = express.Router();
 
 module.exports = function(graph: Graph) {
   router.get('/', function(req, res, next) {
-    // const instruction_list: ExecutionInstruction[] = graph.get_instruction_list();
     res.send(JSON.stringify([]));
   });
   return router;

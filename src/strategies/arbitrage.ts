@@ -247,14 +247,6 @@ export class Arb {
         }
     }
 
-    // public get_buy_log_string(){
-    //     const buy_exchange = this.buy_market.hub.exchange.id.blue;
-    //     const buy_symbol = `${this.buy_market.asset.symbol}/${this.buy_market.hub.asset.symbol}`.blue;
-    //     const buy_price = this.buy_market.vwap_sell_stats.get_vwap().toString().blue;
-    //     const buy_text = `Buy ${buy_exchange} ${buy_symbol} ${buy_price}`.blue;
-    //     return buy_text;
-    // }
-
     public get_buy_operation() : ExecutionOperation {
         return {
             exchange: this.origin_market.hub.exchange.id,
@@ -265,14 +257,6 @@ export class Arb {
         };
     }
 
-    // public get_sell_log_string(){
-    //     const sell_exchange = this.sell_market.hub.exchange.id.cyan;
-    //     const sell_symbol = `${this.sell_market.asset.symbol}/${this.sell_market.hub.asset.symbol}`.cyan;
-    //     const sell_price = this.sell_market.vwap_buy_stats.get_vwap().toString().cyan;
-    //     const sell_text = `Sell ${sell_exchange} ${sell_symbol} ${sell_price}`.cyan;
-    //     return sell_text;
-    // }
-
     public get_sell_operation() : ExecutionOperation {
         return {
             exchange: this.destination_market.hub.exchange.id,
@@ -282,17 +266,6 @@ export class Arb {
             duration: this.destination_market.vwap_buy_stats.get_duration()
         };
     }
-
-    // public get_buy_conv_log_string(){
-    //     if(this.buy_conversion){
-    //         const buy_conversion_price = this.buy_conversion.vwap_sell_stats.get_vwap().toString().blue;
-    //         const buy_conversion_symbol = `${this.buy_conversion.asset.symbol}/${this.buy_conversion.hub.asset.symbol}`.blue;
-    //         const buy_convert_text = `Buy Convert: ${buy_conversion_symbol} ${buy_conversion_price}`.blue;
-    //         return buy_convert_text;
-    //     }else{
-    //         return `Undefined Buy Conversion!`;
-    //     }
-    // }
 
     public get_origin_conv_operation() : ExecutionOperation | null {
         if(this.origin_conversion){
@@ -308,17 +281,6 @@ export class Arb {
         }
     }
 
-    // public get_sell_conv_log_string(){
-    //     if(this.sell_conversion){
-    //         const sell_conversion_price = this.sell_conversion.vwap_buy_stats.get_vwap().toString().cyan;
-    //         const sell_conversion_symbol = `${this.sell_conversion.asset.symbol}/${this.sell_conversion.hub.asset.symbol}`.cyan;
-    //         const sell_convert_text = `Sell Convert: ${sell_conversion_symbol} ${sell_conversion_price}`.cyan;
-    //         return sell_convert_text;
-    //     }else{
-    //         return `Undefined Sell Conversion!`;
-    //     }
-    // }
-
     public get_destination_conv_operation() : ExecutionOperation | null {
         if(this.destination_conversion){
             return {
@@ -332,41 +294,6 @@ export class Arb {
             return null;
         }
     }
-
-    // public log_arb(){
-    //     const symbol = this.buy_market.asset.symbol.yellow;
-    //     const arb_type_text = ArbType[this.type].yellow;
-    //     const spread = (this.type === ArbType.COMPLEX.valueOf() ? this.get_conversion_spread_percent() : this.get_spread_percent()) * 100;
-    //     const spread_text = spread < 0 ? `${spread.toFixed(2)}%`.red : `${spread.toFixed(2)}%`.green;
-    //     const arb_text = `${symbol} ${arb_type_text}`.yellow;
-    //     if(this.type === ArbType.SIMPLE){
-    //         const buy_text = this.get_buy_log_string();
-    //         const sell_text = this.get_sell_log_string();
-    //         console.log(`${arb_text} ${spread_text} ${buy_text} ${sell_text}`);
-    //     }else if(this.type === ArbType.COMPLEX){
-    //         if(this.conversion_type === ArbConversionType.EITHER_SIDE){
-    //             const buy_text = this.get_buy_log_string();
-    //             const sell_text = this.get_sell_log_string();
-    //             const buy_convert_text = this.get_buy_conv_log_string();
-    //             const sell_convert_text = this.get_sell_conv_log_string();
-    //             console.log(`${arb_text} ${spread_text} ${buy_text} ${buy_convert_text} ${sell_text} ${sell_convert_text}`);
-    //         }else if(this.conversion_type === ArbConversionType.BUY_SIDE){
-    //             const buy_text = this.get_buy_log_string();
-    //             const sell_text = this.get_sell_log_string();
-    //             const buy_convert_text = this.get_buy_conv_log_string();
-    //             console.log(`${arb_text} ${spread_text} ${buy_text} ${buy_convert_text} ${sell_text}`);
-    //         }else if(this.conversion_type === ArbConversionType.SELL_SIDE){
-    //             const buy_text = this.get_buy_log_string();
-    //             const sell_text = this.get_sell_log_string();
-    //             const sell_convert_text = this.get_sell_conv_log_string();
-    //             console.log(`${arb_text} ${spread_text} ${buy_text} ${sell_text} ${sell_convert_text}`);
-    //         }else{
-    //             console.log(`No Conversion Type.`);
-    //         }
-    //     }else{
-    //         console.log(`No Arb Type.`);
-    //     }
-    // }
 
     public get_direct_instructions() : ExecutionInstruction | null {
         const spread = this.get_spread_percent();
