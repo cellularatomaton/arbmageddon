@@ -1,4 +1,5 @@
 import { Graph, GraphEvent, GraphEventType, GraphEdge, Market } from '../markets';
+import { IEvent, EventImp } from '../utils';
 
 export enum TradeType {
     BUY,
@@ -24,16 +25,35 @@ export enum TimeUnit {
     HOUR
 }
 
+export interface VWAP {
+    vwap: number,
+    duration: number
+}
+
 export class VolumeStatistics {
     window: Ticker[] = [];
     vwap_numerator: number = 0;
     vwap_denominator: number = 0;
+    on_vwap_updated: EventImp<VWAP> = new EventImp<VWAP>();
+    public get vwap_updated() : IEvent<VWAP> {
+        return this.on_vwap_updated.expose();
+    };
     constructor(
         public window_size: number
     ){}
 
     get_vwap(){
         return this.vwap_numerator / this.vwap_denominator;
+    }
+
+    get_duration(){
+        if(this.window.length){
+            const oldest = this.window[0].time.getTime();
+            const newest = this.window[this.window.length - 1].time.getTime();
+            return newest - oldest;
+        }else{
+            return Number.NaN;
+        }
     }
 
     add_ticker(ticker: Ticker){
@@ -67,6 +87,12 @@ export class VolumeStatistics {
             }
         }
         this.add_ticker(ticker);
+        const vwap: VWAP = {
+            vwap: this.get_vwap(),
+            duration: this.get_duration()
+        };
+        // console.log(`Ticker Triggered VWAP: ${JSON.stringify(vwap)}`);
+        this.on_vwap_updated.trigger(vwap);
     }
 
 }

@@ -1,6 +1,7 @@
 import { Asset } from '../src/assets';
 import { Hub, Market, Graph, GraphEvent, GraphEdge, GraphNode } from '../src/markets';
 import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from '../src/exchanges';
+import { ExecutionInstruction } from '../src/strategies';
 
 const express = require('express');
 const path = require('path');
@@ -54,12 +55,23 @@ wss.broadcast = (event: any) => {
   });
 };
 
-graph_model.set_event_handler({
-  handle_edge_event(edge_event: GraphEvent<GraphEdge>){
-    wss.broadcast(edge_event);
-  },
-  handle_node_event(node_event: GraphEvent<GraphNode>){
-    wss.broadcast(node_event);
+// graph_model.set_event_handler({
+//   handle_edge_event(edge_event: GraphEvent<GraphEdge>){
+//     wss.broadcast(edge_event);
+//   },
+//   handle_node_event(node_event: GraphEvent<GraphNode>){
+//     wss.broadcast(node_event);
+//   }
+// });
+
+graph_model.arb.on((inst?: ExecutionInstruction)=>{
+  // console.log(`Graph Triggered Instructions: ${JSON.stringify(inst)}`)
+  if(inst){
+    // console.log(`Broadcasting...`);
+    wss.broadcast({
+      type: 'arb',
+      data: inst
+    })
   }
 });
 
@@ -72,10 +84,10 @@ app.use(function(req, res, next) {
 
 // error handler
 app.use(function(err, req, res, next) {
+  console.error(err.stack);
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
-
   // render the error page
   res.status(err.status || 500);
   res.render('error.html');

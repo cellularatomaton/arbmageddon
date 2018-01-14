@@ -30,13 +30,13 @@ export class Market {
     // }
 
     update_vwap(ticker: Ticker){
-        console.log(`Adding ticker: ${JSON.stringify(ticker)}`);
+        // console.log(`Adding ticker: ${JSON.stringify(ticker)}`);
         if(ticker.side as TradeType === TradeType.BUY){
             this.vwap_buy_stats.handle_ticker(ticker);
-            console.log(`Buy vwap: ${this.vwap_buy_stats.get_vwap()}`);
+            // console.log(`Buy vwap: ${this.vwap_buy_stats.get_vwap()}`);
         }else{
             this.vwap_sell_stats.handle_ticker(ticker);
-            console.log(`Sell vwap: ${this.vwap_sell_stats.get_vwap()}`);
+            // console.log(`Sell vwap: ${this.vwap_sell_stats.get_vwap()}`);
         }
     }
 };
