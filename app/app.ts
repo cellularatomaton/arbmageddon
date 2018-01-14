@@ -9,7 +9,6 @@ const favicon = require('serve-favicon');
 const logger = require('morgan');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
-const index_route = require('./routes/index');
 const users_route = require('./routes/users');
 const graph_route = require('./routes/graph');
 const arb_route = require('./routes/arb');
@@ -32,7 +31,6 @@ const dataPath = path.join(path.dirname(__dirname), 'node_modules/vis/dist');
 app.use(express.static(dataPath));
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', index_route);
 app.get('/dash', function (req, res)
 {
     res.render('dash.html');
