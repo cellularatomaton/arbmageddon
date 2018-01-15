@@ -162,10 +162,10 @@
                             <th>Spread</th>
                         </thead>
                         <tbody>
-                            <tr v-for="inst in filtered_instructions">
+                            <tr v-for="inst in get_filtered_arbs(arb_list)">
                                 <td>{{ inst.id }}</td>
                                 <td><button 
-                                    v-on:click="set_multicharts(inst)"
+                                    v-on:click="set_multicharts(inst)"  
                                     v-bind:class="{ selected: inst.selected }">{{ inst_spread(inst) }}</button></td>
                             </tr>
                         </tbody>
@@ -179,6 +179,8 @@
     </div>
     <script>
         let exch_map = {};
+        const arb_map = {};
+        
         const get_coinigy_symbol = function(op){
             return `${exch_map[op.exchange]}:${op.market}${op.hub}`;
         }
@@ -219,32 +221,21 @@
             el: '#app-dash',
             data: {
                 exchanges: [],
-                execution_inst: [],
-                arb_map: [],
+                arb_list: [],
+                // arb_map: [],
                 selected_inst: null,
                 multicharts_url: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC',
                 show_cross_exchange: false,
                 show_direct: false,
                 show_conversion: true,
                 symbol_filter: 'SYM',
-                spread_filter: 2.0
+                spread_filter: 2.5
             },
-            computed: {
-                filtered_instructions: function () {
-                    return appDash.execution_inst.filter(function (inst) {
-                        const is_cross_exchange = inst.buy.exchange !== inst.sell.exchange;
-                        const cross_exchange_passes = appDash.show_cross_exchange ? is_cross_exchange : !is_cross_exchange;
-                        const is_direct = inst.type === 0;
-                        const direct_passes = appDash.show_direct ? is_direct : !is_direct;
-                        const is_conversion = inst.type !== 0;
-                        const conversion_passes = appDash.show_conversion ? is_conversion : !is_conversion;
-                        // const symbol_passes = inst_symbol_match(appDash.symbol_filter, inst);
-                        const spread_passes = Number.parseFloat(appDash.spread_filter)/100 < inst.spread;
-                        return cross_exchange_passes && direct_passes && conversion_passes && spread_passes;
-                        // return cross_exchange_passes;
-                    })
-                }
-            },
+            // computed: {
+            //     filtered_instructions: function () {
+                    
+            //     }
+            // },
             methods: {
                 get_exchanges: function(){
                     return new Promise(function(resolve, reject) {
@@ -258,6 +249,20 @@
                         }, response => {
                             reject();
                         });
+                    });
+                },
+                get_filtered_arbs: function(){
+                    return appDash.arb_list.filter(function (inst) {
+                        const is_cross_exchange = inst.buy.exchange !== inst.sell.exchange;
+                        const cross_exchange_passes = appDash.show_cross_exchange ? is_cross_exchange : !is_cross_exchange;
+                        const is_direct = inst.type === 0;
+                        const direct_passes = appDash.show_direct ? is_direct : !is_direct;
+                        const is_conversion = inst.type !== 0;
+                        const conversion_passes = appDash.show_conversion ? is_conversion : !is_conversion;
+                        // const symbol_passes = inst_symbol_match(appDash.symbol_filter, inst);
+                        const spread_passes = Number.parseFloat(appDash.spread_filter)/100 < inst.spread;
+                        return cross_exchange_passes && direct_passes && conversion_passes && spread_passes;
+                        // return cross_exchange_passes;
                     });
                 },
                 inst_spread: function(i) { return `${(i.spread*100).toFixed(2)}%`; },
@@ -284,7 +289,7 @@
                         .then(appDash.sort_loop);
                 },
                 sort_loop: function(){
-                    appDash.execution_inst.sort((a, b)=>{
+                    appDash.arb_list.sort((a, b)=>{
                         return b.spread - a.spread;
                     });
                     setTimeout(appDash.sort_loop, 1000);
@@ -296,7 +301,7 @@
                             const msg = JSON.parse(message.data);
                             if(msg.type === 'arb'){ // Spread Update
                                 const update = msg.data;
-                                const instruction = appDash.arb_map[update.id];
+                                const instruction = arb_map[update.id];
                                 if(instruction){
                                     instruction.spread = update.spread;
                                     instruction.buy.price = update.buy.price;
@@ -309,11 +314,11 @@
                                     }
                                     
                                 }else{
-                                    appDash.arb_map[update.id] = update;
-                                    appDash.execution_inst.push(update);
+                                    arb_map[update.id] = update;
+                                    appDash.arb_list.push(update);
                                 }
                                 if(!appDash.selected_inst){
-                                    appDash.set_multicharts(appDash.execution_inst[0]);
+                                    appDash.set_multicharts(appDash.arb_list[0]);
                                 }
                             }
                         });
