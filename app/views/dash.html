@@ -26,7 +26,7 @@
             flex-direction: column;
             /* height: 100%; */
         }
-        .flex-child-grow {
+        .flex-grow {
             flex-grow: 1; /* default 0 */
         }
         .flex-wrap {
@@ -34,6 +34,9 @@
         }
         .flex-stretch {
             align-items: stretch;
+        }
+        .flex-justify {
+            justify-content: space-around;
         }
         .arb-list {
             overflow-y: auto;
@@ -72,8 +75,6 @@
         .op-title {
             text-align: center;
         }
-        .op-kvp-list {
-        }
         .full-width {
             width: 100%;
         }
@@ -88,26 +89,26 @@
                 <h4 class="op-title" v-if="side === 'buy'">{{ title }}: [{{ operation.exchange }}] {{ operation.hub }} -> {{ operation.market }}</h4>
                 <h4 class="op-title" v-else>{{ title }}: [{{ operation.exchange }}] {{ operation.market }} -> {{ operation.hub }}</h4>
             </div>
-            <div class="flex-child-grow flex-row flex-wrap flex-stretch op-kvp-list elbow-room">
-                <div class="flex-child-grow">
+            <div class="flex-grow flex-row flex-wrap flex-stretch elbow-room">
+                <div class="flex-grow">
                     <span>VWAP</span>
                     <span>{{ operation.price.toFixed(8) }}</span>
                 </div>
-                <div class="flex-child-grow">
+                <div class="flex-grow">
                     <span>Duration</span>
                     <span>{{ operation.duration }}</span>
                 </div>
-                <div class="flex-child-grow">
+                <div class="flex-grow">
                     <span>Position</span>
                     <span>{{ operation.position }}</span>
                 </div>
             </div>
-            <div class="flex-child-grow flex-row flex-wrap flex-stretch op-kvp-list elbow-room">
-                <div class="flex-child-grow">
+            <div class="flex-grow flex-row flex-wrap flex-stretch elbow-room">
+                <div class="flex-grow">
                     <span>Open Bids</span>
                     <span>{{ operation.open_bids }}</span>
                 </div>
-                <div class="flex-child-grow">
+                <div class="flex-grow">
                     <span>Open Asks</span>
                     <span>{{ operation.open_asks }}</span>
                 </div>
@@ -120,25 +121,48 @@
     <div id="app-dash" class="app-container flex-col">
         <div>
             <div class="flex-row flex-stretch">
-                <execution-component v-if="selected_inst && selected_inst.type === 1" side="buy" class="buy-convert-op flex-child-grow" title="Buy Convert" :operation="selected_inst.convert"></execution-component>
-                <execution-component v-if="selected_inst" side="buy" class="buy-op flex-child-grow" title="Buy" :operation="selected_inst ? selected_inst.buy : null"></execution-component>
-                <execution-component v-if="selected_inst" side="sell" class="sell-op flex-child-grow" title="Sell" :operation="selected_inst ? selected_inst.sell: null"></execution-component>
-                <execution-component v-if="selected_inst && selected_inst.type === 2" side="sell" class="sell-convert-op flex-child-grow" title="Sell Convert" :operation="selected_inst.convert"></execution-component>
+                <execution-component v-if="selected_inst && selected_inst.type === 1" side="buy" class="buy-convert-op flex-grow" title="Buy Convert" :operation="selected_inst.convert"></execution-component>
+                <execution-component v-if="selected_inst" side="buy" class="buy-op flex-grow" title="Buy" :operation="selected_inst ? selected_inst.buy : null"></execution-component>
+                <execution-component v-if="selected_inst" side="sell" class="sell-op flex-grow" title="Sell" :operation="selected_inst ? selected_inst.sell: null"></execution-component>
+                <execution-component v-if="selected_inst && selected_inst.type === 2" side="sell" class="sell-convert-op flex-grow" title="Sell Convert" :operation="selected_inst.convert"></execution-component>
             </div>
         </div>
-        <div class="flex-row flex-child-grow flex-stretch">
+        <div class="flex-row flex-grow">
             <div class="flex-col elbow-room">
                 <div>
-                    <button v-on:click="load_arbs()">Reload Arbs</button>
+                    <div class="flex-row">
+                        <div class="flex-grow">
+                            <input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="show_cross_exchange">
+                            <label for="cross-exchange-checkbox">Cross Exchange</label>
+                        </div>
+                        <div class="flex-grow">
+                            <input type="checkbox" id="direct-checkbox" value="false" v-model="show_direct">
+                            <label for="direct-checkbox">Direct</label>
+                        </div>
+                        <div class="flex-grow">
+                            <input type="checkbox" id="conversion-checkbox" value="true" v-model="show_conversion">
+                            <label for="conversion-checkbox">Conversion</label>
+                        </div>   
+                    </div>
+                    <div class="flex-row">
+                        <div class="flex-grow">
+                            <span>Symbol:</span>
+                            <input v-model="symbol_filter" placeholder="Symbol">
+                        </div>
+                        <div class="flex-grow">
+                            <span>Target:</span>
+                            <input v-model="spread_filter" placeholder="2">
+                        </div>
+                    </div>
                 </div>
-                <div class="flex-child-grow arb-list">
+                <div class="flex-grow arb-list">
                     <table>
                         <thead>
                             <th>Arb</th>
                             <th>Spread</th>
                         </thead>
                         <tbody>
-                            <tr v-for="inst in execution_inst">
+                            <tr v-for="inst in filtered_instructions">
                                 <td>{{ inst.id }}</td>
                                 <td><button 
                                     v-on:click="set_multicharts(inst)"
@@ -148,7 +172,7 @@
                     </table>
                 </div>
             </div>
-            <div class="flex-child-grow elbow-room">
+            <div class="flex-grow elbow-room">
                 <iframe :src="multicharts_url" height="100%" width="100%"></iframe>
             </div>
         </div>
@@ -176,6 +200,17 @@
                 }
             }
         }
+        const op_symbol_match = function(symbol, op){
+            return op.exchange.startsWith(symbol) || 
+                op.hub.startsWith(symbol) ||
+                op.market.startsWith(symbol);
+        }
+        const inst_symbol_match = function(symbol, inst){
+            const convert_match = inst.convert ? op_symbol_match(symbol, inst.convert) : false;
+            return convert_match ||
+                op_symbol_match(symbol, inst.buy) ||
+                op_symbol_match(symbol, inst.sell);
+        }
         Vue.component('execution-component', {
             template: '#operation-template',
             props: ['title', 'side', 'operation']
@@ -187,7 +222,28 @@
                 execution_inst: [],
                 arb_map: [],
                 selected_inst: null,
-                multicharts_url: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC'
+                multicharts_url: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC',
+                show_cross_exchange: false,
+                show_direct: false,
+                show_conversion: true,
+                symbol_filter: 'SYM',
+                spread_filter: 2.0
+            },
+            computed: {
+                filtered_instructions: function () {
+                    return appDash.execution_inst.filter(function (inst) {
+                        const is_cross_exchange = inst.buy.exchange !== inst.sell.exchange;
+                        const cross_exchange_passes = appDash.show_cross_exchange ? is_cross_exchange : !is_cross_exchange;
+                        const is_direct = inst.type === 0;
+                        const direct_passes = appDash.show_direct ? is_direct : !is_direct;
+                        const is_conversion = inst.type !== 0;
+                        const conversion_passes = appDash.show_conversion ? is_conversion : !is_conversion;
+                        // const symbol_passes = inst_symbol_match(appDash.symbol_filter, inst);
+                        const spread_passes = Number.parseFloat(appDash.spread_filter)/100 < inst.spread;
+                        return cross_exchange_passes && direct_passes && conversion_passes && spread_passes;
+                        // return cross_exchange_passes;
+                    })
+                }
             },
             methods: {
                 get_exchanges: function(){
@@ -225,13 +281,13 @@
                         .then(function(){
                             return appDash.setup_websocket();
                         })
-                        .then(appDash.sort_arb_loop);
+                        .then(appDash.sort_loop);
                 },
-                sort_arb_loop: function(){
+                sort_loop: function(){
                     appDash.execution_inst.sort((a, b)=>{
                         return b.spread - a.spread;
                     });
-                    setTimeout(appDash.sort_arb_loop, 1000);
+                    setTimeout(appDash.sort_loop, 1000);
                 },
                 setup_websocket: function(){
                     return new Promise(function(resolve, reject) {
