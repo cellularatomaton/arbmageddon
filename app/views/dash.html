@@ -149,42 +149,44 @@
         <div>
             <div class="flex-row flex-center">
                 <div class="flex-grow center-contents">
-                    <span>Basis Size (BTC):</span>
-                    <input v-model="basis_size" placeholder="0.1">
+                    <div class="flex-col">
+                        <div>
+                            <span>Basis Size (BTC):</span>
+                            <input v-model="basis_size" type="number" min="0" max="10" step="0.1" placeholder="0.1">
+                        </div>
+                        <div>
+                            <span>Spread Filter (%):</span>
+                            <input v-model="spread_filter" type="number" min="2" max="20" step="0.5" placeholder="3.5">
+                        </div>
+                    </div>
                 </div>
                 <div class="flex-grow center-contents" v-bind:class="{ 'arb-good': arb_is_good(), 'arb-bad': !arb_is_good() }"> 
-                    <h3>Opportunity Window: {{ (selected_inst.opportunity_window/1000).toFixed(0) }} s</h3>
+                        <div class="flex-col">
+                            <strong>Opportunity Window: {{ (selected_inst.opportunity_window/1000).toFixed(0) }} s</strong>
+                            <strong>Execution Time: {{ (selected_inst.sum_of_durations/1000).toFixed(0) }} s</strong>
+                        </div>
                 </div>
-                <div class="flex-grow center-contents" v-bind:class="{ 'arb-good': arb_is_good(), 'arb-bad': !arb_is_good() }"> 
-                    <h3>Execution Time: {{ (selected_inst.sum_of_durations/1000).toFixed(0) }} s</h3>
+                <div class="flex-grow center-contents">
+                    <div class="flex-col">
+                        <span>Arb Types:</span>
+                        <div>
+                            <input type="checkbox" id="direct-checkbox" value="false" v-model="show_direct">
+                            <label for="direct-checkbox">Direct</label>
+                        </div>
+                        <div>
+                            <input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="show_cross_exchange">
+                            <label for="cross-exchange-checkbox">Cross Exchange</label>
+                        </div>
+                        <div>
+                            <input type="checkbox" id="conversion-checkbox" value="true" v-model="show_conversion">
+                            <label for="conversion-checkbox">Conversion</label>
+                        </div>
+                    </div>
                 </div>
-                
             </div>
         </div>
         <div class="flex-row flex-grow">
             <div class="flex-col elbow-room">
-                <div>
-                    <div class="flex-row">
-                        <div class="flex-grow">
-                            <input type="checkbox" id="direct-checkbox" value="false" v-model="show_direct">
-                            <label for="direct-checkbox">Direct</label>
-                        </div>
-                        <div class="flex-grow">
-                            <input type="checkbox" id="conversion-checkbox" value="true" v-model="show_conversion">
-                            <label for="conversion-checkbox">Conversion</label>
-                        </div>   
-                    </div>
-                    <div class="flex-row">
-                        <div class="flex-grow">
-                                <input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="show_cross_exchange">
-                                <label for="cross-exchange-checkbox">Cross Exchange</label>
-                            </div>
-                        <div class="flex-grow">
-                            <span>Spread Target:</span>
-                            <input v-model="spread_filter" placeholder="2">
-                        </div>
-                    </div>
-                </div>
                 <div class="flex-grow arb-list">
                     <table>
                         <thead>
@@ -280,13 +282,13 @@
                 get_filtered_arbs: function(){
                     return appDash.arb_list.filter(function (inst) {
                         const is_cross_exchange = inst.buy.exchange !== inst.sell.exchange;
-                        const cross_exchange_passes = appDash.show_cross_exchange ? is_cross_exchange : !is_cross_exchange;
+                        const cross_exchange_passes = appDash.show_cross_exchange === is_cross_exchange;
                         const is_direct = inst.type === 0;
-                        const direct_passes = appDash.show_direct ? is_direct : !is_direct;
+                        const direct_passes = appDash.show_direct === is_direct;
                         const is_conversion = inst.type !== 0;
-                        const conversion_passes = appDash.show_conversion ? is_conversion : !is_conversion;
+                        const conversion_passes = appDash.show_conversion === is_conversion;
                         const spread_passes = Number.parseFloat(appDash.spread_filter)/100 < inst.spread;
-                        return cross_exchange_passes && (direct_passes && conversion_passes) && spread_passes;
+                        return (cross_exchange_passes || direct_passes || conversion_passes) && spread_passes;
                     });
                 },
                 arb_is_good(){
