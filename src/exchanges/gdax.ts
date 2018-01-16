@@ -24,13 +24,13 @@ export class GdaxExchange extends Exchange {
         graph: Graph
     ){
         super('GDX', 'COINBASE', graph);
-        this.update_products()
-            .then(() => { this.setup_websocket(); });
+        this.updateProducts()
+            .then(() => { this.setupWebsocket(); });
     }
     
-    market_buy(){}
-    market_sell(){}
-    update_products() : Promise<void> {
+    marketBuy(){}
+    marketSell(){}
+    updateProducts() : Promise<void> {
         return new Promise((resolve, reject) => {
             const publicClient = new Gdax.PublicClient();
             publicClient
@@ -38,12 +38,12 @@ export class GdaxExchange extends Exchange {
                 .then((data: any) => {
                     this.products = data;
                     this.products.forEach((prod: any)=>{
-                        this.map_market(
+                        this.mapMarket(
                             prod.quote_currency,
                             prod.base_currency,
                         )
                     });
-                    this.graph.map_basis();
+                    this.graph.mapBasis();
                     resolve();
                 })
                 .catch((error: any) => {
@@ -52,15 +52,15 @@ export class GdaxExchange extends Exchange {
         });
     }
     
-    handle_ticker(exchange: Exchange, data: any){
+    handleTicker(exchange: Exchange, data: any){
         // console.log(data);
         const symbols = data.product_id.split('-');
-        exchange.update_ticker({
-            exchange_symbol: this.id,
-            hub_symbol: symbols[0],
-            market_symbol: symbols[1],
-            best_ask: Number(data.best_ask),
-            best_bid: Number(data.best_bid),
+        exchange.updateTicker({
+            exchangeSymbol: this.id,
+            hubSymbol: symbols[0],
+            marketSymbol: symbols[1],
+            bestAsk: Number(data.best_ask),
+            bestBid: Number(data.best_bid),
             price: Number(data.price),
             side: data.side === 'buy' ? TradeType.BUY : TradeType.SELL,
             time: new Date(data.time),
@@ -68,14 +68,14 @@ export class GdaxExchange extends Exchange {
         });
     }
 
-    setup_websocket(): any {
+    setupWebsocket(): any {
         const exchange = this;
         websocket.on('open', function(){
             console.log('Gdax websocket opened.');
         });
         websocket.on('message', function(data: any) { 
             if(data.type === 'ticker' && data.last_size){
-                exchange.handle_ticker(exchange, data);
+                exchange.handleTicker(exchange, data);
             }
         });
         websocket.on('error', function(err: any){
@@ -87,30 +87,30 @@ export class GdaxExchange extends Exchange {
         });
     }
 
-    // handle_book(
-    //     hub_symbol: string, 
-    //     market_symbol: string, 
+    // handleBook(
+    //     hubSymbol: string, 
+    //     marketSymbol: string, 
     //     book: any)
     // {
-    //     const best_bid = book.bids && book.bids.length && book.bids[0].length ? Number(book.bids[0][0]) : Number.NaN;
-    //         const best_ask = book.asks && book.asks[0] && book.asks[0].length ? Number(book.asks[0][0]) : Number.NaN;
-    //         if(!Number.isNaN(best_bid) && !Number.isNaN(best_ask)){
-    //             this.update_market(
-    //                 hub_symbol,
-    //                 market_symbol,
-    //                 Number(best_bid),
-    //                 Number(best_ask));
+    //     const bestBid = book.bids && book.bids.length && book.bids[0].length ? Number(book.bids[0][0]) : Number.NaN;
+    //         const bestAsk = book.asks && book.asks[0] && book.asks[0].length ? Number(book.asks[0][0]) : Number.NaN;
+    //         if(!Number.isNaN(bestBid) && !Number.isNaN(bestAsk)){
+    //             this.updateMarket(
+    //                 hubSymbol,
+    //                 marketSymbol,
+    //                 Number(bestBid),
+    //                 Number(bestAsk));
     //         }
     // }
 
-    // get_ticker_and_update_market(
-    //     hub_symbol: string,
-    //     market_symbol: string,
+    // getTickerAndUpdateMarket(
+    //     hubSymbol: string,
+    //     marketSymbol: string,
     // ){
-    //     const publicClient = new Gdax.PublicClient(`${market_symbol}-${hub_symbol}`);
+    //     const publicClient = new Gdax.PublicClient(`${marketSymbol}-${hubSymbol}`);
     //     publicClient.getProductOrderBook()
     //     .then((book: any)=>{
-    //         this.handle_book(hub_symbol, market_symbol, book);
+    //         this.handleBook(hubSymbol, marketSymbol, book);
     //     })
     //     .catch((error: any)=>{
     //         console.log(`Gdax book update error: ${error}`);

@@ -7,12 +7,12 @@ export enum TradeType {
 }
 
 export interface Ticker {
-    exchange_symbol: string;
-    hub_symbol: string;
-    market_symbol: string;
+    exchangeSymbol: string;
+    hubSymbol: string;
+    marketSymbol: string;
     time: Date;
-    best_ask?: number;
-    best_bid?: number;
+    bestAsk?: number;
+    bestBid?: number;
     price?: number;
     side?: TradeType;
     size?: number;
@@ -32,21 +32,21 @@ export interface VWAP {
 
 export class VolumeStatistics {
     window: Ticker[] = [];
-    vwap_numerator: number = 0;
-    vwap_denominator: number = 0;
+    vwapNumerator: number = 0;
+    vwapDenominator: number = 0;
     
-    on_vwap_updated: EventImp<VWAP> = new EventImp<VWAP>();
-    public get vwap_updated() : IEvent<VWAP> {
-        return this.on_vwap_updated.expose();
+    onVwapUpdated: EventImp<VWAP> = new EventImp<VWAP>();
+    public get vwapUpdated() : IEvent<VWAP> {
+        return this.onVwapUpdated.expose();
     };
 
     constructor(private market: Market){}
 
-    get_vwap(){
-        return this.vwap_numerator / this.vwap_denominator;
+    getVwap(){
+        return this.vwapNumerator / this.vwapDenominator;
     }
 
-    get_duration(){
+    getDuration(){
         if(this.window.length){
             const oldest = this.window[0].time.getTime();
             const newest = this.window[this.window.length - 1].time.getTime();
@@ -56,40 +56,40 @@ export class VolumeStatistics {
         }
     }
 
-    add_ticker(ticker: Ticker){
+    addTicker(ticker: Ticker){
         this.window.push(ticker);
         if(ticker.size && ticker.price){
-            this.vwap_numerator += ticker.size * ticker.price;
-            this.vwap_denominator += ticker.size;
+            this.vwapNumerator += ticker.size * ticker.price;
+            this.vwapDenominator += ticker.size;
         }
     }
 
-    remove_ticker(ticker: Ticker | undefined){
+    removeTicker(ticker: Ticker | undefined){
         if(ticker){
             if(ticker.size && ticker.price){
-                this.vwap_numerator -= ticker.size * ticker.price;
-                this.vwap_denominator -= ticker.size;
+                this.vwapNumerator -= ticker.size * ticker.price;
+                this.vwapDenominator -= ticker.size;
             }
         }
     }
 
-    calc_window_size() : number {
+    calcWindowSize() : number {
         const graph = this.market.graph;
-        const basis_size = graph.basis_size;
-        const basis_asset = graph.basis_asset;
-        if(basis_asset){
-            const hub_asset = this.market.hub.asset;
-            const already_priced_in_basis = hub_asset.symbol === basis_asset.symbol;
-            const price = this.market.vwap_sell_stats.get_vwap();
-            if(already_priced_in_basis){
-                const size = basis_size / price;
+        const basisSize = graph.basisSize;
+        const basisAsset = graph.basisAsset;
+        if(basisAsset){
+            const hubAsset = this.market.hub.asset;
+            const alreadyPricedInBasis = hubAsset.symbol === basisAsset.symbol;
+            const price = this.market.vwapSellStats.getVwap();
+            if(alreadyPricedInBasis){
+                const size = basisSize / price;
                 return size;
             }else{
                 // Look through hub markets for conversion:
-                const conversion_market = this.market.hub.markets.get(basis_asset.symbol);
-                if(conversion_market){
-                    const conversion_price = conversion_market.vwap_sell_stats.get_vwap();
-                    const size = basis_size / conversion_price / price;
+                const conversionMarket = this.market.hub.markets.get(basisAsset.symbol);
+                if(conversionMarket){
+                    const conversionPrice = conversionMarket.vwapSellStats.getVwap();
+                    const size = basisSize / conversionPrice / price;
                     return size;
                 }else{
                     return Number.NaN;
@@ -100,27 +100,27 @@ export class VolumeStatistics {
         }
     }
 
-    handle_ticker(ticker: Ticker){
-        const window_size = this.calc_window_size();
-        if(!Number.isNaN(this.vwap_denominator) && !Number.isNaN(window_size)){
+    handleTicker(ticker: Ticker){
+        const windowSize = this.calcWindowSize();
+        if(!Number.isNaN(this.vwapDenominator) && !Number.isNaN(windowSize)){
             let rolling = true;
             while(rolling){
-                const stale = window_size < this.vwap_denominator;
+                const stale = windowSize < this.vwapDenominator;
                 if(stale){
-                    const old_ticker = this.window.shift();
-                    this.remove_ticker(old_ticker);
+                    const oldTicker = this.window.shift();
+                    this.removeTicker(oldTicker);
                 }else{
                     rolling = false;
                 }
             }
         }
-        this.add_ticker(ticker);
+        this.addTicker(ticker);
         const vwap: VWAP = {
-            vwap: this.get_vwap(),
-            duration: this.get_duration()
+            vwap: this.getVwap(),
+            duration: this.getDuration()
         };
         // console.log(`Ticker Triggered VWAP: ${JSON.stringify(vwap)}`);
-        this.on_vwap_updated.trigger(vwap);
+        this.onVwapUpdated.trigger(vwap);
     }
 
 }

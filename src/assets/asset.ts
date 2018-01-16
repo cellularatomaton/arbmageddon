@@ -6,7 +6,7 @@ export class Asset {
     public markets: Market[] = [];
     constructor(public symbol: string){
     }
-    static get_asset(symbol: string, map: Map<string, Asset>): Asset {
+    static getAsset(symbol: string, map: Map<string, Asset>): Asset {
         let asset: Asset;
         if(map.has(symbol)){
             asset = <Asset>map.get(symbol);

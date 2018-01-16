@@ -1,9 +1,9 @@
-import { get as http_get } from 'https';
+import { get as httpGet } from 'https';
 import { IncomingMessage } from 'http';
 
 export class Http {
     static get(url: string, callback: (obj: any) => void ){
-        http_get(
+        httpGet(
             url, 
             ( res: IncomingMessage ) => {
                 const statusCode = res.statusCode;

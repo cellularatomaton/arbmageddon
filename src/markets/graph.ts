@@ -7,57 +7,57 @@ import { IEvent, EventImp } from '../utils';
 import * as _ from "lodash";
 
 export class Graph {
-    public asset_map: Map<string, Asset>;
-    public arb_map: Map<string, Arb>;
-    public basis_asset_symbol: string = "BTC";
-    public basis_size: number = 0.1;
-    public basis_asset: Asset | undefined;
+    public assetMap: Map<string, Asset>;
+    public arbMap: Map<string, Arb>;
+    public basisAssetSymbol: string = "BTC";
+    public basisSize: number = 0.1;
+    public basisAsset: Asset | undefined;
     exchanges: Exchange[];
-    on_arb: EventImp<ExecutionInstruction> = new EventImp<ExecutionInstruction>();
+    onArb: EventImp<ExecutionInstruction> = new EventImp<ExecutionInstruction>();
     public get arb() : IEvent<ExecutionInstruction> {
-        return this.on_arb.expose();
+        return this.onArb.expose();
     };
     constructor(){
-        this.asset_map = new Map<string, Asset>();
-        this.arb_map = new Map<string, Arb>();
+        this.assetMap = new Map<string, Asset>();
+        this.arbMap = new Map<string, Arb>();
         this.exchanges = [
             new GdaxExchange(this),
             new BinanceExchange(this),
             new PoloniexExchange(this)
         ];
-        const arb_finder = ()=>{
-            this.find_arbs();
-            setTimeout(arb_finder, 1000);
+        const arbFinder = ()=>{
+            this.findArbs();
+            setTimeout(arbFinder, 1000);
         }
-        arb_finder();
+        arbFinder();
     }
 
-    map_basis(){
+    mapBasis(){
         // Gets called once for each exchange currently.
-        if(!this.basis_asset){
-            this.basis_asset = this.asset_map.get(this.basis_asset_symbol);
+        if(!this.basisAsset){
+            this.basisAsset = this.assetMap.get(this.basisAssetSymbol);
         }
     }
 
-    find_arbs(){
-        this.asset_map.forEach((asset: Asset, symbol: string)=>{
-            asset.markets.forEach((origin_market: Market, origin_index: number)=>{
-                asset.markets.forEach((destination_market: Market, destination_index: number)=>{
-                    const arb = new Arb(origin_market, destination_market);
-                    const arb_type = arb.type;
-                    if(arb_type !== ArbType.NONE){
-                        const id = arb.get_id();
-                        if(!this.arb_map.has(id)){
+    findArbs(){
+        this.assetMap.forEach((asset: Asset, symbol: string)=>{
+            asset.markets.forEach((originMarket: Market, originIndex: number)=>{
+                asset.markets.forEach((destinationMarket: Market, destinationIndex: number)=>{
+                    const arb = new Arb(originMarket, destinationMarket);
+                    const arbType = arb.type;
+                    if(arbType !== ArbType.NONE){
+                        const id = arb.getId();
+                        if(!this.arbMap.has(id)){
                             // console.log(`Mapping Arb: ${id}`);
                             arb.updated.on( 
                                 _.throttle( (inst?: ExecutionInstruction) => {
                                 if(inst){
                                     // console.log(`Arb Triggered Instructions: ${JSON.stringify(inst)}`);
-                                    this.on_arb.trigger(inst);
+                                    this.onArb.trigger(inst);
                                 }
                             }, 1000 ));
-                            this.arb_map.set(arb.get_id(), arb);
-                            arb.subscribe_to_events();
+                            this.arbMap.set(arb.getId(), arb);
+                            arb.subscribeToEvents();
                         }
                     }else{
                         // console.log(`ArbType: NONE`);

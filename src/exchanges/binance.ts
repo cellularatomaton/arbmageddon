@@ -3,7 +3,7 @@ import { Hub, Market, Graph, TradeType } from '../markets';
 import { Asset } from '../assets';
 
 const binance = require('node-binance-api');
-const hub_symbols = new Set([
+const hubSymbols = new Set([
     'BTC',
     'ETH',
     'BNB',
@@ -11,68 +11,68 @@ const hub_symbols = new Set([
 ]);
 
 export class BinanceExchange extends Exchange {
-    symbol_list: string[];
+    symbolList: string[];
     constructor(
         graph: Graph
     ){
         super('BIN', 'BINANCE', graph);
-        this.update_exchange_info()
+        this.updateExchangeInfo()
             .then(() => {
-                this.setup_websockets(this.symbol_list);
+                this.setupWebsockets(this.symbolList);
             });
     }
     marketBuy(){}
     marketSell(){}
     
-    update_exchange_info() : Promise <void> {
+    updateExchangeInfo() : Promise <void> {
         const exchange = this;
         return new Promise((resolve, reject) => {
             binance.exchangeInfo((info: any)=>{     
                 const markets = info.symbols;
                 markets.forEach((market: any)=>{
-                    const hub_symbol = market.quoteAsset;
-                    const market_symbol = market.baseAsset;
-                    // console.log(`Binance mapping symbols: Hub ${hub_symbol} -> Market ${market_symbol}`);
-                    exchange.map_market(hub_symbol, market_symbol);
+                    const hubSymbol = market.quoteAsset;
+                    const marketSymbol = market.baseAsset;
+                    // console.log(`Binance mapping symbols: Hub ${hubSymbol} -> Market ${marketSymbol}`);
+                    exchange.mapMarket(hubSymbol, marketSymbol);
                 });
-                this.symbol_list = markets.map((m: any) => {return m.symbol;});
-                this.graph.map_basis();
+                this.symbolList = markets.map((m: any) => {return m.symbol;});
+                this.graph.mapBasis();
                 resolve();
             });
         });
     }
       
-    parse_symbols(key: string) : string[]{
-        let market_symbol = `NOMARKET`;
-        let hub_symbol = `NOHUB`;
+    parseSymbols(key: string) : string[]{
+        let marketSymbol = `NOMARKET`;
+        let hubSymbol = `NOHUB`;
         
-        const last_three = key.slice(key.length-3, key.length);
-        const found_three = hub_symbols.has(last_three);
-        if(found_three){
-            market_symbol = key.slice(0,key.length-3);
-            hub_symbol = last_three;
+        const lastThree = key.slice(key.length-3, key.length);
+        const foundThree = hubSymbols.has(lastThree);
+        if(foundThree){
+            marketSymbol = key.slice(0,key.length-3);
+            hubSymbol = lastThree;
         }else{
-            const last_four = key.slice(key.length-4, key.length);
-            const found_four = hub_symbols.has(last_four);
-            if(found_four){
-                market_symbol = key.slice(0,key.length-4);
-                hub_symbol = last_four;
+            const lastFour = key.slice(key.length-4, key.length);
+            const foundFour = hubSymbols.has(lastFour);
+            if(foundFour){
+                marketSymbol = key.slice(0,key.length-4);
+                hubSymbol = lastFour;
             }
         }
-        return [hub_symbol, market_symbol];
+        return [hubSymbol, marketSymbol];
     }
 
-    setup_websockets(symbols: string[]){
+    setupWebsockets(symbols: string[]){
         const exchange = this;
         binance.websockets.trades(symbols, function(trades: any) {
             // let {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId} = trades;
             // console.log(symbol+" trade update. price: "+price+", quantity: "+quantity+", maker: "+maker);
-            const parsed_symbols = exchange.parse_symbols(trades.s);
+            const parsedSymbols = exchange.parseSymbols(trades.s);
 
-            exchange.update_ticker({
-                exchange_symbol: exchange.id,
-                hub_symbol: parsed_symbols[0],
-                market_symbol: parsed_symbols[1],
+            exchange.updateTicker({
+                exchangeSymbol: exchange.id,
+                hubSymbol: parsedSymbols[0],
+                marketSymbol: parsedSymbols[1],
                 price: Number(trades.p),
                 side: trades.m ? TradeType.SELL : TradeType.BUY,
                 time: new Date(trades.T),
@@ -81,28 +81,28 @@ export class BinanceExchange extends Exchange {
           });
     }
 
-    // static bina_market_update_loop(exchange: BinanceExchange){
+    // static binaMarketUpdateLoop(exchange: BinanceExchange){
     //     // const exchange = this;    
     //     binance.bookTickers(function(tickers: any) {
     //         // console.log("bookTickers", ticker);
-    //         exchange.handle_tickers(tickers);
+    //         exchange.handleTickers(tickers);
     //     });
-    //     setTimeout(() => {BinanceExchange.bina_market_update_loop(exchange);}, 1000);
+    //     setTimeout(() => {BinanceExchange.binaMarketUpdateLoop(exchange);}, 1000);
     // }
 
-    // handle_tickers(tickers: any){
+    // handleTickers(tickers: any){
     //     const exchange = this;
     //     Object.keys(tickers).forEach((key) => {
     //         const ticker = tickers[key];
-    //         const parsed_symbols = this.parse_symbols(key);
-    //         const hub_symbol = parsed_symbols[0];
-    //         const market_symbol = parsed_symbols[1];
-    //         if(hub_symbol === `NOHUB`){
+    //         const parsedSymbols = this.parseSymbols(key);
+    //         const hubSymbol = parsedSymbols[0];
+    //         const marketSymbol = parsedSymbols[1];
+    //         if(hubSymbol === `NOHUB`){
     //             console.log(`Binance malformed symbol ${key}`);
     //         }else{
-    //             exchange.update_market(
-    //                 hub_symbol,
-    //                 market_symbol,
+    //             exchange.updateMarket(
+    //                 hubSymbol,
+    //                 marketSymbol,
     //                 Number(ticker.bid),
     //                 Number(ticker.ask)
     //             );

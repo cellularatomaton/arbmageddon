@@ -125,11 +125,11 @@
             <div class="flex-grow flex-row flex-wrap flex-stretch elbow-room">
                 <div class="flex-grow">
                     <span>Open Bids</span>
-                    <span>{{ operation.open_bids }}</span>
+                    <span>{{ operation.openBids }}</span>
                 </div>
                 <div class="flex-grow">
                     <span>Open Asks</span>
-                    <span>{{ operation.open_asks }}</span>
+                    <span>{{ operation.openAsks }}</span>
                 </div>
             </div>
             <button class="elbow-room">Execute!</button>
@@ -140,46 +140,51 @@
     <div id="app-dash" class="app-container flex-col">
         <div>
             <div class="flex-row flex-stretch">
-                <execution-component v-if="selected_inst && selected_inst.type === 1" side="buy" class="buy-convert-op flex-grow" title="Buy Convert" :operation="selected_inst.convert"></execution-component>
-                <execution-component v-if="selected_inst" side="buy" class="buy-op flex-grow" title="Buy" :operation="selected_inst ? selected_inst.buy : null"></execution-component>
-                <execution-component v-if="selected_inst" side="sell" class="sell-op flex-grow" title="Sell" :operation="selected_inst ? selected_inst.sell: null"></execution-component>
-                <execution-component v-if="selected_inst && selected_inst.type === 2" side="sell" class="sell-convert-op flex-grow" title="Sell Convert" :operation="selected_inst.convert"></execution-component>
+                <execution-component v-if="selectedInst && selectedInst.type === 1" side="buy" class="buy-convert-op flex-grow" title="Buy Convert" :operation="selectedInst.convert"></execution-component>
+                <execution-component v-if="selectedInst" side="buy" class="buy-op flex-grow" title="Buy" :operation="selectedInst ? selectedInst.buy : null"></execution-component>
+                <execution-component v-if="selectedInst" side="sell" class="sell-op flex-grow" title="Sell" :operation="selectedInst ? selectedInst.sell: null"></execution-component>
+                <execution-component v-if="selectedInst && selectedInst.type === 2" side="sell" class="sell-convert-op flex-grow" title="Sell Convert" :operation="selectedInst.convert"></execution-component>
             </div>
         </div>
         <div>
             <div class="flex-row flex-center">
                 <div class="flex-grow center-contents">
                     <div class="flex-col">
+                        <span>Arb Types:</span>
                         <div>
-                            <span>Basis Size (BTC):</span>
-                            <input v-model="basis_size" type="number" min="0" max="10" step="0.1" placeholder="0.1">
+                            <input type="checkbox" id="direct-checkbox" value="false" v-model="showDirect">
+                            <label for="direct-checkbox">Direct</label>
                         </div>
                         <div>
-                            <span>Spread Filter (%):</span>
-                            <input v-model="spread_filter" type="number" min="2" max="20" step="0.5" placeholder="3.5">
+                            <input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="showCrossExchange">
+                            <label for="cross-exchange-checkbox">Cross Exchange</label>
+                        </div>
+                        <div>
+                            <input type="checkbox" id="conversion-checkbox" value="true" v-model="showConversion">
+                            <label for="conversion-checkbox">Conversion</label>
                         </div>
                     </div>
                 </div>
-                <div class="flex-grow center-contents" v-bind:class="{ 'arb-good': arb_is_good(), 'arb-bad': !arb_is_good() }"> 
+                <!-- <div class="flex-col">
+                    <div>
+                        <input type="radio">
+                    </div>
+                </div> -->
+                <div class="flex-grow center-contents" v-bind:class="{ 'arb-good': arbIsGood(), 'arb-bad': !arbIsGood() }"> 
                         <div class="flex-col">
-                            <strong>Opportunity Window: {{ (selected_inst.opportunity_window/1000).toFixed(0) }} s</strong>
-                            <strong>Execution Time: {{ (selected_inst.sum_of_durations/1000).toFixed(0) }} s</strong>
+                            <strong>Opportunity Window: {{ (selectedInst.opportunityWindow/1000).toFixed(0) }} s</strong>
+                            <strong>Execution Time: {{ (selectedInst.sumOfDurations/1000).toFixed(0) }} s</strong>
                         </div>
                 </div>
                 <div class="flex-grow center-contents">
                     <div class="flex-col">
-                        <span>Arb Types:</span>
                         <div>
-                            <input type="checkbox" id="direct-checkbox" value="false" v-model="show_direct">
-                            <label for="direct-checkbox">Direct</label>
+                            <span>Basis Size (BTC):</span>
+                            <input v-model="basisSize" type="number" min="0" max="10" step="0.1" placeholder="0.1">
                         </div>
                         <div>
-                            <input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="show_cross_exchange">
-                            <label for="cross-exchange-checkbox">Cross Exchange</label>
-                        </div>
-                        <div>
-                            <input type="checkbox" id="conversion-checkbox" value="true" v-model="show_conversion">
-                            <label for="conversion-checkbox">Conversion</label>
+                            <span>Spread Filter (%):</span>
+                            <input v-model="spreadFilter" type="number" min="2" max="20" step="0.5" placeholder="3.5">
                         </div>
                     </div>
                 </div>
@@ -192,38 +197,42 @@
                         <thead>
                             <th>Arb</th>
                             <th>Spread</th>
+                            <th>Time</th>
+                            <th>SOD</th>
                         </thead>
                         <tbody>
-                            <tr v-for="inst in get_filtered_arbs(arb_list)">
+                            <tr v-for="inst in getFilteredArbs(arbList)">
                                 <td>{{ inst.id }}</td>
                                 <td><button 
-                                    v-on:click="set_multicharts(inst)"  
-                                    v-bind:class="{ selected: inst.selected }">{{ inst_spread(inst) }}</button></td>
+                                    v-on:click="setMulticharts(inst)"  
+                                    v-bind:class="{ selected: inst.selected }">{{ instSpread(inst) }}</button></td>
+                                <td></td>
+                                <td></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
             <div class="flex-grow elbow-room">
-                <iframe :src="multicharts_url" height="100%" width="100%"></iframe>
+                <iframe :src="multichartsUrl" height="100%" width="100%"></iframe>
             </div>
         </div>
     </div>
     <script>
-        let exch_map = {};
-        const arb_map = {};
+        let exchMap = {};
+        const arbMap = {};
         
-        const get_coinigy_symbol = function(op){
-            return `${exch_map[op.exchange]}:${op.market}${op.hub}`;
+        const getCoinigySymbol = function(op){
+            return `${exchMap[op.exchange]}:${op.market}${op.hub}`;
         }
-        const get_mcc_query_string = function(inst){
+        const getMccQueryString = function(inst){
             if(inst){
-                const buy = get_coinigy_symbol(inst.buy);
-                const sell = get_coinigy_symbol(inst.sell);
+                const buy = getCoinigySymbol(inst.buy);
+                const sell = getCoinigySymbol(inst.sell);
                 if(inst.type === 0){ // Buy Spread
                     return `?chart=${buy}&chart=${sell}&chart=${sell}-${buy}`;
                 }else { // Conversion
-                    const convert = get_coinigy_symbol(inst.convert);
+                    const convert = getCoinigySymbol(inst.convert);
                     if(inst.type === 1){ // Origin Conversion
                         return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}-${buy}*${convert}`;
                     }else if(inst.type === 2){ // Destination Conversion
@@ -234,16 +243,16 @@
                 }
             }
         }
-        const op_symbol_match = function(symbol, op){
+        const opSymbolMatch = function(symbol, op){
             return op.exchange.startsWith(symbol) || 
                 op.hub.startsWith(symbol) ||
                 op.market.startsWith(symbol);
         }
-        const inst_symbol_match = function(symbol, inst){
-            const convert_match = inst.convert ? op_symbol_match(symbol, inst.convert) : false;
-            return convert_match ||
-                op_symbol_match(symbol, inst.buy) ||
-                op_symbol_match(symbol, inst.sell);
+        const instSymbolMatch = function(symbol, inst){
+            const convertMatch = inst.convert ? opSymbolMatch(symbol, inst.convert) : false;
+            return convertMatch ||
+                opSymbolMatch(symbol, inst.buy) ||
+                opSymbolMatch(symbol, inst.sell);
         }
         Vue.component('execution-component', {
             template: '#operation-template',
@@ -253,23 +262,23 @@
             el: '#app-dash',
             data: {
                 exchanges: [],
-                arb_list: [],
-                // arb_map: [],
-                selected_inst: null,
-                multicharts_url: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC',
-                show_cross_exchange: false,
-                show_direct: false,
-                show_conversion: true,
-                symbol_filter: 'SYM',
-                spread_filter: 3.0,
-                basis_size: 0.1
+                arbList: [],
+                // arbMap: [],
+                selectedInst: null,
+                multichartsUrl: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC',
+                showCrossExchange: false,
+                showDirect: false,
+                showConversion: true,
+                symbolFilter: 'SYM',
+                spreadFilter: 3.0,
+                basisSize: 0.1
             },
             methods: {
-                get_exchanges: function(){
+                getExchanges: function(){
                     return new Promise(function(resolve, reject) {
                         Vue.http.get('/graph/exchanges').then(response => {
                             appDash.exchanges = response.body;
-                            exch_map = appDash.exchanges.reduce(function(map, exch){
+                            exchMap = appDash.exchanges.reduce(function(map, exch){
                                 map[exch.id] = exch.name;
                                 return map;
                             }, {});
@@ -279,65 +288,65 @@
                         });
                     });
                 },
-                get_filtered_arbs: function(){
-                    return appDash.arb_list.filter(function (inst) {
-                        const is_cross_exchange = inst.buy.exchange !== inst.sell.exchange;
-                        const cross_exchange_passes = appDash.show_cross_exchange === is_cross_exchange;
-                        const is_direct = inst.type === 0;
-                        const direct_passes = appDash.show_direct === is_direct;
-                        const is_conversion = inst.type !== 0;
-                        const conversion_passes = appDash.show_conversion === is_conversion;
-                        const spread_passes = Number.parseFloat(appDash.spread_filter)/100 < inst.spread;
-                        return (cross_exchange_passes || direct_passes || conversion_passes) && spread_passes;
+                getFilteredArbs: function(){
+                    return appDash.arbList.filter(function (inst) {
+                        const isCrossExchange = inst.buy.exchange !== inst.sell.exchange;
+                        const crossExchangePasses = appDash.showCrossExchange === isCrossExchange;
+                        const isDirect = inst.type === 0;
+                        const directPasses = appDash.showDirect === isDirect;
+                        const isConversion = inst.type !== 0;
+                        const conversionPasses = appDash.showConversion === isConversion;
+                        const spreadPasses = Number.parseFloat(appDash.spreadFilter)/100 < inst.spread;
+                        return (crossExchangePasses || directPasses || conversionPasses) && spreadPasses;
                     });
                 },
-                arb_is_good(){
-                    const inst = appDash.selected_inst;
-                    return 0 < inst.opportunity_window && inst.sum_of_durations < inst.opportunity_window;
+                arbIsGood(){
+                    const inst = appDash.selectedInst;
+                    return 0 < inst.opportunityWindow && inst.sumOfDurations < inst.opportunityWindow;
                 },
-                inst_spread: function(i) { return `${(i.spread*100).toFixed(2)}%`; },
-                inst_string: function(inst){
-                    return get_inst_string(inst);
+                instSpread: function(i) { return `${(i.spread*100).toFixed(2)}%`; },
+                instString: function(inst){
+                    return getInstString(inst);
                 },
-                set_multicharts: function(inst){
+                setMulticharts: function(inst){
                     if(inst){
-                        const query_string = get_mcc_query_string(inst);
-                        appDash.multicharts_url = `https://www.multicoincharts.com/${query_string}`;
+                        const queryString = getMccQueryString(inst);
+                        appDash.multichartsUrl = `https://www.multicoincharts.com/${queryString}`;
                         inst.selected = true;
-                        if(appDash.selected_inst && appDash.selected_inst.selected){
-                            appDash.selected_inst.selected = false;
+                        if(appDash.selectedInst && appDash.selectedInst.selected){
+                            appDash.selectedInst.selected = false;
                         }
-                        appDash.selected_inst = inst;
+                        appDash.selectedInst = inst;
                     }
                 },
                 setup: function(){
                     appDash
-                        .get_exchanges()
+                        .getExchanges()
                         .then(function(){
-                            return appDash.setup_websocket();
+                            return appDash.setupWebsocket();
                         })
-                        .then(appDash.sort_loop);
+                        .then(appDash.sortLoop);
                 },
-                sort_loop: function(){
-                    appDash.arb_list.sort((a, b)=>{
+                sortLoop: function(){
+                    appDash.arbList.sort((a, b)=>{
                         return b.spread - a.spread;
                     });
-                    setTimeout(appDash.sort_loop, 1000);
+                    setTimeout(appDash.sortLoop, 1000);
                 },
-                setup_websocket: function(){
+                setupWebsocket: function(){
                     return new Promise(function(resolve, reject) {
                         const ws = new WebSocket('ws://localhost:8080/');
                         ws.addEventListener('message', function(message){
                             const msg = JSON.parse(message.data);
                             if(msg.type === 'arb'){ // Spread Update
                                 const update = msg.data;
-                                const instruction = arb_map[update.id];
+                                const instruction = arbMap[update.id];
                                 if(instruction){
-                                    const target = appDash.spread_filter/100;
+                                    const target = appDash.spreadFilter/100;
                                     if(instruction.spread < target && target < update.spread){
-                                        instruction.spread_entered_at = Date.now();
+                                        instruction.spreadEnteredAt = Date.now();
                                     }
-                                    instruction.opportunity_window = Date.now() - instruction.spread_entered_at;
+                                    instruction.opportunityWindow = Date.now() - instruction.spreadEnteredAt;
                                     instruction.spread = update.spread;
                                     instruction.buy.price = update.buy.price;
                                     instruction.buy.duration = update.buy.duration;
@@ -346,23 +355,23 @@
                                     if(instruction.convert){
                                         instruction.convert.price = update.convert.price;
                                         instruction.convert.duration = update.convert.duration;
-                                        instruction.sum_of_durations = 
+                                        instruction.sumOfDurations = 
                                             update.buy.duration +
                                             update.sell.duration +
                                             update.convert.duration;
                                     }else{
-                                        instruction.sum_of_durations = 
+                                        instruction.sumOfDurations = 
                                             update.buy.duration +
                                             update.sell.duration;
                                     }
                                     
                                 }else{
-                                    update.spread_entered_at = Date.now();
-                                    arb_map[update.id] = update;
-                                    appDash.arb_list.push(update);
+                                    update.spreadEnteredAt = Date.now();
+                                    arbMap[update.id] = update;
+                                    appDash.arbList.push(update);
                                 }
-                                if(!appDash.selected_inst){
-                                    appDash.set_multicharts(appDash.arb_list[0]);
+                                if(!appDash.selectedInst){
+                                    appDash.setMulticharts(appDash.arbList[0]);
                                 }
                             }
                         });

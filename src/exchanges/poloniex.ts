@@ -8,19 +8,19 @@ import { TradeType } from '../markets/ticker';
 const WebSocket = require('ws');
 
 export class PoloniexExchange extends Exchange {
-    symbol_list: string[];
-    id_to_symbol_map: Map<number, HubMarketPair>;
+    symbolList: string[];
+    idToSymbolMap: Map<number, HubMarketPair>;
     constructor(
         graph: Graph
     ){
         super('PLX', 'POLONIEX', graph);
-        this.id_to_symbol_map = new Map<number, HubMarketPair>();
-        this.update_products()
-            .then(() => { this.setup_websocket(); });
+        this.idToSymbolMap = new Map<number, HubMarketPair>();
+        this.updateProducts()
+            .then(() => { this.setupWebsocket(); });
     }
     marketBuy(){}
     marketSell(){}
-    update_products() : Promise<void> {
+    updateProducts() : Promise<void> {
         const exchange = this;
 
         return new Promise((resolve, reject) => {
@@ -28,32 +28,32 @@ export class PoloniexExchange extends Exchange {
                 `https://poloniex.com/public?command=returnTicker`, 
                 ( tickers: any ) => {
                     // console.log(JSON.stringify(tickers));
-                    this.symbol_list = [];
+                    this.symbolList = [];
                     Object.keys(tickers).forEach((key) => {
                         const ticker = tickers[key];
                         const symbols = key.split('_');
-                        const hub_symbol = symbols[0];
-                        const market_symbol = symbols[1];
+                        const hubSymbol = symbols[0];
+                        const marketSymbol = symbols[1];
     
-                        exchange.map_market(
-                            hub_symbol,
-                            market_symbol,
+                        exchange.mapMarket(
+                            hubSymbol,
+                            marketSymbol,
                         );
-                        this.symbol_list.push(key);
+                        this.symbolList.push(key);
                     });
-                    this.graph.map_basis();
+                    this.graph.mapBasis();
                     resolve();
                 }
             );
         });
     }
 
-    setup_websocket(){
+    setupWebsocket(){
         const exchange = this;
         const ws = new WebSocket('wss://api2.poloniex.com/');
 
         ws.on('open', function open() {
-            exchange.symbol_list.forEach((symbol: string) => {
+            exchange.symbolList.forEach((symbol: string) => {
                 const msg = {
                     command: "subscribe",
                     channel: symbol}
@@ -65,7 +65,7 @@ export class PoloniexExchange extends Exchange {
         ws.on('message', function incoming(msg: string) {
             const data = JSON.parse(msg);
             if(data.length === 3){
-                const product_id = data[0];
+                const productId = data[0];
                 const sequence = data[1];
                 const messages = data[2];
                 messages.forEach((m: any[]) => {
@@ -75,11 +75,11 @@ export class PoloniexExchange extends Exchange {
                         const initial: any = m[1];
                         const symbol: string = initial.currencyPair;
                         const symbols = symbol.split('_');
-                        exchange.id_to_symbol_map.set(
-                            product_id, 
+                        exchange.idToSymbolMap.set(
+                            productId, 
                             {
-                                hub_symbol: symbols[0],
-                                market_symbol: symbols[1]
+                                hubSymbol: symbols[0],
+                                marketSymbol: symbols[1]
                             }
                         );
                     }else if(type === 'o'){
@@ -89,13 +89,13 @@ export class PoloniexExchange extends Exchange {
                         const quantity: number = Number(m[3]);
                     }else if(type === 't'){
                         // Trade:
-                        const pair: HubMarketPair | undefined = exchange.id_to_symbol_map.get(product_id);
+                        const pair: HubMarketPair | undefined = exchange.idToSymbolMap.get(productId);
                         if(pair){
-                            const trade_id: number = Number(m[1]);
-                            exchange.update_ticker({
-                                exchange_symbol: exchange.id,
-                                hub_symbol: pair.hub_symbol,
-                                market_symbol: pair.market_symbol,
+                            const tradeId: number = Number(m[1]);
+                            exchange.updateTicker({
+                                exchangeSymbol: exchange.id,
+                                hubSymbol: pair.hubSymbol,
+                                marketSymbol: pair.marketSymbol,
                                 side: m[2] ? TradeType.BUY : TradeType.SELL,
                                 price: Number(m[3]),
                                 time: new Date(m[5]*1000),

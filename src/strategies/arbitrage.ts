@@ -43,264 +43,264 @@ export interface ExecutionInstruction {
 
 export class Arb {
     public type: ArbType;
-    public conversion_type: ArbConversionType;
-    public origin_conversion: Market | null | undefined;
-    public destination_conversion: Market | null | undefined;
-    on_updated: EventImp<ExecutionInstruction> = new EventImp<ExecutionInstruction>();
+    public conversionType: ArbConversionType;
+    public originConversion: Market | null | undefined;
+    public destinationConversion: Market | null | undefined;
+    onUpdated: EventImp<ExecutionInstruction> = new EventImp<ExecutionInstruction>();
     public get updated() : IEvent<ExecutionInstruction> {
-        return this.on_updated.expose();
+        return this.onUpdated.expose();
     };
     constructor(
-        public origin_market: Market,
-        public destination_market: Market
+        public originMarket: Market,
+        public destinationMarket: Market
     ){
         // Find buy conversion market
-        const origin_exchange = origin_market.hub.exchange;
-        const origin_conversion_hub = origin_exchange.hubs.get(destination_market.hub.asset.symbol);
-        this.origin_conversion = origin_conversion_hub ? origin_conversion_hub.markets.get(origin_market.hub.asset.symbol) : null;
+        const originExchange = originMarket.hub.exchange;
+        const originConversionHub = originExchange.hubs.get(destinationMarket.hub.asset.symbol);
+        this.originConversion = originConversionHub ? originConversionHub.markets.get(originMarket.hub.asset.symbol) : null;
         // Find sell conversion market
-        const destination_exchange = destination_market.hub.exchange;
-        const destination_conversion_hub = destination_exchange.hubs.get(origin_market.hub.asset.symbol);
-        this.destination_conversion = destination_conversion_hub ? destination_conversion_hub.markets.get(destination_market.hub.asset.symbol) : null;
-        if(origin_market.vwap_sell_stats.get_vwap() === 0 || destination_market.vwap_buy_stats.get_vwap() === 0){
+        const destinationExchange = destinationMarket.hub.exchange;
+        const destinationConversionHub = destinationExchange.hubs.get(originMarket.hub.asset.symbol);
+        this.destinationConversion = destinationConversionHub ? destinationConversionHub.markets.get(destinationMarket.hub.asset.symbol) : null;
+        if(originMarket.vwapSellStats.getVwap() === 0 || destinationMarket.vwapBuyStats.getVwap() === 0){
             this.type = ArbType.NONE;
-            this.conversion_type = ArbConversionType.NONE;
+            this.conversionType = ArbConversionType.NONE;
         }
-        else if(this.origin_conversion || this.destination_conversion){
+        else if(this.originConversion || this.destinationConversion){
             this.type = ArbType.COMPLEX;
-            if(this.origin_conversion && this.destination_conversion){
-                this.conversion_type = ArbConversionType.EITHER_SIDE;
-            } else if(this.origin_conversion){
-                this.conversion_type = ArbConversionType.BUY_SIDE;
-            }else if(this.destination_conversion){
-                this.conversion_type = ArbConversionType.SELL_SIDE;
+            if(this.originConversion && this.destinationConversion){
+                this.conversionType = ArbConversionType.EITHER_SIDE;
+            } else if(this.originConversion){
+                this.conversionType = ArbConversionType.BUY_SIDE;
+            }else if(this.destinationConversion){
+                this.conversionType = ArbConversionType.SELL_SIDE;
             }else{
-                this.conversion_type = ArbConversionType.NONE;
+                this.conversionType = ArbConversionType.NONE;
             }
-        }else if(this.is_simple_arb()){
+        }else if(this.isSimpleArb()){
             this.type = ArbType.SIMPLE;
-            this.conversion_type = ArbConversionType.NONE;
+            this.conversionType = ArbConversionType.NONE;
         }else {
             this.type = ArbType.NONE;
-            this.conversion_type = ArbConversionType.NONE;
+            this.conversionType = ArbConversionType.NONE;
         }
     }
 
-    subscribe_to_vwap(event: IEvent<VWAP>) {
+    subscribeToVwap(event: IEvent<VWAP>) {
         event.on((vwap: VWAP | undefined) => {
-            const instructions: ExecutionInstruction[] = this.get_instructions();
+            const instructions: ExecutionInstruction[] = this.getInstructions();
             instructions.forEach((inst: ExecutionInstruction)=>{
                 // console.log(`VWAP Triggered Instructions: ${JSON.stringify(inst)}`);
-                this.on_updated.trigger(inst);
+                this.onUpdated.trigger(inst);
             });
         });
     }
 
-    subscribe_to_events() {
-        this.subscribe_to_vwap(this.destination_market.vwap_buy_stats.vwap_updated);
-        this.subscribe_to_vwap(this.origin_market.vwap_sell_stats.vwap_updated);
-        if(this.origin_conversion){
-            this.subscribe_to_vwap(this.origin_conversion.vwap_sell_stats.vwap_updated);
+    subscribeToEvents() {
+        this.subscribeToVwap(this.destinationMarket.vwapBuyStats.vwapUpdated);
+        this.subscribeToVwap(this.originMarket.vwapSellStats.vwapUpdated);
+        if(this.originConversion){
+            this.subscribeToVwap(this.originConversion.vwapSellStats.vwapUpdated);
         }
-        if(this.destination_conversion){
-            this.subscribe_to_vwap(this.destination_conversion.vwap_buy_stats.vwap_updated);
+        if(this.destinationConversion){
+            this.subscribeToVwap(this.destinationConversion.vwapBuyStats.vwapUpdated);
         }
     }
 
-    get_id() : string {
-        const origin_exchange = this.origin_market.hub.exchange.id;
-        const origin_convert = this.origin_conversion ? this.origin_conversion.asset.symbol : 'NULL';
-        const origin_market = this.origin_market.asset.symbol;
-        const destination_exchange = this.destination_market.hub.exchange.id;
-        const destination_market = this.destination_market.asset.symbol;
-        const destination_convert = this.destination_conversion ? this.destination_conversion.asset.symbol : 'NULL';
-        return `${this.type}.${this.conversion_type}.${origin_exchange}.${origin_convert}.${origin_market}.${destination_exchange}${destination_convert}${destination_market}`;
+    getId() : string {
+        const originExchange = this.originMarket.hub.exchange.id;
+        const originConvert = this.originConversion ? this.originConversion.asset.symbol : 'NULL';
+        const originMarket = this.originMarket.asset.symbol;
+        const destinationExchange = this.destinationMarket.hub.exchange.id;
+        const destinationMarket = this.destinationMarket.asset.symbol;
+        const destinationConvert = this.destinationConversion ? this.destinationConversion.asset.symbol : 'NULL';
+        return `${this.type}.${this.conversionType}.${originExchange}.${originConvert}.${originMarket}.${destinationExchange}${destinationConvert}${destinationMarket}`;
     }
 
-    get_inst_id(inst_type: InstructionType) : string | null {
-        const origin_exchange = this.origin_market.hub.exchange.id;
-        const origin_hub = this.origin_market.hub.asset.symbol;
-        const origin_market = this.origin_market.asset.symbol;
-        const destination_exchange = this.destination_market.hub.exchange.id;
-        const destination_hub = this.destination_market.hub.asset.symbol;
-        const destination_market = this.destination_market.asset.symbol;
-        const origin_convert = this.origin_conversion ? this.origin_conversion.asset.symbol : null;
-        const origin_convert_hub = this.origin_conversion ? this.origin_conversion.hub.asset.symbol : null;
-        const destination_convert = this.destination_conversion ? this.destination_conversion.asset.symbol : null;
-        const destination_convert_hub = this.destination_conversion ? this.destination_conversion.hub.asset.symbol : null;
+    getInstId(instType: InstructionType) : string | null {
+        const originExchange = this.originMarket.hub.exchange.id;
+        const originHub = this.originMarket.hub.asset.symbol;
+        const originMarket = this.originMarket.asset.symbol;
+        const destinationExchange = this.destinationMarket.hub.exchange.id;
+        const destinationHub = this.destinationMarket.hub.asset.symbol;
+        const destinationMarket = this.destinationMarket.asset.symbol;
+        const originConvert = this.originConversion ? this.originConversion.asset.symbol : null;
+        const originConvertHub = this.originConversion ? this.originConversion.hub.asset.symbol : null;
+        const destinationConvert = this.destinationConversion ? this.destinationConversion.asset.symbol : null;
+        const destinationConvertHub = this.destinationConversion ? this.destinationConversion.hub.asset.symbol : null;
         
-        const o_hub = `${origin_exchange}.${origin_hub}`;
-        const o_mkt = `${origin_exchange}.${origin_market}`;
-        const d_hub = `${destination_exchange}.${destination_hub}`;
-        const d_mkt = `${destination_exchange}.${destination_market}`;
-        const oc_hub = `${origin_exchange}.${origin_convert_hub}`;
-        const oc_mkt = `${origin_exchange}.${origin_convert}`;
-        const dc_hub = `${destination_exchange}.${destination_convert_hub}`;
-        const dc_mkt = `${destination_exchange}.${destination_convert}`;
+        const oHub = `${originExchange}.${originHub}`;
+        const oMkt = `${originExchange}.${originMarket}`;
+        const dHub = `${destinationExchange}.${destinationHub}`;
+        const dMkt = `${destinationExchange}.${destinationMarket}`;
+        const ocHub = `${originExchange}.${originConvertHub}`;
+        const ocMkt = `${originExchange}.${originConvert}`;
+        const dcHub = `${destinationExchange}.${destinationConvertHub}`;
+        const dcMkt = `${destinationExchange}.${destinationConvert}`;
 
-        if(inst_type as InstructionType === InstructionType.DIRECT){ // Direct Arb
-            return `DA:${o_hub}->${o_mkt}->${d_hub}`;
-        }else if(inst_type as InstructionType === InstructionType.ORIGIN_CONVERSION) { // Origin Conversion
-            return `OC:${oc_hub}->${oc_mkt}->${o_mkt}->${d_hub}`;
-        }else if(inst_type as InstructionType === InstructionType.DESTINATION_CONVERSION){ // Destination Conversion
-            return `DC:${o_hub}->${d_mkt}->${dc_mkt}->${dc_hub}`;
+        if(instType as InstructionType === InstructionType.DIRECT){ // Direct Arb
+            return `DA:${oHub}->${oMkt}->${dHub}`;
+        }else if(instType as InstructionType === InstructionType.ORIGIN_CONVERSION) { // Origin Conversion
+            return `OC:${ocHub}->${ocMkt}->${oMkt}->${dHub}`;
+        }else if(instType as InstructionType === InstructionType.DESTINATION_CONVERSION){ // Destination Conversion
+            return `DC:${oHub}->${dMkt}->${dcMkt}->${dcHub}`;
         }
         return null;
     }
 
-    is_simple_arb() : boolean {
-        const origin_hub = this.origin_market.hub.asset.symbol;
-        const origin_exchange = this.origin_market.hub.exchange.id;
-        const destination_hub = this.destination_market.hub.asset.symbol;
-        const destination_exchange = this.destination_market.hub.exchange.id;
-        const is_same_hub = origin_hub === destination_hub;
-        const is_same_exchange = origin_exchange === destination_exchange;
-        const is_simple = (is_same_hub && !is_same_exchange);
-        return is_simple;
+    isSimpleArb() : boolean {
+        const originHub = this.originMarket.hub.asset.symbol;
+        const originExchange = this.originMarket.hub.exchange.id;
+        const destinationHub = this.destinationMarket.hub.asset.symbol;
+        const destinationExchange = this.destinationMarket.hub.exchange.id;
+        const isSameHub = originHub === destinationHub;
+        const isSameExchange = originExchange === destinationExchange;
+        const isSimple = (isSameHub && !isSameExchange);
+        return isSimple;
     }
 
-    get_spread(){
-        const spread = this.destination_market.vwap_buy_stats.get_vwap() - this.origin_market.vwap_sell_stats.get_vwap();
+    getSpread(){
+        const spread = this.destinationMarket.vwapBuyStats.getVwap() - this.originMarket.vwapSellStats.getVwap();
         return spread;
     }
 
-    get_spread_percent(){
-        const spread = this.get_spread();
-        if(this.origin_market.vwap_sell_stats.get_vwap() === 0){
+    getSpreadPercent(){
+        const spread = this.getSpread();
+        if(this.originMarket.vwapSellStats.getVwap() === 0){
             return Number.NaN;
         }else{
-            return spread / this.origin_market.vwap_sell_stats.get_vwap();
+            return spread / this.originMarket.vwapSellStats.getVwap();
         }
     }
 
-    get_origin_conversion_spread(){
-        if(this.origin_conversion){
-            return this.destination_market.vwap_buy_stats.get_vwap() - this.origin_market.vwap_sell_stats.get_vwap() * this.origin_conversion.vwap_sell_stats.get_vwap();
+    getOriginConversionSpread(){
+        if(this.originConversion){
+            return this.destinationMarket.vwapBuyStats.getVwap() - this.originMarket.vwapSellStats.getVwap() * this.originConversion.vwapSellStats.getVwap();
         }else{
             return Number.NaN;
         }
     }
 
-    get_origin_conversion_spread_percent(){
-        if(this.origin_conversion){
-            const initial_value = this.origin_market.vwap_sell_stats.get_vwap() * this.origin_conversion.vwap_sell_stats.get_vwap();
-            if(initial_value === 0){
+    getOriginConversionSpreadPercent(){
+        if(this.originConversion){
+            const initialValue = this.originMarket.vwapSellStats.getVwap() * this.originConversion.vwapSellStats.getVwap();
+            if(initialValue === 0){
                 return Number.NaN;
             }else{
-                return this.get_origin_conversion_spread() / initial_value;
+                return this.getOriginConversionSpread() / initialValue;
             }
         }else{
             return Number.NaN;
         }
     }
 
-    get_destination_conversion_spread(){
-        if(this.destination_conversion){
-            return this.destination_market.vwap_buy_stats.get_vwap() * this.destination_conversion.vwap_buy_stats.get_vwap() - this.origin_market.vwap_sell_stats.get_vwap();
+    getDestinationConversionSpread(){
+        if(this.destinationConversion){
+            return this.destinationMarket.vwapBuyStats.getVwap() * this.destinationConversion.vwapBuyStats.getVwap() - this.originMarket.vwapSellStats.getVwap();
         }else{
             return Number.NaN;
         }
     }
 
-    get_destination_conversion_spread_percent(){
-        if(this.destination_conversion){
-            const initial_value = this.origin_market.vwap_sell_stats.get_vwap();
-            if(initial_value === 0){
+    getDestinationConversionSpreadPercent(){
+        if(this.destinationConversion){
+            const initialValue = this.originMarket.vwapSellStats.getVwap();
+            if(initialValue === 0){
                 return Number.NaN;
             }else{
-                return this.get_destination_conversion_spread() / initial_value;
+                return this.getDestinationConversionSpread() / initialValue;
             }
         }else{
             return Number.NaN;
         }
     }
 
-    get_conversion_spread_percent(){
-        const origin_conversion_spread = this.get_origin_conversion_spread_percent();
-        const destination_conversion_spread = this.get_destination_conversion_spread_percent();
-        return this.get_better_spread(origin_conversion_spread, destination_conversion_spread);
+    getConversionSpreadPercent(){
+        const originConversionSpread = this.getOriginConversionSpreadPercent();
+        const destinationConversionSpread = this.getDestinationConversionSpreadPercent();
+        return this.getBetterSpread(originConversionSpread, destinationConversionSpread);
     }
 
-    get_conversion_spread(){
-        const origin_conversion_spread = this.get_origin_conversion_spread();
-        const destination_conversion_spread = this.get_destination_conversion_spread();
-        return this.get_better_spread(origin_conversion_spread, destination_conversion_spread);
+    getConversionSpread(){
+        const originConversionSpread = this.getOriginConversionSpread();
+        const destinationConversionSpread = this.getDestinationConversionSpread();
+        return this.getBetterSpread(originConversionSpread, destinationConversionSpread);
     }
 
-    get_better_spread(origin_conversion_spread: number, destination_conversion_spread: number){
-        const has_origin_conversion = !Number.isNaN(origin_conversion_spread);
-        const has_destination_conversion = !Number.isNaN(destination_conversion_spread);
+    getBetterSpread(originConversionSpread: number, destinationConversionSpread: number){
+        const hasOriginConversion = !Number.isNaN(originConversionSpread);
+        const hasDestinationConversion = !Number.isNaN(destinationConversionSpread);
 
-        if(this.conversion_type === ArbConversionType.EITHER_SIDE){
-            if(Math.abs(destination_conversion_spread) < Math.abs(origin_conversion_spread)){
-                return origin_conversion_spread;
+        if(this.conversionType === ArbConversionType.EITHER_SIDE){
+            if(Math.abs(destinationConversionSpread) < Math.abs(originConversionSpread)){
+                return originConversionSpread;
             }else{
-                return destination_conversion_spread;
+                return destinationConversionSpread;
             }
-        }else if(this.conversion_type === ArbConversionType.BUY_SIDE){
-            return origin_conversion_spread;
-        }else if(this.conversion_type === ArbConversionType.SELL_SIDE){
-            return destination_conversion_spread;
+        }else if(this.conversionType === ArbConversionType.BUY_SIDE){
+            return originConversionSpread;
+        }else if(this.conversionType === ArbConversionType.SELL_SIDE){
+            return destinationConversionSpread;
         }else{
             console.log(`Missing conversion markets!`);
             return Number.NaN;
         }
     }
 
-    public get_buy_operation() : ExecutionOperation {
+    public getBuyOperation() : ExecutionOperation {
         return {
-            exchange: this.origin_market.hub.exchange.id,
-            hub: this.origin_market.hub.asset.symbol,
-            market: this.origin_market.asset.symbol,
-            price: this.origin_market.vwap_sell_stats.get_vwap(),
-            duration: this.origin_market.vwap_sell_stats.get_duration()
+            exchange: this.originMarket.hub.exchange.id,
+            hub: this.originMarket.hub.asset.symbol,
+            market: this.originMarket.asset.symbol,
+            price: this.originMarket.vwapSellStats.getVwap(),
+            duration: this.originMarket.vwapSellStats.getDuration()
         };
     }
 
-    public get_sell_operation() : ExecutionOperation {
+    public getSellOperation() : ExecutionOperation {
         return {
-            exchange: this.destination_market.hub.exchange.id,
-            hub: this.destination_market.hub.asset.symbol,
-            market: this.destination_market.asset.symbol,
-            price: this.destination_market.vwap_buy_stats.get_vwap(),
-            duration: this.destination_market.vwap_buy_stats.get_duration()
+            exchange: this.destinationMarket.hub.exchange.id,
+            hub: this.destinationMarket.hub.asset.symbol,
+            market: this.destinationMarket.asset.symbol,
+            price: this.destinationMarket.vwapBuyStats.getVwap(),
+            duration: this.destinationMarket.vwapBuyStats.getDuration()
         };
     }
 
-    public get_origin_conv_operation() : ExecutionOperation | null {
-        if(this.origin_conversion){
+    public getOriginConvOperation() : ExecutionOperation | null {
+        if(this.originConversion){
             return {
-                exchange: this.origin_conversion.hub.exchange.id,
-                hub: this.origin_conversion.hub.asset.symbol,
-                market: this.origin_conversion.asset.symbol,
-                price: this.origin_conversion.vwap_sell_stats.get_vwap(),
-                duration: this.origin_conversion.vwap_sell_stats.get_duration()
+                exchange: this.originConversion.hub.exchange.id,
+                hub: this.originConversion.hub.asset.symbol,
+                market: this.originConversion.asset.symbol,
+                price: this.originConversion.vwapSellStats.getVwap(),
+                duration: this.originConversion.vwapSellStats.getDuration()
             };
         }else{
             return null;
         }
     }
 
-    public get_destination_conv_operation() : ExecutionOperation | null {
-        if(this.destination_conversion){
+    public getDestinationConvOperation() : ExecutionOperation | null {
+        if(this.destinationConversion){
             return {
-                exchange: this.destination_conversion.hub.exchange.id,
-                hub: this.destination_conversion.hub.asset.symbol,
-                market: this.destination_conversion.asset.symbol,
-                price: this.destination_conversion.vwap_buy_stats.get_vwap(),
-                duration: this.destination_conversion.vwap_buy_stats.get_duration()
+                exchange: this.destinationConversion.hub.exchange.id,
+                hub: this.destinationConversion.hub.asset.symbol,
+                market: this.destinationConversion.asset.symbol,
+                price: this.destinationConversion.vwapBuyStats.getVwap(),
+                duration: this.destinationConversion.vwapBuyStats.getDuration()
             };
         }else{
             return null;
         }
     }
 
-    public get_direct_instructions() : ExecutionInstruction | null {
-        const spread = this.get_spread_percent();
-        const buy = this.get_buy_operation();
-        const sell = this.get_sell_operation();
+    public getDirectInstructions() : ExecutionInstruction | null {
+        const spread = this.getSpreadPercent();
+        const buy = this.getBuyOperation();
+        const sell = this.getSellOperation();
         const instructions = {
-            id: this.get_inst_id(InstructionType.DIRECT),
+            id: this.getInstId(InstructionType.DIRECT),
             spread: spread,
             type: InstructionType.DIRECT,
             buy: buy,
@@ -309,19 +309,19 @@ export class Arb {
         return instructions;
     }
 
-    public get_origin_convert_instructions() : ExecutionInstruction | null {
-        const buy_convert_spread = this.get_origin_conversion_spread_percent();
-        const buy = this.get_buy_operation();
-        const sell = this.get_sell_operation();
-        const buy_convert = this.get_origin_conv_operation();
-        if(buy_convert){
+    public getOriginConvertInstructions() : ExecutionInstruction | null {
+        const buyConvertSpread = this.getOriginConversionSpreadPercent();
+        const buy = this.getBuyOperation();
+        const sell = this.getSellOperation();
+        const buyConvert = this.getOriginConvOperation();
+        if(buyConvert){
             const instructions = {
-                id: this.get_inst_id(InstructionType.ORIGIN_CONVERSION),
-                spread: buy_convert_spread,
+                id: this.getInstId(InstructionType.ORIGIN_CONVERSION),
+                spread: buyConvertSpread,
                 type: InstructionType.ORIGIN_CONVERSION,
                 buy: buy,
                 sell: sell,
-                convert: buy_convert
+                convert: buyConvert
             };
             return instructions;
         }else{
@@ -329,19 +329,19 @@ export class Arb {
         }
     }
 
-    public get_destination_convert_instructions() : ExecutionInstruction | null {
-        const sell_convert_spread = this.get_destination_conversion_spread_percent();
-        const buy = this.get_buy_operation();
-        const sell = this.get_sell_operation();
-        const sell_convert = this.get_destination_conv_operation();
-        if(sell_convert){
+    public getDestinationConvertInstructions() : ExecutionInstruction | null {
+        const sellConvertSpread = this.getDestinationConversionSpreadPercent();
+        const buy = this.getBuyOperation();
+        const sell = this.getSellOperation();
+        const sellConvert = this.getDestinationConvOperation();
+        if(sellConvert){
             const instructions = {
-                id: this.get_inst_id(InstructionType.DESTINATION_CONVERSION),
-                spread: sell_convert_spread,
+                id: this.getInstId(InstructionType.DESTINATION_CONVERSION),
+                spread: sellConvertSpread,
                 type: InstructionType.DESTINATION_CONVERSION,
                 buy: buy,
                 sell: sell,
-                convert: sell_convert
+                convert: sellConvert
             };
             return instructions;
         }else{
@@ -349,32 +349,32 @@ export class Arb {
         }
     }
 
-    public get_instructions() : ExecutionInstruction[] {
+    public getInstructions() : ExecutionInstruction[] {
         const instructions: ExecutionInstruction[] = [];
         if(this.type === ArbType.SIMPLE){
-            const instruction = this.get_direct_instructions();
+            const instruction = this.getDirectInstructions();
             if(instruction && !Number.isNaN(instruction.spread)){
                 instructions.push(instruction);
             }
         }else if(this.type === ArbType.COMPLEX){
-            if(this.conversion_type === ArbConversionType.EITHER_SIDE){
-                const sell_convert_instruction = this.get_destination_convert_instructions();
-                if(sell_convert_instruction && !Number.isNaN(sell_convert_instruction.spread)){
-                    instructions.push(sell_convert_instruction);
+            if(this.conversionType === ArbConversionType.EITHER_SIDE){
+                const sellConvertInstruction = this.getDestinationConvertInstructions();
+                if(sellConvertInstruction && !Number.isNaN(sellConvertInstruction.spread)){
+                    instructions.push(sellConvertInstruction);
                 }
-                const buy_convert_instruction = this.get_origin_convert_instructions();
-                if(buy_convert_instruction && ! !Number.isNaN(buy_convert_instruction.spread)){
-                    instructions.push(buy_convert_instruction);
+                const buyConvertInstruction = this.getOriginConvertInstructions();
+                if(buyConvertInstruction && ! !Number.isNaN(buyConvertInstruction.spread)){
+                    instructions.push(buyConvertInstruction);
                 }
-            }else if(this.conversion_type === ArbConversionType.BUY_SIDE){
-                const buy_convert_instruction = this.get_origin_convert_instructions();
-                if(buy_convert_instruction && !Number.isNaN(buy_convert_instruction.spread)){
-                    instructions.push(buy_convert_instruction);
+            }else if(this.conversionType === ArbConversionType.BUY_SIDE){
+                const buyConvertInstruction = this.getOriginConvertInstructions();
+                if(buyConvertInstruction && !Number.isNaN(buyConvertInstruction.spread)){
+                    instructions.push(buyConvertInstruction);
                 }
-            }else if(this.conversion_type === ArbConversionType.SELL_SIDE){
-                const sell_convert_instruction = this.get_destination_convert_instructions();
-                if(sell_convert_instruction && !Number.isNaN(sell_convert_instruction.spread)){
-                    instructions.push(sell_convert_instruction);
+            }else if(this.conversionType === ArbConversionType.SELL_SIDE){
+                const sellConvertInstruction = this.getDestinationConvertInstructions();
+                if(sellConvertInstruction && !Number.isNaN(sellConvertInstruction.spread)){
+                    instructions.push(sellConvertInstruction);
                 }
             }else{
                 console.log(`No Conversion Type.`);

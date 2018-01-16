@@ -9,13 +9,13 @@ const favicon = require('serve-favicon');
 const logger = require('morgan');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
-const users_route = require('./routes/users');
-const graph_route = require('./routes/graph');
-const arb_route = require('./routes/arb');
+const usersRoute = require('./routes/users');
+const graphRoute = require('./routes/graph');
+const arbRoute = require('./routes/arb');
 const WebSocket = require('ws');
 
 const app = express();
-const graph_model = new Graph(); 
+const graphModel = new Graph(); 
 
 // view engine setup
 app.set('views', __dirname + '/views');
@@ -36,9 +36,9 @@ app.get('/dash', function (req, res)
     res.render('dash.html');
 });
 
-app.use('/users', users_route);
-app.use('/graph', graph_route(graph_model));
-app.use('/arbs', arb_route(graph_model));
+app.use('/users', usersRoute);
+app.use('/graph', graphRoute(graphModel));
+app.use('/arbs', arbRoute(graphModel));
 
 // Websocket:
 const wss = new WebSocket.Server({ port: 8080 });
@@ -51,7 +51,7 @@ wss.broadcast = (event: any) => {
   });
 };
 
-graph_model.arb.on((inst?: ExecutionInstruction)=>{
+graphModel.arb.on((inst?: ExecutionInstruction)=>{
   // console.log(`Graph Triggered Instructions: ${JSON.stringify(inst)}`)
   if(inst){
     // console.log(`Broadcasting...`);

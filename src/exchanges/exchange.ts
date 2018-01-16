@@ -2,8 +2,8 @@ import { Hub, Market, Graph, Ticker, TradeType } from '../markets';
 import { Asset } from '../assets';
 
 export interface HubMarketPair {
-    hub_symbol: string;
-    market_symbol: string;
+    hubSymbol: string;
+    marketSymbol: string;
 }
 
 export class Exchange {
@@ -17,7 +17,7 @@ export class Exchange {
         this.hubs = new Map<string, Hub>();
     }
     
-    get_id(){
+    getId(){
         return this.id;
     }
 
@@ -29,62 +29,62 @@ export class Exchange {
     
     positionHandler(callback: any){}
 
-    map_market(
-        hub_symbol: string,
-        market_symbol: string): any {
-        if(!this.hubs.has(hub_symbol)){
+    mapMarket(
+        hubSymbol: string,
+        marketSymbol: string): any {
+        if(!this.hubs.has(hubSymbol)){
             this.hubs.set(
-                hub_symbol, 
+                hubSymbol, 
                 new Hub(
-                    hub_symbol,
+                    hubSymbol,
                     this,
                     this.graph,
                 )
             );
         }
-        const hub = this.hubs.get(hub_symbol);
-        if(hub && !hub.markets.has(market_symbol)){
+        const hub = this.hubs.get(hubSymbol);
+        if(hub && !hub.markets.has(marketSymbol)){
             hub.markets.set(
-                market_symbol, 
+                marketSymbol, 
                 new Market(
-                    market_symbol,
+                    marketSymbol,
                     hub,
                     this.graph
                 )
             );
         }
         if(hub){
-            const market = hub.markets.get(market_symbol);
+            const market = hub.markets.get(marketSymbol);
             return market;
         }
     }
 
-    update_market(
-        hub_symbol: string,
-        market_symbol: string,
-        best_bid: number,
-        best_ask: number,
-    ){
-        const response = this.map_market(
-            hub_symbol,
-            market_symbol
-        );
-        if(response){
-            const market = response;
-            market.best_bid = Number(best_bid);
-            market.best_ask = Number(best_ask);
-        }
-    }
+    // updateMarket(
+    //     hubSymbol: string,
+    //     marketSymbol: string,
+    //     bestBid: number,
+    //     bestAsk: number,
+    // ){
+    //     const response = this.mapMarket(
+    //         hubSymbol,
+    //         marketSymbol
+    //     );
+    //     if(response){
+    //         const market = response;
+    //         market.best_bid = Number(bestBid);
+    //         market.best_ask = Number(bestAsk);
+    //     }
+    // }
 
-    update_ticker(ticker: Ticker){
-        const response = this.map_market(
-            ticker.hub_symbol,
-            ticker.market_symbol
+    updateTicker(ticker: Ticker){
+        const response = this.mapMarket(
+            ticker.hubSymbol,
+            ticker.marketSymbol
         );
         if(response){
             const market = response;
-            // market.update_statistics(ticker);
-            market.update_vwap(ticker);
+            // market.updateStatistics(ticker);
+            market.updateVwap(ticker);
         }  
     }
 
@@ -92,11 +92,11 @@ export class Exchange {
         console.log(`Exchange: ${this.id}`.green);
         this.hubs.forEach((hub: Hub, symbol: string)=>{
             console.log(`Hub: ${symbol}`.blue);
-            let market_list: string[] = [];
-            hub.markets.forEach((market: Market, market_symbol: string)=>{
-                market_list.push(market_symbol);
+            let marketList: string[] = [];
+            hub.markets.forEach((market: Market, marketSymbol: string)=>{
+                marketList.push(marketSymbol);
             });
-            console.log(`Markets: ${market_list.join(',')}`.magenta);
+            console.log(`Markets: ${marketList.join(',')}`.magenta);
         });
     }
 };
