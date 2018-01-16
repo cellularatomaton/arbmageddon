@@ -5,7 +5,6 @@ import { TimeUnit, VolumeStatistics } from './ticker';
 
 export class Market {
     asset: Asset;
-    // statistics: TickerStatistics;
     vwapBuyStats: VolumeStatistics;
     vwapSellStats: VolumeStatistics;
 
@@ -16,8 +15,6 @@ export class Market {
     {
         this.asset = Asset.getAsset(assetSymbol, graph.assetMap);
         this.asset.markets.push(this);
-        // this.statistics = new TickerStatistics(TimeUnit.SECOND, 15, graph, this);
-        // ToDo: Volume statistics need to be scaled to hub or global units!
         this.vwapBuyStats = new VolumeStatistics(this);
         this.vwapSellStats = new VolumeStatistics(this);
     }
