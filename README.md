@@ -8,8 +8,10 @@ You must have a working NodeJs installation with the NPM toolset installed.  Nex
 
 Clone the repository and:
 
-`cd /path/to/arbmageddon`
-`npm install`
+```
+cd /path/to/arbmageddon
+npm install
+```
 
 Now you should be ready to run the server:
 
