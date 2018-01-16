@@ -34,13 +34,13 @@ export class VolumeStatistics {
     window: Ticker[] = [];
     vwap_numerator: number = 0;
     vwap_denominator: number = 0;
+    
     on_vwap_updated: EventImp<VWAP> = new EventImp<VWAP>();
     public get vwap_updated() : IEvent<VWAP> {
         return this.on_vwap_updated.expose();
     };
-    constructor(
-        public window_size: number
-    ){}
+
+    constructor(private market: Market){}
 
     get_vwap(){
         return this.vwap_numerator / this.vwap_denominator;
@@ -73,11 +73,39 @@ export class VolumeStatistics {
         }
     }
 
+    calc_window_size() : number {
+        const graph = this.market.graph;
+        const basis_size = graph.basis_size;
+        const basis_asset = graph.basis_asset;
+        if(basis_asset){
+            const hub_asset = this.market.hub.asset;
+            const already_priced_in_basis = hub_asset.symbol === basis_asset.symbol;
+            const price = this.market.vwap_sell_stats.get_vwap();
+            if(already_priced_in_basis){
+                const size = basis_size / price;
+                return size;
+            }else{
+                // Look through hub markets for conversion:
+                const conversion_market = this.market.hub.markets.get(basis_asset.symbol);
+                if(conversion_market){
+                    const conversion_price = conversion_market.vwap_sell_stats.get_vwap();
+                    const size = basis_size / conversion_price / price;
+                    return size;
+                }else{
+                    return Number.NaN;
+                }
+            }
+        }else{
+            return Number.NaN;
+        }
+    }
+
     handle_ticker(ticker: Ticker){
-        if(!Number.isNaN(this.vwap_denominator)){
+        const window_size = this.calc_window_size();
+        if(!Number.isNaN(this.vwap_denominator) && !Number.isNaN(window_size)){
             let rolling = true;
             while(rolling){
-                const stale = this.window_size < this.vwap_denominator;
+                const stale = window_size < this.vwap_denominator;
                 if(stale){
                     const old_ticker = this.window.shift();
                     this.remove_ticker(old_ticker);

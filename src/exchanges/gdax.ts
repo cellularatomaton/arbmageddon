@@ -43,6 +43,7 @@ export class GdaxExchange extends Exchange {
                             prod.base_currency,
                         )
                     });
+                    this.graph.map_basis();
                     resolve();
                 })
                 .catch((error: any) => {

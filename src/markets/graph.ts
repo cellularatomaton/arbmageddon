@@ -9,6 +9,9 @@ import * as _ from "lodash";
 export class Graph {
     public asset_map: Map<string, Asset>;
     public arb_map: Map<string, Arb>;
+    public basis_asset_symbol: string = "BTC";
+    public basis_size: number = 0.1;
+    public basis_asset: Asset | undefined;
     exchanges: Exchange[];
     on_arb: EventImp<ExecutionInstruction> = new EventImp<ExecutionInstruction>();
     public get arb() : IEvent<ExecutionInstruction> {
@@ -27,6 +30,13 @@ export class Graph {
             setTimeout(arb_finder, 1000);
         }
         arb_finder();
+    }
+
+    map_basis(){
+        // Gets called once for each exchange currently.
+        if(!this.basis_asset){
+            this.basis_asset = this.asset_map.get(this.basis_asset_symbol);
+        }
     }
 
     find_arbs(){

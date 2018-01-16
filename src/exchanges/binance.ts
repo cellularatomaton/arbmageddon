@@ -36,6 +36,7 @@ export class BinanceExchange extends Exchange {
                     exchange.map_market(hub_symbol, market_symbol);
                 });
                 this.symbol_list = markets.map((m: any) => {return m.symbol;});
+                this.graph.map_basis();
                 resolve();
             });
         });

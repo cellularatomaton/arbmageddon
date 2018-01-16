@@ -41,6 +41,7 @@ export class PoloniexExchange extends Exchange {
                         );
                         this.symbol_list.push(key);
                     });
+                    this.graph.map_basis();
                     resolve();
                 }
             );

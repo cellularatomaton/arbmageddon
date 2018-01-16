@@ -18,8 +18,8 @@ export class Market {
         this.asset.markets.push(this);
         // this.statistics = new TickerStatistics(TimeUnit.SECOND, 15, graph, this);
         // ToDo: Volume statistics need to be scaled to hub or global units!
-        this.vwap_buy_stats = new VolumeStatistics(10);
-        this.vwap_sell_stats = new VolumeStatistics(10);
+        this.vwap_buy_stats = new VolumeStatistics(this);
+        this.vwap_sell_stats = new VolumeStatistics(this);
     }
     get_id(){
         return `${this.hub.get_id()}_${this.asset.symbol}`;

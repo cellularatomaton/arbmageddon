@@ -22,8 +22,11 @@ export class Exchange {
     }
 
     marketBuy(){}
+    
     marketSell(){}
+
     fillHandler(callback: any){}
+    
     positionHandler(callback: any){}
 
     map_market(

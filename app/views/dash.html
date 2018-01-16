@@ -35,6 +35,9 @@
         .flex-stretch {
             align-items: stretch;
         }
+        .flex-center {
+            align-items: center;
+        }
         .flex-justify {
             justify-content: space-around;
         }
@@ -72,8 +75,24 @@
             border-color: orange;
             color: orange;
         }
+        .center-contents {
+            text-align: center;
+            align-content: center;
+        }
         .op-title {
             text-align: center;
+        }
+        .arb-good {
+            color: greenyellow;
+        }
+        .arb-bad {
+            color: red;
+        }
+        .arb-neutral {
+            border: solid;
+            border-width: 2px;
+            border-color: white;
+            color: white;
         }
         .full-width {
             width: 100%;
@@ -96,7 +115,7 @@
                 </div>
                 <div class="flex-grow">
                     <span>Duration</span>
-                    <span>{{ operation.duration }}</span>
+                    <span>{{ (operation.duration/1000).toFixed(0) }}</span>
                 </div>
                 <div class="flex-grow">
                     <span>Position</span>
@@ -127,14 +146,25 @@
                 <execution-component v-if="selected_inst && selected_inst.type === 2" side="sell" class="sell-convert-op flex-grow" title="Sell Convert" :operation="selected_inst.convert"></execution-component>
             </div>
         </div>
+        <div>
+            <div class="flex-row flex-center">
+                <div class="flex-grow center-contents">
+                    <span>Basis Size (BTC):</span>
+                    <input v-model="basis_size" placeholder="0.1">
+                </div>
+                <div class="flex-grow center-contents" v-bind:class="{ 'arb-good': arb_is_good(), 'arb-bad': !arb_is_good() }"> 
+                    <h3>Opportunity Window: {{ (selected_inst.opportunity_window/1000).toFixed(0) }} s</h3>
+                </div>
+                <div class="flex-grow center-contents" v-bind:class="{ 'arb-good': arb_is_good(), 'arb-bad': !arb_is_good() }"> 
+                    <h3>Execution Time: {{ (selected_inst.sum_of_durations/1000).toFixed(0) }} s</h3>
+                </div>
+                
+            </div>
+        </div>
         <div class="flex-row flex-grow">
             <div class="flex-col elbow-room">
                 <div>
                     <div class="flex-row">
-                        <div class="flex-grow">
-                            <input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="show_cross_exchange">
-                            <label for="cross-exchange-checkbox">Cross Exchange</label>
-                        </div>
                         <div class="flex-grow">
                             <input type="checkbox" id="direct-checkbox" value="false" v-model="show_direct">
                             <label for="direct-checkbox">Direct</label>
@@ -145,10 +175,10 @@
                         </div>   
                     </div>
                     <div class="flex-row">
-                        <!-- <div class="flex-grow">
-                            <span>Symbol:</span>
-                            <input v-model="symbol_filter" placeholder="Symbol">
-                        </div> -->
+                        <div class="flex-grow">
+                                <input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="show_cross_exchange">
+                                <label for="cross-exchange-checkbox">Cross Exchange</label>
+                            </div>
                         <div class="flex-grow">
                             <span>Spread Target:</span>
                             <input v-model="spread_filter" placeholder="2">
@@ -229,13 +259,9 @@
                 show_direct: false,
                 show_conversion: true,
                 symbol_filter: 'SYM',
-                spread_filter: 2.5
+                spread_filter: 3.0,
+                basis_size: 0.1
             },
-            // computed: {
-            //     filtered_instructions: function () {
-                    
-            //     }
-            // },
             methods: {
                 get_exchanges: function(){
                     return new Promise(function(resolve, reject) {
@@ -259,11 +285,13 @@
                         const direct_passes = appDash.show_direct ? is_direct : !is_direct;
                         const is_conversion = inst.type !== 0;
                         const conversion_passes = appDash.show_conversion ? is_conversion : !is_conversion;
-                        // const symbol_passes = inst_symbol_match(appDash.symbol_filter, inst);
                         const spread_passes = Number.parseFloat(appDash.spread_filter)/100 < inst.spread;
-                        return cross_exchange_passes && direct_passes && conversion_passes && spread_passes;
-                        // return cross_exchange_passes;
+                        return cross_exchange_passes && (direct_passes && conversion_passes) && spread_passes;
                     });
+                },
+                arb_is_good(){
+                    const inst = appDash.selected_inst;
+                    return 0 < inst.opportunity_window && inst.sum_of_durations < inst.opportunity_window;
                 },
                 inst_spread: function(i) { return `${(i.spread*100).toFixed(2)}%`; },
                 inst_string: function(inst){
@@ -303,6 +331,11 @@
                                 const update = msg.data;
                                 const instruction = arb_map[update.id];
                                 if(instruction){
+                                    const target = appDash.spread_filter/100;
+                                    if(instruction.spread < target && target < update.spread){
+                                        instruction.spread_entered_at = Date.now();
+                                    }
+                                    instruction.opportunity_window = Date.now() - instruction.spread_entered_at;
                                     instruction.spread = update.spread;
                                     instruction.buy.price = update.buy.price;
                                     instruction.buy.duration = update.buy.duration;
@@ -311,9 +344,18 @@
                                     if(instruction.convert){
                                         instruction.convert.price = update.convert.price;
                                         instruction.convert.duration = update.convert.duration;
+                                        instruction.sum_of_durations = 
+                                            update.buy.duration +
+                                            update.sell.duration +
+                                            update.convert.duration;
+                                    }else{
+                                        instruction.sum_of_durations = 
+                                            update.buy.duration +
+                                            update.sell.duration;
                                     }
                                     
                                 }else{
+                                    update.spread_entered_at = Date.now();
                                     arb_map[update.id] = update;
                                     appDash.arb_list.push(update);
                                 }
