@@ -1,8 +1,8 @@
-import {Indicator} from './indicator';
+import { Indicator } from './indicator';
 
 export class CoinmarketcapIndicator extends Indicator {
-    constructor(){
-        super();
-    }
-    indicationHandler(callback: any){}
+	constructor() {
+		super();
+	}
+	indicationHandler(callback: any) { }
 }

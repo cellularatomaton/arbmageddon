@@ -1,2 +1,2 @@
-export {Indicator} from './indicator';
-export {CoinmarketcapIndicator} from './coinmarketcap';
+export { Indicator } from './indicator';
+export { CoinmarketcapIndicator } from './coinmarketcap';
