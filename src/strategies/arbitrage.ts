@@ -6,22 +6,27 @@ import { IEvent, EventImp } from '../utils';
 import 'colors';
 
 export enum ArbType {
-	SIMPLE,
-	COMPLEX,
-	NONE
+	Simple,
+	Complex,
+	None
 }
 
 export enum ArbConversionType {
-	BUY_SIDE,
-	SELL_SIDE,
-	EITHER_SIDE,
-	NONE
+	BuySide,
+	SellSide,
+	EitherSide,
+	None
+}
+
+export enum InitiationType {
+	Maker,
+	Taker
 }
 
 export enum InstructionType {
-	DIRECT,
-	ORIGIN_CONVERSION,
-	DESTINATION_CONVERSION
+	Direct,
+	OriginConversion,
+	DestinationConversion
 }
 
 export interface ExecutionOperation {
@@ -42,12 +47,12 @@ export interface ExecutionInstruction {
 }
 
 export class Arb {
-	public type: ArbType;
-	public conversionType: ArbConversionType;
-	public originConversion: Market | null | undefined;
-	public destinationConversion: Market | null | undefined;
+	type: ArbType;
+	conversionType: ArbConversionType;
+	originConversion: Market | null | undefined;
+	destinationConversion: Market | null | undefined;
 	onUpdated: EventImp<ExecutionInstruction> = new EventImp<ExecutionInstruction>();
-	public get updated(): IEvent<ExecutionInstruction> {
+	get updated(): IEvent<ExecutionInstruction> {
 		return this.onUpdated.expose();
 	};
 	constructor(
@@ -63,26 +68,26 @@ export class Arb {
 		const destinationConversionHub = destinationExchange.hubs.get(originMarket.hub.asset.symbol);
 		this.destinationConversion = destinationConversionHub ? destinationConversionHub.markets.get(destinationMarket.hub.asset.symbol) : null;
 		if (originMarket.vwapSellStats.getVwap() === 0 || destinationMarket.vwapBuyStats.getVwap() === 0) {
-			this.type = ArbType.NONE;
-			this.conversionType = ArbConversionType.NONE;
+			this.type = ArbType.None;
+			this.conversionType = ArbConversionType.None;
 		}
 		else if (this.originConversion || this.destinationConversion) {
-			this.type = ArbType.COMPLEX;
+			this.type = ArbType.Complex;
 			if (this.originConversion && this.destinationConversion) {
-				this.conversionType = ArbConversionType.EITHER_SIDE;
+				this.conversionType = ArbConversionType.EitherSide;
 			} else if (this.originConversion) {
-				this.conversionType = ArbConversionType.BUY_SIDE;
+				this.conversionType = ArbConversionType.BuySide;
 			} else if (this.destinationConversion) {
-				this.conversionType = ArbConversionType.SELL_SIDE;
+				this.conversionType = ArbConversionType.SellSide;
 			} else {
-				this.conversionType = ArbConversionType.NONE;
+				this.conversionType = ArbConversionType.None;
 			}
 		} else if (this.isSimpleArb()) {
-			this.type = ArbType.SIMPLE;
-			this.conversionType = ArbConversionType.NONE;
+			this.type = ArbType.Simple;
+			this.conversionType = ArbConversionType.None;
 		} else {
-			this.type = ArbType.NONE;
-			this.conversionType = ArbConversionType.NONE;
+			this.type = ArbType.None;
+			this.conversionType = ArbConversionType.None;
 		}
 	}
 
@@ -138,11 +143,11 @@ export class Arb {
 		const dcHub = `${destinationExchange}.${destinationConvertHub}`;
 		const dcMkt = `${destinationExchange}.${destinationConvert}`;
 
-		if (instType as InstructionType === InstructionType.DIRECT) { // Direct Arb
+		if (instType as InstructionType === InstructionType.Direct) { // Direct Arb
 			return `DA:${oHub}->${oMkt}->${dHub}`;
-		} else if (instType as InstructionType === InstructionType.ORIGIN_CONVERSION) { // Origin Conversion
+		} else if (instType as InstructionType === InstructionType.OriginConversion) { // Origin Conversion
 			return `OC:${ocHub}->${ocMkt}->${oMkt}->${dHub}`;
-		} else if (instType as InstructionType === InstructionType.DESTINATION_CONVERSION) { // Destination Conversion
+		} else if (instType as InstructionType === InstructionType.DestinationConversion) { // Destination Conversion
 			return `DC:${oHub}->${dMkt}->${dcMkt}->${dcHub}`;
 		}
 		return null;
@@ -231,15 +236,15 @@ export class Arb {
 		const hasOriginConversion = !Number.isNaN(originConversionSpread);
 		const hasDestinationConversion = !Number.isNaN(destinationConversionSpread);
 
-		if (this.conversionType === ArbConversionType.EITHER_SIDE) {
+		if (this.conversionType === ArbConversionType.EitherSide) {
 			if (Math.abs(destinationConversionSpread) < Math.abs(originConversionSpread)) {
 				return originConversionSpread;
 			} else {
 				return destinationConversionSpread;
 			}
-		} else if (this.conversionType === ArbConversionType.BUY_SIDE) {
+		} else if (this.conversionType === ArbConversionType.BuySide) {
 			return originConversionSpread;
-		} else if (this.conversionType === ArbConversionType.SELL_SIDE) {
+		} else if (this.conversionType === ArbConversionType.SellSide) {
 			return destinationConversionSpread;
 		} else {
 			console.log(`Missing conversion markets!`);
@@ -300,9 +305,9 @@ export class Arb {
 		const buy = this.getBuyOperation();
 		const sell = this.getSellOperation();
 		const instructions = {
-			id: this.getInstId(InstructionType.DIRECT),
+			id: this.getInstId(InstructionType.Direct),
 			spread: spread,
-			type: InstructionType.DIRECT,
+			type: InstructionType.Direct,
 			buy: buy,
 			sell: sell
 		};
@@ -316,9 +321,9 @@ export class Arb {
 		const buyConvert = this.getOriginConvOperation();
 		if (buyConvert) {
 			const instructions = {
-				id: this.getInstId(InstructionType.ORIGIN_CONVERSION),
+				id: this.getInstId(InstructionType.OriginConversion),
 				spread: buyConvertSpread,
-				type: InstructionType.ORIGIN_CONVERSION,
+				type: InstructionType.OriginConversion,
 				buy: buy,
 				sell: sell,
 				convert: buyConvert
@@ -336,9 +341,9 @@ export class Arb {
 		const sellConvert = this.getDestinationConvOperation();
 		if (sellConvert) {
 			const instructions = {
-				id: this.getInstId(InstructionType.DESTINATION_CONVERSION),
+				id: this.getInstId(InstructionType.DestinationConversion),
 				spread: sellConvertSpread,
-				type: InstructionType.DESTINATION_CONVERSION,
+				type: InstructionType.DestinationConversion,
 				buy: buy,
 				sell: sell,
 				convert: sellConvert
@@ -351,13 +356,13 @@ export class Arb {
 
 	public getInstructions(): ExecutionInstruction[] {
 		const instructions: ExecutionInstruction[] = [];
-		if (this.type === ArbType.SIMPLE) {
+		if (this.type === ArbType.Simple) {
 			const instruction = this.getDirectInstructions();
 			if (instruction && !Number.isNaN(instruction.spread)) {
 				instructions.push(instruction);
 			}
-		} else if (this.type === ArbType.COMPLEX) {
-			if (this.conversionType === ArbConversionType.EITHER_SIDE) {
+		} else if (this.type === ArbType.Complex) {
+			if (this.conversionType === ArbConversionType.EitherSide) {
 				const sellConvertInstruction = this.getDestinationConvertInstructions();
 				if (sellConvertInstruction && !Number.isNaN(sellConvertInstruction.spread)) {
 					instructions.push(sellConvertInstruction);
@@ -366,12 +371,12 @@ export class Arb {
 				if (buyConvertInstruction && ! !Number.isNaN(buyConvertInstruction.spread)) {
 					instructions.push(buyConvertInstruction);
 				}
-			} else if (this.conversionType === ArbConversionType.BUY_SIDE) {
+			} else if (this.conversionType === ArbConversionType.BuySide) {
 				const buyConvertInstruction = this.getOriginConvertInstructions();
 				if (buyConvertInstruction && !Number.isNaN(buyConvertInstruction.spread)) {
 					instructions.push(buyConvertInstruction);
 				}
-			} else if (this.conversionType === ArbConversionType.SELL_SIDE) {
+			} else if (this.conversionType === ArbConversionType.SellSide) {
 				const sellConvertInstruction = this.getDestinationConvertInstructions();
 				if (sellConvertInstruction && !Number.isNaN(sellConvertInstruction.spread)) {
 					instructions.push(sellConvertInstruction);

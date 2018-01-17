@@ -2,8 +2,8 @@ import { Hub, Market } from '../markets';
 import 'colors';
 
 export class Asset {
-	public hubs: Hub[] = [];
-	public markets: Market[] = [];
+	hubs: Hub[] = [];
+	markets: Market[] = [];
 	constructor(public symbol: string) {
 	}
 	static getAsset(symbol: string, map: Map<string, Asset>): Asset {

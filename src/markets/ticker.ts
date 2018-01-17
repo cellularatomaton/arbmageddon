@@ -1,4 +1,4 @@
-import { Graph, GraphEvent, GraphEventType, GraphEdge, Market } from '../markets';
+import { Graph, Market } from '../markets';
 import { IEvent, EventImp } from '../utils';
 
 export enum TradeType {
@@ -36,7 +36,7 @@ export class VolumeStatistics {
 	vwapDenominator: number = 0;
 
 	onVwapUpdated: EventImp<VWAP> = new EventImp<VWAP>();
-	public get vwapUpdated(): IEvent<VWAP> {
+	get vwapUpdated(): IEvent<VWAP> {
 		return this.onVwapUpdated.expose();
 	};
 

@@ -3,18 +3,20 @@ import { Asset } from '../assets';
 import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from '../exchanges';
 import { ExecutionInstruction, Arb, ArbType } from '../strategies';
 import { IEvent, EventImp } from '../utils';
+import { InitiationType } from '../strategies/arbitrage';
 
 import * as _ from "lodash";
 
 export class Graph {
-	public assetMap: Map<string, Asset>;
-	public arbMap: Map<string, Arb>;
-	public basisAssetSymbol: string = "BTC";
-	public basisSize: number = 0.1;
-	public basisAsset: Asset | undefined;
+	assetMap: Map<string, Asset>;
+	arbMap: Map<string, Arb>;
+	basisAssetSymbol: string = "BTC";
+	basisSize: number = 0.1;
+	basisAsset: Asset | undefined;
+	initiationType: InitiationType = InitiationType.Taker;
 	exchanges: Exchange[];
 	onArb: EventImp<ExecutionInstruction> = new EventImp<ExecutionInstruction>();
-	public get arb(): IEvent<ExecutionInstruction> {
+	get arb(): IEvent<ExecutionInstruction> {
 		return this.onArb.expose();
 	};
 	constructor() {
@@ -45,7 +47,7 @@ export class Graph {
 				asset.markets.forEach((destinationMarket: Market, destinationIndex: number) => {
 					const arb = new Arb(originMarket, destinationMarket);
 					const arbType = arb.type;
-					if (arbType !== ArbType.NONE) {
+					if (arbType !== ArbType.None) {
 						const id = arb.getId();
 						if (!this.arbMap.has(id)) {
 							// console.log(`Mapping Arb: ${id}`);

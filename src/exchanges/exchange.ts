@@ -7,13 +7,12 @@ export interface HubMarketPair {
 }
 
 export class Exchange {
-	public hubs: Map<string, Hub>;
+	hubs: Map<string, Hub>;
 	constructor(
 		public id: string,
 		public name: string,
 		public graph: Graph
 	) {
-
 		this.hubs = new Map<string, Hub>();
 	}
 
@@ -59,23 +58,6 @@ export class Exchange {
 		}
 	}
 
-	// updateMarket(
-	//     hubSymbol: string,
-	//     marketSymbol: string,
-	//     bestBid: number,
-	//     bestAsk: number,
-	// ){
-	//     const response = this.mapMarket(
-	//         hubSymbol,
-	//         marketSymbol
-	//     );
-	//     if(response){
-	//         const market = response;
-	//         market.best_bid = Number(bestBid);
-	//         market.best_ask = Number(bestAsk);
-	//     }
-	// }
-
 	updateTicker(ticker: Ticker) {
 		const response = this.mapMarket(
 			ticker.hubSymbol,
@@ -83,12 +65,11 @@ export class Exchange {
 		);
 		if (response) {
 			const market = response;
-			// market.updateStatistics(ticker);
 			market.updateVwap(ticker);
 		}
 	}
 
-	public log() {
+	log() {
 		console.log(`Exchange: ${this.id}`.green);
 		this.hubs.forEach((hub: Hub, symbol: string) => {
 			console.log(`Hub: ${symbol}`.blue);
