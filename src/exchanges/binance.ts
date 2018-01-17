@@ -2,6 +2,7 @@ import { Exchange } from './exchange';
 import { Hub, Market, Graph, TradeType } from '../markets';
 import { Asset } from '../assets';
 
+const _ = require('lodash');
 const binance = require('node-binance-api');
 const hubSymbols = new Set([
 	'BTC',
@@ -9,6 +10,12 @@ const hubSymbols = new Set([
 	'BNB',
 	'USDT'
 ]);
+
+binance.options({
+	reconnect: false,
+	test: true,
+	recvWindow: 60000
+});
 
 export class BinanceExchange extends Exchange {
 	symbolList: string[];
@@ -65,21 +72,30 @@ export class BinanceExchange extends Exchange {
 	setupWebsockets(symbols: string[]) {
 		console.log('Init BINA Websocket');
 		const exchange = this;
-		binance.websockets.trades(symbols, function (trades: any) {
-			// let {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId} = trades;
-			// console.log(symbol+" trade update. price: "+price+", quantity: "+quantity+", maker: "+maker);
-			const parsedSymbols = exchange.parseSymbols(trades.s);
+		let binaUpdates = 0;
+		try {
+			binance.websockets.trades(symbols, function (trades: any) {
+				// let {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId} = trades;
+				// console.log(symbol+" trade update. price: "+price+", quantity: "+quantity+", maker: "+maker);
+				const parsedSymbols = exchange.parseSymbols(trades.s);
 
-			exchange.updateTicker({
-				exchangeSymbol: exchange.id,
-				hubSymbol: parsedSymbols[0],
-				marketSymbol: parsedSymbols[1],
-				price: Number(trades.p),
-				side: trades.m ? TradeType.SELL : TradeType.BUY,
-				time: new Date(trades.T),
-				size: Number(trades.q)
+				exchange.updateTicker({
+					exchangeSymbol: exchange.id,
+					hubSymbol: parsedSymbols[0],
+					marketSymbol: parsedSymbols[1],
+					price: Number(trades.p),
+					side: trades.m ? TradeType.SELL : TradeType.BUY,
+					time: new Date(trades.T),
+					size: Number(trades.q)
+				});
+
+				_.throttle(() => {
+					console.log('BINA still alive ' + Date.now());
+				}, 1000, { leading: true });
 			});
-		});
+		} catch (err) {
+			console.log(err);
+		}
 	}
 
 	// static binaMarketUpdateLoop(exchange: BinanceExchange){
