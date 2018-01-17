@@ -99,7 +99,7 @@
 		}
 
 		.center-contents {
-			text-align: center;
+			/* text-align: center; */
 			align-content: center;
 		}
 
@@ -133,9 +133,9 @@
 	</style>
 	<script type="text/x-template" id="operation-template">
         <div class="flex-col elbow-room ">
-            <div>
-                <h4 class="op-title" v-if="side === 'buy'">{{ title }}: [{{ operation.exchange }}] {{ operation.hub }} -> {{ operation.market }}</h4>
-                <h4 class="op-title" v-else>{{ title }}: [{{ operation.exchange }}] {{ operation.market }} -> {{ operation.hub }}</h4>
+            <div class="center-contents">
+                <strong v-if="side === 'buy'">{{ title }}: [{{ operation.exchange }}] {{ operation.hub }} -> {{ operation.market }}</strong>
+                <strong v-else>{{ title }}: [{{ operation.exchange }}] {{ operation.market }} -> {{ operation.hub }}</strong>
             </div>
             <div class="flex-grow flex-row flex-wrap flex-stretch">
                 <div class="flex-grow">
@@ -179,23 +179,26 @@
 			</div>
 		</div>
 		<div>
-			<div class="flex-row flex-center">
-				<div class="flex-grow flex-col flex-start elbow-room">
+			<div class="flex-row flex-justify">
+				<div class="flex-col flex-start">
 					<span>Arb Types:</span>
 					<div>
 						<input type="checkbox" id="direct-checkbox" value="false" v-model="showDirect">
 						<label for="direct-checkbox">Direct</label>
 					</div>
 					<div>
-						<input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="showCrossExchange">
-						<label for="cross-exchange-checkbox">Cross Exchange</label>
-					</div>
-					<div>
 						<input type="checkbox" id="conversion-checkbox" value="true" v-model="showConversion">
 						<label for="conversion-checkbox">Conversion</label>
 					</div>
 				</div>
-				<div class="flex-grow flex-col flex-start elbow-room">
+				<div class="flex-col flex-start">
+					<span>On Chain:</span>
+					<div>
+						<input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="showCrossExchange">
+						<label for="cross-exchange-checkbox">Cross Exchange</label>
+					</div>
+				</div>
+				<div class="flex-col flex-start">
 					<span>Pricing:</span>
 					<div>
 						<input type="radio" id="taker" value="Taker" v-model="pricingMode">
@@ -206,11 +209,11 @@
 						<label for="maker">Maker</label>
 					</div>
 				</div>
-				<div class="flex-grow flex-col flex-start elbow-room" v-bind:class="{ 'arb-good': arbIsGood(selectedInst), 'arb-bad': !arbIsGood(selectedInst) }">
+				<div class="flex-col flex-start" v-bind:class="{ 'arb-good': arbIsGood(selectedInst), 'arb-bad': !arbIsGood(selectedInst) }">
 					<strong>Time Above Target: {{ (selectedInst.timeAboveTarget/1000).toFixed(0) }} s</strong>
 					<strong>Execution Time: {{ (selectedInst.sumOfDurations/1000).toFixed(0) }} s</strong>
 				</div>
-				<div class="flex-grow flex-col flex-start elbow-room">
+				<div class="flex-col flex-start">
 					<div>
 						<span>Basis Size (BTC): </span>
 						<input v-model="basisSize" type="number" min="0" max="10" step="0.1" placeholder="0.1">
