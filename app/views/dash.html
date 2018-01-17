@@ -49,6 +49,10 @@
 			align-items: center;
 		}
 
+		.flex-start {
+			align-items: flex-start;
+		}
+
 		.flex-justify {
 			justify-content: space-around;
 		}
@@ -122,18 +126,18 @@
 			width: 100%;
 		}
 
-		.elbow-room {
-			margin: 5px;
-			padding: 5px;
+		.elbow-room>* {
+			margin: 2px;
+			padding: 2px;
 		}
 	</style>
 	<script type="text/x-template" id="operation-template">
-        <div class="elbow-room flex-col">
+        <div class="flex-col elbow-room ">
             <div>
                 <h4 class="op-title" v-if="side === 'buy'">{{ title }}: [{{ operation.exchange }}] {{ operation.hub }} -> {{ operation.market }}</h4>
                 <h4 class="op-title" v-else>{{ title }}: [{{ operation.exchange }}] {{ operation.market }} -> {{ operation.hub }}</h4>
             </div>
-            <div class="flex-grow flex-row flex-wrap flex-stretch elbow-room">
+            <div class="flex-grow flex-row flex-wrap flex-stretch">
                 <div class="flex-grow">
                     <span>VWAP</span>
                     <span>{{ operation.price.toFixed(8) }}</span>
@@ -147,7 +151,7 @@
                     <span>{{ operation.position }}</span>
                 </div>
             </div>
-            <div class="flex-grow flex-row flex-wrap flex-stretch elbow-room">
+            <div class="flex-grow flex-row flex-wrap flex-stretch">
                 <div class="flex-grow">
                     <span>Open Bids</span>
                     <span>{{ operation.openBids }}</span>
@@ -157,15 +161,15 @@
                     <span>{{ operation.openAsks }}</span>
                 </div>
             </div>
-            <button class="elbow-room">Execute!</button>
+            <button>Execute!</button>
         </div>
     </script>
 </head>
 
 <body>
-	<div id="app-dash" class="app-container flex-col">
+	<div id="app-dash" class="app-container flex-col elbow-room">
 		<div>
-			<div class="flex-row flex-stretch">
+			<div class="flex-row flex-stretch elbow-room">
 				<execution-component v-if="selectedInst && selectedInst.type === 1" side="buy" class="buy-convert-op flex-grow" title="Buy Convert"
 				 :operation="selectedInst.convert"></execution-component>
 				<execution-component v-if="selectedInst" side="buy" class="buy-op flex-grow" title="Buy" :operation="selectedInst ? selectedInst.buy : null"></execution-component>
@@ -176,44 +180,44 @@
 		</div>
 		<div>
 			<div class="flex-row flex-center">
-				<div class="flex-grow center-contents">
-					<div class="flex-col">
-						<span>Arb Types:</span>
-						<div>
-							<input type="checkbox" id="direct-checkbox" value="false" v-model="showDirect">
-							<label for="direct-checkbox">Direct</label>
-						</div>
-						<div>
-							<input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="showCrossExchange">
-							<label for="cross-exchange-checkbox">Cross Exchange</label>
-						</div>
-						<div>
-							<input type="checkbox" id="conversion-checkbox" value="true" v-model="showConversion">
-							<label for="conversion-checkbox">Conversion</label>
-						</div>
+				<div class="flex-grow flex-col flex-start elbow-room">
+					<span>Arb Types:</span>
+					<div>
+						<input type="checkbox" id="direct-checkbox" value="false" v-model="showDirect">
+						<label for="direct-checkbox">Direct</label>
+					</div>
+					<div>
+						<input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="showCrossExchange">
+						<label for="cross-exchange-checkbox">Cross Exchange</label>
+					</div>
+					<div>
+						<input type="checkbox" id="conversion-checkbox" value="true" v-model="showConversion">
+						<label for="conversion-checkbox">Conversion</label>
 					</div>
 				</div>
-				<!-- <div class="flex-col">
-                    <div>
-                        <input type="radio">
-                    </div>
-                </div> -->
-				<div class="flex-grow center-contents" v-bind:class="{ 'arb-good': arbIsGood(), 'arb-bad': !arbIsGood() }">
-					<div class="flex-col">
-						<strong>Opportunity Window: {{ (selectedInst.opportunityWindow/1000).toFixed(0) }} s</strong>
-						<strong>Execution Time: {{ (selectedInst.sumOfDurations/1000).toFixed(0) }} s</strong>
+				<div class="flex-grow flex-col flex-start elbow-room">
+					<span>Pricing:</span>
+					<div>
+						<input type="radio" id="taker" value="Taker" v-model="pricingMode">
+						<label for="taker">Taker</label>
+					</div>
+					<div>
+						<input type="radio" id="maker" value="Maker" v-model="pricingMode">
+						<label for="maker">Maker</label>
 					</div>
 				</div>
-				<div class="flex-grow center-contents">
-					<div class="flex-col">
-						<div>
-							<span>Basis Size (BTC):</span>
-							<input v-model="basisSize" type="number" min="0" max="10" step="0.1" placeholder="0.1">
-						</div>
-						<div>
-							<span>Spread Filter (%):</span>
-							<input v-model="spreadFilter" type="number" min="2" max="20" step="0.5" placeholder="3.5">
-						</div>
+				<div class="flex-grow flex-col flex-start elbow-room" v-bind:class="{ 'arb-good': arbIsGood(selectedInst), 'arb-bad': !arbIsGood(selectedInst) }">
+					<strong>Time Above Target: {{ (selectedInst.timeAboveTarget/1000).toFixed(0) }} s</strong>
+					<strong>Execution Time: {{ (selectedInst.sumOfDurations/1000).toFixed(0) }} s</strong>
+				</div>
+				<div class="flex-grow flex-col flex-start elbow-room">
+					<div>
+						<span>Basis Size (BTC): </span>
+						<input v-model="basisSize" type="number" min="0" max="10" step="0.1" placeholder="0.1">
+					</div>
+					<div>
+						<span>Spread Filter (%): </span>
+						<input v-model="spreadFilter" type="number" min="2" max="20" step="0.5" placeholder="3.5">
 					</div>
 				</div>
 			</div>
@@ -225,7 +229,7 @@
 						<thead>
 							<th>Arb</th>
 							<th>Spread</th>
-							<th>Time</th>
+							<th>TAT</th>
 							<th>SOD</th>
 						</thead>
 						<tbody>
@@ -234,14 +238,14 @@
 								<td>
 									<button v-on:click="setMulticharts(inst)" v-bind:class="{ selected: inst.selected }">{{ instSpread(inst) }}</button>
 								</td>
-								<td></td>
-								<td></td>
+								<td v-bind:class="{ 'arb-good': arbIsGood(inst), 'arb-bad': !arbIsGood(inst) }">{{ (inst.timeAboveTarget/1000).toFixed(0) }}</td>
+								<td v-bind:class="{ 'arb-good': arbIsGood(inst), 'arb-bad': !arbIsGood(inst) }">{{ (inst.sumOfDurations/1000).toFixed(0) }}</td>
 							</tr>
 						</tbody>
 					</table>
 				</div>
 			</div>
-			<div class="flex-grow elbow-room">
+			<div class="flex-grow">
 				<iframe :src="multichartsUrl" height="100%" width="100%"></iframe>
 			</div>
 		</div>
@@ -298,8 +302,9 @@
 				showDirect: false,
 				showConversion: true,
 				symbolFilter: 'SYM',
-				spreadFilter: 3.0,
-				basisSize: 0.1
+				spreadFilter: 5.0,
+				basisSize: 0.1,
+				pricingMode: 'Taker'
 			},
 			methods: {
 				getExchanges: function () {
@@ -328,9 +333,8 @@
 						return (crossExchangePasses || directPasses || conversionPasses) && spreadPasses;
 					});
 				},
-				arbIsGood() {
-					const inst = appDash.selectedInst;
-					return 0 < inst.opportunityWindow && inst.sumOfDurations < inst.opportunityWindow;
+				arbIsGood(inst) {
+					return 0 < inst.timeAboveTarget && inst.sumOfDurations < inst.timeAboveTarget;
 				},
 				instSpread: function (i) { return `${(i.spread * 100).toFixed(2)}%`; },
 				instString: function (inst) {
@@ -374,7 +378,7 @@
 									if (instruction.spread < target && target < update.spread) {
 										instruction.spreadEnteredAt = Date.now();
 									}
-									instruction.opportunityWindow = Date.now() - instruction.spreadEnteredAt;
+									instruction.timeAboveTarget = Date.now() - instruction.spreadEnteredAt;
 									instruction.spread = update.spread;
 									instruction.buy.price = update.buy.price;
 									instruction.buy.duration = update.buy.duration;
