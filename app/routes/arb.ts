@@ -3,7 +3,7 @@ import { Arb, ArbType, ExecutionInstruction } from '../../src/strategies';
 import { Asset } from '../../src/assets';
 import { ExecutionOperation } from '../../src/strategies/arbitrage';
 
-const express = require('express');
+import express = require('express');
 const router = express.Router();
 
 module.exports = function (graph: Graph) {

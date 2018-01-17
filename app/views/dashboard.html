@@ -99,7 +99,6 @@
 		}
 
 		.center-contents {
-			/* text-align: center; */
 			align-content: center;
 		}
 
@@ -371,7 +370,13 @@
 				setupWebsocket: function () {
 					return new Promise(function (resolve, reject) {
 						const ws = new WebSocket('ws://localhost:8080/');
-						ws.addEventListener('message', function (message) {
+
+						ws.onclose = () => {
+							console.log('Application Websocket closed.');
+							setTimeout(appDash.setupWebsocket, 1000);
+						};
+
+						ws.onmessage = (message) => {
 							const msg = JSON.parse(message.data);
 							if (msg.type === 'arb') { // Spread Update
 								const update = msg.data;
@@ -409,7 +414,17 @@
 									appDash.setMulticharts(appDash.arbList[0]);
 								}
 							}
-						});
+						};
+
+						ws.onopen = () => {
+							console.log('App Websocket opened.');
+						};
+
+						// it's the least you could do!
+						window.onbeforeunload = () => {
+							ws.close();
+						};
+
 						resolve();
 					});
 				}
