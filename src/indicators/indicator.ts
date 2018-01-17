@@ -1,5 +1,5 @@
 export class Indicator {
-    constructor(){
-    }
-    indicationHandler(callback: any){}
+	constructor() {
+	}
+	indicationHandler(callback: any) { }
 }

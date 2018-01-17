@@ -6,9 +6,9 @@ import { ExecutionOperation } from '../../src/strategies/arbitrage';
 const express = require('express');
 const router = express.Router();
 
-module.exports = function(graph: Graph) {
-  router.get('/', function(req, res, next) {
-    res.send(JSON.stringify([]));
-  });
-  return router;
+module.exports = function (graph: Graph) {
+	router.get('/', function (req, res, next) {
+		res.send(JSON.stringify([]));
+	});
+	return router;
 };

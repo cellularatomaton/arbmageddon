@@ -1,4 +1,4 @@
 export class Strategy {
-    constructor(){
-    }
+	constructor() {
+	}
 }

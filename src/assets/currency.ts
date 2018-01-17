@@ -1,7 +1,7 @@
-import {Asset} from './asset';
+import { Asset } from './asset';
 
 export class Currency extends Asset {
-    constructor(public symbol: string){
-        super(symbol);
-    }
+	constructor(public symbol: string) {
+		super(symbol);
+	}
 }
