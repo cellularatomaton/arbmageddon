@@ -63,6 +63,7 @@ export class BinanceExchange extends Exchange {
 	}
 
 	setupWebsockets(symbols: string[]) {
+		console.log('Init BINA Websocket');
 		const exchange = this;
 		binance.websockets.trades(symbols, function (trades: any) {
 			// let {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId} = trades;

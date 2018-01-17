@@ -1,7 +1,7 @@
 import { Graph } from '../../src/markets';
 import { Exchange } from '../../src/exchanges';
 
-const express = require('express');
+import express = require('express');
 const router = express.Router();
 
 module.exports = function (graph: Graph) {

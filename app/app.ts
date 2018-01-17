@@ -2,6 +2,7 @@ import { Asset } from '../src/assets';
 import { Hub, Market, Graph, GraphEvent, GraphEdge, GraphNode } from '../src/markets';
 import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from '../src/exchanges';
 import { ExecutionInstruction } from '../src/strategies';
+import { NextFunction, Request, Response, Router } from "express";
 
 const express = require('express');
 const path = require('path');
@@ -16,7 +17,8 @@ const WebSocket = require('ws');
 
 const app = express();
 const graphModel = new Graph();
-
+const dataPath = path.join(path.dirname(__dirname), 'node_modules/vis/dist');
+const goHome = (req: Request, res: Response) => { res.redirect('/dashboard') };
 // view engine setup
 app.set('views', __dirname + '/views');
 app.engine('.html', require('ejs').renderFile);
@@ -27,14 +29,15 @@ app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
-const dataPath = path.join(path.dirname(__dirname), 'node_modules/vis/dist');
 app.use(express.static(dataPath));
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/dash', function (req, res) {
-	res.render('dash.html');
+app.get('/dashboard', function (req: Request, res: Response) {
+	res.render('dashboard.html');
 });
 
+app.get('/dash', goHome);
+app.get('/', goHome);
 app.use('/users', usersRoute);
 app.use('/graph', graphRoute(graphModel));
 app.use('/arbs', arbRoute(graphModel));
@@ -62,14 +65,14 @@ graphModel.arb.on((inst?: ExecutionInstruction) => {
 });
 
 // catch 404 and forward to error handler
-app.use(function (req, res, next) {
-	var err = new Error('Not Found');
+app.use(function (req: Request, res: Response, next: NextFunction) {
+	let err: any = new Error('Not Found');
 	err.status = 404;
 	next(err);
 });
 
 // error handler
-app.use(function (err, req, res, next) {
+app.use(function (err: any, req: Request, res: Response, next: NextFunction) {
 	console.error(err.stack);
 	// set locals, only providing error in development
 	res.locals.message = err.message;

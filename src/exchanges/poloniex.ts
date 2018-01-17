@@ -5,8 +5,6 @@ import { Http } from '../utils';
 import { symlink } from 'fs';
 import { TradeType } from '../markets/ticker';
 
-const WebSocket = require('ws');
-
 export class PoloniexExchange extends Exchange {
 	symbolList: string[];
 	idToSymbolMap: Map<number, HubMarketPair>;
@@ -49,10 +47,15 @@ export class PoloniexExchange extends Exchange {
 	}
 
 	setupWebsocket() {
+		console.log('Init POLO Websocket');
+
+		const WebSocket = require('ws');
+
 		const exchange = this;
 		const ws = new WebSocket('wss://api2.poloniex.com/');
 
 		ws.on('open', function open() {
+			console.log('POLO Websocket opened');
 			exchange.symbolList.forEach((symbol: string) => {
 				const msg = {
 					command: "subscribe",
@@ -61,6 +64,14 @@ export class PoloniexExchange extends Exchange {
 				ws.send(JSON.stringify(msg));
 			});
 
+		});
+
+		ws.on('error', function (err: any) {
+			console.error('POLO Websocket error', err);
+		});
+
+		ws.on('close', function () {
+			console.log('POLO Websocket closed.');
 		});
 
 		ws.on('message', function incoming(msg: string) {

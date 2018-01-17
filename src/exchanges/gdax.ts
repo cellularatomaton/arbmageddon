@@ -2,10 +2,10 @@ import { Exchange } from './exchange';
 import { Hub, Market, Graph, Ticker, TradeType } from '../markets';
 import { Asset } from '../assets';
 
-const Gdax = require('gdax');
+import Gdax = require('gdax');
 const PRODS = ['eth-btc', 'ltc-btc'];
 const URI = 'wss://ws-feed.gdax.com/';
-const AUTH = null;
+const AUTH = undefined;
 const HEARTBEAT = false;
 const CHANNELS = [
 	'heartbeat',
@@ -15,7 +15,7 @@ const OPTS = {
 	heartbeat: false,
 	channels: CHANNELS
 }
-const websocket = new Gdax.WebsocketClient(PRODS, URI, AUTH, OPTS);
+
 let products = [];
 
 export class GdaxExchange extends Exchange {
@@ -69,21 +69,23 @@ export class GdaxExchange extends Exchange {
 	}
 
 	setupWebsocket(): any {
+		console.log('Init GDAX websocket');
+		const ws = new Gdax.WebsocketClient(PRODS, URI, AUTH, OPTS);
 		const exchange = this;
-		websocket.on('open', function () {
-			console.log('Gdax websocket opened.');
+		ws.on('open', function () {
+			console.log('GDAX websocket opened.');
 		});
-		websocket.on('message', function (data: any) {
+		ws.on('message', function (data: any) {
 			if (data.type === 'ticker' && data.last_size) {
 				exchange.handleTicker(exchange, data);
 			}
 		});
-		websocket.on('error', function (err: any) {
-			console.log(err);
+		ws.on('error', function (err: any) {
+			console.error('GDAX Websocket error', err);
 		});
 
-		websocket.on('close', function () {
-			console.log('Websocket closed.');
+		ws.on('close', function () {
+			console.log('GDAX Websocket closed.');
 		});
 	}
 
