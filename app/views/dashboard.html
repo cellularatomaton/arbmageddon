@@ -196,6 +196,10 @@
 						<input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="showCrossExchange">
 						<label for="cross-exchange-checkbox">Cross Exchange</label>
 					</div>
+					<div>
+						<input type="checkbox" id="same-exchange-checkbox" value="true" v-model="showSameExchange">
+						<label for="same-exchange-checkbox">Same Exchange</label>
+					</div>
 				</div>
 				<div class="flex-col flex-start">
 					<span>Pricing:</span>
@@ -218,8 +222,8 @@
 						<input v-model="basisSize" type="number" min="0" max="10" step="0.1" placeholder="0.1">
 					</div>
 					<div>
-						<span>Spread Filter (%): </span>
-						<input v-model="spreadFilter" type="number" min="2" max="20" step="0.5" placeholder="3.5">
+						<span>Spread Target (%): </span>
+						<input v-model="spreadTarget" type="number" min="2" max="20" step="0.5" placeholder="3.5">
 					</div>
 				</div>
 			</div>
@@ -301,10 +305,11 @@
 				selectedInst: null,
 				multichartsUrl: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC',
 				showCrossExchange: false,
+				showSameExchange: true,
 				showDirect: false,
 				showConversion: true,
 				symbolFilter: 'SYM',
-				spreadFilter: 5.0,
+				spreadTarget: 5.0,
 				basisSize: 0.1,
 				pricingMode: 'Taker'
 			},
@@ -331,9 +336,10 @@
 						const directPasses = appDash.showDirect === isDirect;
 						const isConversion = inst.type !== 0;
 						const conversionPasses = appDash.showConversion === isConversion;
-						const spreadPasses = Number.parseFloat(appDash.spreadFilter) / 100 < inst.spread;
-						return (crossExchangePasses || directPasses || conversionPasses) && spreadPasses;
-					});
+						// const spreadPasses = Number.parseFloat(appDash.spreadFilter) / 100 < inst.spread;
+						// return (crossExchangePasses || directPasses || conversionPasses) && spreadPasses;
+						return crossExchangePasses && directPasses && conversionPasses;
+					}).slice(0, 20);
 				},
 				arbIsGood(inst) {
 					return 0 < inst.timeAboveTarget && inst.sumOfDurations < inst.timeAboveTarget;
@@ -382,7 +388,7 @@
 								const update = msg.data;
 								const instruction = arbMap[update.id];
 								if (instruction) {
-									const target = appDash.spreadFilter / 100;
+									const target = appDash.spreadTarget / 100;
 									if (instruction.spread < target && target < update.spread) {
 										instruction.spreadEnteredAt = Date.now();
 									}

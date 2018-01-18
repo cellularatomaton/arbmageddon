@@ -2,6 +2,7 @@ import { Asset } from "../assets";
 import { Hub } from "./hub";
 import { Graph, Ticker, TradeType } from "../markets";
 import { TimeUnit, VolumeStatistics } from "./ticker";
+import { InitiationType } from "../utils/enums";
 
 export class Market {
 	asset: Asset;
@@ -16,6 +17,50 @@ export class Market {
 	}
 	getId() {
 		return `${this.hub.getId()}_${this.asset.symbol}`;
+	}
+
+	getBuyVwap(initiationType?: InitiationType): number {
+		if (!initiationType) {
+			initiationType = this.graph.initiationType;
+		}
+		if ((initiationType as InitiationType) === InitiationType.Maker) {
+			return this.vwapSellStats.getVwap();
+		} else {
+			return this.vwapBuyStats.getVwap();
+		}
+	}
+
+	getSellVwap(initiationType?: InitiationType) {
+		if (!initiationType) {
+			initiationType = this.graph.initiationType;
+		}
+		if ((initiationType as InitiationType) === InitiationType.Maker) {
+			return this.vwapBuyStats.getVwap();
+		} else {
+			return this.vwapSellStats.getVwap();
+		}
+	}
+
+	getBuyDuration(initiationType?: InitiationType): number {
+		if (!initiationType) {
+			initiationType = this.graph.initiationType;
+		}
+		if ((initiationType as InitiationType) === InitiationType.Maker) {
+			return this.vwapSellStats.getDuration();
+		} else {
+			return this.vwapBuyStats.getDuration();
+		}
+	}
+
+	getSellDuration(initiationType?: InitiationType) {
+		if (!initiationType) {
+			initiationType = this.graph.initiationType;
+		}
+		if ((initiationType as InitiationType) === InitiationType.Maker) {
+			return this.vwapBuyStats.getDuration();
+		} else {
+			return this.vwapSellStats.getDuration();
+		}
 	}
 
 	updateVwap(ticker: Ticker) {

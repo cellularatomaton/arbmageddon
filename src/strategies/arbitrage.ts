@@ -1,32 +1,15 @@
 import { Market } from "../markets";
 import { TradeType, VWAP } from "../markets/ticker";
-import { IEvent, EventImp } from "../utils";
-
+import {
+	IEvent,
+	EventImp,
+	ArbType,
+	ArbConversionType,
+	InstructionType
+} from "../utils";
 import "colors";
-
-export enum ArbType {
-	Simple,
-	Complex,
-	None
-}
-
-export enum ArbConversionType {
-	BuySide,
-	SellSide,
-	EitherSide,
-	None
-}
-
-export enum InitiationType {
-	Maker,
-	Taker
-}
-
-export enum InstructionType {
-	Direct,
-	OriginConversion,
-	DestinationConversion
-}
+import { Graph } from "../markets/graph";
+import { InitiationType } from "../utils/enums";
 
 export interface ExecutionOperation {
 	exchange: string;
@@ -74,8 +57,8 @@ export class Arb {
 			? destinationConversionHub.markets.get(destinationMarket.hub.asset.symbol)
 			: null;
 		if (
-			originMarket.vwapSellStats.getVwap() === 0 ||
-			destinationMarket.vwapBuyStats.getVwap() === 0
+			originMarket.getBuyVwap() === 0 ||
+			destinationMarket.getSellVwap() === 0
 		) {
 			this.type = ArbType.None;
 			this.conversionType = ArbConversionType.None;
@@ -109,14 +92,29 @@ export class Arb {
 		});
 	}
 
-	subscribeToEvents() {
-		this.subscribeToVwap(this.destinationMarket.vwapBuyStats.vwapUpdated);
-		this.subscribeToVwap(this.originMarket.vwapSellStats.vwapUpdated);
-		if (this.originConversion) {
-			this.subscribeToVwap(this.originConversion.vwapSellStats.vwapUpdated);
-		}
-		if (this.destinationConversion) {
-			this.subscribeToVwap(this.destinationConversion.vwapBuyStats.vwapUpdated);
+	subscribeToEvents(graph: Graph) {
+		if ((graph.initiationType as InitiationType) === InitiationType.Maker) {
+			this.subscribeToVwap(this.destinationMarket.vwapBuyStats.vwapUpdated);
+			this.subscribeToVwap(this.originMarket.vwapSellStats.vwapUpdated);
+			if (this.originConversion) {
+				this.subscribeToVwap(this.originConversion.vwapSellStats.vwapUpdated);
+			}
+			if (this.destinationConversion) {
+				this.subscribeToVwap(
+					this.destinationConversion.vwapBuyStats.vwapUpdated
+				);
+			}
+		} else {
+			this.subscribeToVwap(this.destinationMarket.vwapSellStats.vwapUpdated);
+			this.subscribeToVwap(this.originMarket.vwapBuyStats.vwapUpdated);
+			if (this.originConversion) {
+				this.subscribeToVwap(this.originConversion.vwapBuyStats.vwapUpdated);
+			}
+			if (this.destinationConversion) {
+				this.subscribeToVwap(
+					this.destinationConversion.vwapSellStats.vwapUpdated
+				);
+			}
 		}
 	}
 
@@ -195,26 +193,24 @@ export class Arb {
 
 	getSpread() {
 		const spread =
-			this.destinationMarket.vwapBuyStats.getVwap() -
-			this.originMarket.vwapSellStats.getVwap();
+			this.destinationMarket.getSellVwap() - this.originMarket.getBuyVwap();
 		return spread;
 	}
 
 	getSpreadPercent() {
 		const spread = this.getSpread();
-		if (this.originMarket.vwapSellStats.getVwap() === 0) {
+		if (this.originMarket.getBuyVwap() === 0) {
 			return Number.NaN;
 		} else {
-			return spread / this.originMarket.vwapSellStats.getVwap();
+			return spread / this.originMarket.getBuyVwap();
 		}
 	}
 
 	getOriginConversionSpread() {
 		if (this.originConversion) {
 			return (
-				this.destinationMarket.vwapBuyStats.getVwap() -
-				this.originMarket.vwapSellStats.getVwap() *
-					this.originConversion.vwapSellStats.getVwap()
+				this.destinationMarket.getSellVwap() -
+				this.originMarket.getBuyVwap() * this.originConversion.getBuyVwap()
 			);
 		} else {
 			return Number.NaN;
@@ -224,8 +220,7 @@ export class Arb {
 	getOriginConversionSpreadPercent() {
 		if (this.originConversion) {
 			const initialValue =
-				this.originMarket.vwapSellStats.getVwap() *
-				this.originConversion.vwapSellStats.getVwap();
+				this.originMarket.getBuyVwap() * this.originConversion.getBuyVwap();
 			if (initialValue === 0) {
 				return Number.NaN;
 			} else {
@@ -239,9 +234,9 @@ export class Arb {
 	getDestinationConversionSpread() {
 		if (this.destinationConversion) {
 			return (
-				this.destinationMarket.vwapBuyStats.getVwap() *
-					this.destinationConversion.vwapBuyStats.getVwap() -
-				this.originMarket.vwapSellStats.getVwap()
+				this.destinationMarket.getSellVwap() *
+					this.destinationConversion.getSellVwap() -
+				this.originMarket.getBuyVwap()
 			);
 		} else {
 			return Number.NaN;
@@ -250,7 +245,7 @@ export class Arb {
 
 	getDestinationConversionSpreadPercent() {
 		if (this.destinationConversion) {
-			const initialValue = this.originMarket.vwapSellStats.getVwap();
+			const initialValue = this.originMarket.getBuyVwap();
 			if (initialValue === 0) {
 				return Number.NaN;
 			} else {
@@ -309,8 +304,8 @@ export class Arb {
 			exchange: this.originMarket.hub.exchange.id,
 			hub: this.originMarket.hub.asset.symbol,
 			market: this.originMarket.asset.symbol,
-			price: this.originMarket.vwapSellStats.getVwap(),
-			duration: this.originMarket.vwapSellStats.getDuration()
+			price: this.originMarket.getBuyVwap(),
+			duration: this.originMarket.getBuyDuration()
 		};
 	}
 
@@ -319,8 +314,8 @@ export class Arb {
 			exchange: this.destinationMarket.hub.exchange.id,
 			hub: this.destinationMarket.hub.asset.symbol,
 			market: this.destinationMarket.asset.symbol,
-			price: this.destinationMarket.vwapBuyStats.getVwap(),
-			duration: this.destinationMarket.vwapBuyStats.getDuration()
+			price: this.destinationMarket.getSellVwap(),
+			duration: this.destinationMarket.getSellDuration()
 		};
 	}
 
@@ -330,8 +325,8 @@ export class Arb {
 				exchange: this.originConversion.hub.exchange.id,
 				hub: this.originConversion.hub.asset.symbol,
 				market: this.originConversion.asset.symbol,
-				price: this.originConversion.vwapSellStats.getVwap(),
-				duration: this.originConversion.vwapSellStats.getDuration()
+				price: this.originConversion.getBuyVwap(),
+				duration: this.originConversion.getBuyDuration()
 			};
 		} else {
 			return null;
@@ -344,7 +339,7 @@ export class Arb {
 				exchange: this.destinationConversion.hub.exchange.id,
 				hub: this.destinationConversion.hub.asset.symbol,
 				market: this.destinationConversion.asset.symbol,
-				price: this.destinationConversion.vwapBuyStats.getVwap(),
+				price: this.destinationConversion.getSellVwap(),
 				duration: this.destinationConversion.vwapBuyStats.getDuration()
 			};
 		} else {

@@ -6,9 +6,9 @@ import {
 	BinanceExchange,
 	PoloniexExchange
 } from "../exchanges";
-import { ExecutionInstruction, Arb, ArbType } from "../strategies";
+import { ExecutionInstruction, Arb } from "../strategies";
 import { IEvent, EventImp } from "../utils";
-import { InitiationType } from "../strategies/arbitrage";
+import { InitiationType, ArbType } from "../utils";
 
 import * as _ from "lodash";
 
@@ -53,7 +53,7 @@ export class Graph {
 					(destinationMarket: Market, destinationIndex: number) => {
 						const arb = new Arb(originMarket, destinationMarket);
 						const arbType = arb.type;
-						if (arbType !== ArbType.None) {
+						if ((arbType as ArbType) !== ArbType.None) {
 							const id = arb.getId();
 							if (!this.arbMap.has(id)) {
 								// console.log(`Mapping Arb: ${id}`);
@@ -66,7 +66,7 @@ export class Graph {
 									}, 1000)
 								);
 								this.arbMap.set(arb.getId(), arb);
-								arb.subscribeToEvents();
+								arb.subscribeToEvents(this);
 							}
 						} else {
 							// console.log(`ArbType: NONE`);

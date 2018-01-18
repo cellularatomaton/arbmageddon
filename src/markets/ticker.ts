@@ -80,7 +80,7 @@ export class VolumeStatistics {
 		if (basisAsset) {
 			const hubAsset = this.market.hub.asset;
 			const alreadyPricedInBasis = hubAsset.symbol === basisAsset.symbol;
-			const price = this.market.vwapSellStats.getVwap();
+			const price = this.market.getBuyVwap();
 			if (alreadyPricedInBasis) {
 				const size = basisSize / price;
 				return size;
@@ -88,7 +88,7 @@ export class VolumeStatistics {
 				// Look through hub markets for conversion:
 				const conversionMarket = this.market.hub.markets.get(basisAsset.symbol);
 				if (conversionMarket) {
-					const conversionPrice = conversionMarket.vwapSellStats.getVwap();
+					const conversionPrice = conversionMarket.getBuyVwap();
 					const size = basisSize / conversionPrice / price;
 					return size;
 				} else {
