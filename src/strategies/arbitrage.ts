@@ -1,9 +1,8 @@
-import { Market } from '../markets';
-import { TradeType, VWAP } from '../markets/ticker';
-import { ExecutionStrategy } from './execution';
-import { IEvent, EventImp } from '../utils';
+import { Market } from "../markets";
+import { TradeType, VWAP } from "../markets/ticker";
+import { IEvent, EventImp } from "../utils";
 
-import 'colors';
+import "colors";
 
 export enum ArbType {
 	Simple,
@@ -51,27 +50,36 @@ export class Arb {
 	conversionType: ArbConversionType;
 	originConversion: Market | null | undefined;
 	destinationConversion: Market | null | undefined;
-	onUpdated: EventImp<ExecutionInstruction> = new EventImp<ExecutionInstruction>();
+	onUpdated: EventImp<ExecutionInstruction> = new EventImp<
+		ExecutionInstruction
+	>();
 	get updated(): IEvent<ExecutionInstruction> {
 		return this.onUpdated.expose();
-	};
-	constructor(
-		public originMarket: Market,
-		public destinationMarket: Market
-	) {
+	}
+	constructor(public originMarket: Market, public destinationMarket: Market) {
 		// Find buy conversion market
 		const originExchange = originMarket.hub.exchange;
-		const originConversionHub = originExchange.hubs.get(destinationMarket.hub.asset.symbol);
-		this.originConversion = originConversionHub ? originConversionHub.markets.get(originMarket.hub.asset.symbol) : null;
+		const originConversionHub = originExchange.hubs.get(
+			destinationMarket.hub.asset.symbol
+		);
+		this.originConversion = originConversionHub
+			? originConversionHub.markets.get(originMarket.hub.asset.symbol)
+			: null;
 		// Find sell conversion market
 		const destinationExchange = destinationMarket.hub.exchange;
-		const destinationConversionHub = destinationExchange.hubs.get(originMarket.hub.asset.symbol);
-		this.destinationConversion = destinationConversionHub ? destinationConversionHub.markets.get(destinationMarket.hub.asset.symbol) : null;
-		if (originMarket.vwapSellStats.getVwap() === 0 || destinationMarket.vwapBuyStats.getVwap() === 0) {
+		const destinationConversionHub = destinationExchange.hubs.get(
+			originMarket.hub.asset.symbol
+		);
+		this.destinationConversion = destinationConversionHub
+			? destinationConversionHub.markets.get(destinationMarket.hub.asset.symbol)
+			: null;
+		if (
+			originMarket.vwapSellStats.getVwap() === 0 ||
+			destinationMarket.vwapBuyStats.getVwap() === 0
+		) {
 			this.type = ArbType.None;
 			this.conversionType = ArbConversionType.None;
-		}
-		else if (this.originConversion || this.destinationConversion) {
+		} else if (this.originConversion || this.destinationConversion) {
 			this.type = ArbType.Complex;
 			if (this.originConversion && this.destinationConversion) {
 				this.conversionType = ArbConversionType.EitherSide;
@@ -114,12 +122,18 @@ export class Arb {
 
 	getId(): string {
 		const originExchange = this.originMarket.hub.exchange.id;
-		const originConvert = this.originConversion ? this.originConversion.asset.symbol : 'NULL';
+		const originConvert = this.originConversion
+			? this.originConversion.asset.symbol
+			: "NULL";
 		const originMarket = this.originMarket.asset.symbol;
 		const destinationExchange = this.destinationMarket.hub.exchange.id;
 		const destinationMarket = this.destinationMarket.asset.symbol;
-		const destinationConvert = this.destinationConversion ? this.destinationConversion.asset.symbol : 'NULL';
-		return `${this.type}.${this.conversionType}.${originExchange}.${originConvert}.${originMarket}.${destinationExchange}${destinationConvert}${destinationMarket}`;
+		const destinationConvert = this.destinationConversion
+			? this.destinationConversion.asset.symbol
+			: "NULL";
+		return `${this.type}.${
+			this.conversionType
+		}.${originExchange}.${originConvert}.${originMarket}.${destinationExchange}${destinationConvert}${destinationMarket}`;
 	}
 
 	getInstId(instType: InstructionType): string | null {
@@ -129,10 +143,18 @@ export class Arb {
 		const destinationExchange = this.destinationMarket.hub.exchange.id;
 		const destinationHub = this.destinationMarket.hub.asset.symbol;
 		const destinationMarket = this.destinationMarket.asset.symbol;
-		const originConvert = this.originConversion ? this.originConversion.asset.symbol : null;
-		const originConvertHub = this.originConversion ? this.originConversion.hub.asset.symbol : null;
-		const destinationConvert = this.destinationConversion ? this.destinationConversion.asset.symbol : null;
-		const destinationConvertHub = this.destinationConversion ? this.destinationConversion.hub.asset.symbol : null;
+		const originConvert = this.originConversion
+			? this.originConversion.asset.symbol
+			: null;
+		const originConvertHub = this.originConversion
+			? this.originConversion.hub.asset.symbol
+			: null;
+		const destinationConvert = this.destinationConversion
+			? this.destinationConversion.asset.symbol
+			: null;
+		const destinationConvertHub = this.destinationConversion
+			? this.destinationConversion.hub.asset.symbol
+			: null;
 
 		const oHub = `${originExchange}.${originHub}`;
 		const oMkt = `${originExchange}.${originMarket}`;
@@ -143,11 +165,18 @@ export class Arb {
 		const dcHub = `${destinationExchange}.${destinationConvertHub}`;
 		const dcMkt = `${destinationExchange}.${destinationConvert}`;
 
-		if (instType as InstructionType === InstructionType.Direct) { // Direct Arb
+		if ((instType as InstructionType) === InstructionType.Direct) {
+			// Direct Arb
 			return `DA:${oHub}->${oMkt}->${dHub}`;
-		} else if (instType as InstructionType === InstructionType.OriginConversion) { // Origin Conversion
+		} else if (
+			(instType as InstructionType) === InstructionType.OriginConversion
+		) {
+			// Origin Conversion
 			return `OC:${ocHub}->${ocMkt}->${oMkt}->${dHub}`;
-		} else if (instType as InstructionType === InstructionType.DestinationConversion) { // Destination Conversion
+		} else if (
+			(instType as InstructionType) === InstructionType.DestinationConversion
+		) {
+			// Destination Conversion
 			return `DC:${oHub}->${dMkt}->${dcMkt}->${dcHub}`;
 		}
 		return null;
@@ -160,12 +189,14 @@ export class Arb {
 		const destinationExchange = this.destinationMarket.hub.exchange.id;
 		const isSameHub = originHub === destinationHub;
 		const isSameExchange = originExchange === destinationExchange;
-		const isSimple = (isSameHub && !isSameExchange);
+		const isSimple = isSameHub && !isSameExchange;
 		return isSimple;
 	}
 
 	getSpread() {
-		const spread = this.destinationMarket.vwapBuyStats.getVwap() - this.originMarket.vwapSellStats.getVwap();
+		const spread =
+			this.destinationMarket.vwapBuyStats.getVwap() -
+			this.originMarket.vwapSellStats.getVwap();
 		return spread;
 	}
 
@@ -180,7 +211,11 @@ export class Arb {
 
 	getOriginConversionSpread() {
 		if (this.originConversion) {
-			return this.destinationMarket.vwapBuyStats.getVwap() - this.originMarket.vwapSellStats.getVwap() * this.originConversion.vwapSellStats.getVwap();
+			return (
+				this.destinationMarket.vwapBuyStats.getVwap() -
+				this.originMarket.vwapSellStats.getVwap() *
+					this.originConversion.vwapSellStats.getVwap()
+			);
 		} else {
 			return Number.NaN;
 		}
@@ -188,7 +223,9 @@ export class Arb {
 
 	getOriginConversionSpreadPercent() {
 		if (this.originConversion) {
-			const initialValue = this.originMarket.vwapSellStats.getVwap() * this.originConversion.vwapSellStats.getVwap();
+			const initialValue =
+				this.originMarket.vwapSellStats.getVwap() *
+				this.originConversion.vwapSellStats.getVwap();
 			if (initialValue === 0) {
 				return Number.NaN;
 			} else {
@@ -201,7 +238,11 @@ export class Arb {
 
 	getDestinationConversionSpread() {
 		if (this.destinationConversion) {
-			return this.destinationMarket.vwapBuyStats.getVwap() * this.destinationConversion.vwapBuyStats.getVwap() - this.originMarket.vwapSellStats.getVwap();
+			return (
+				this.destinationMarket.vwapBuyStats.getVwap() *
+					this.destinationConversion.vwapBuyStats.getVwap() -
+				this.originMarket.vwapSellStats.getVwap()
+			);
 		} else {
 			return Number.NaN;
 		}
@@ -223,21 +264,32 @@ export class Arb {
 	getConversionSpreadPercent() {
 		const originConversionSpread = this.getOriginConversionSpreadPercent();
 		const destinationConversionSpread = this.getDestinationConversionSpreadPercent();
-		return this.getBetterSpread(originConversionSpread, destinationConversionSpread);
+		return this.getBetterSpread(
+			originConversionSpread,
+			destinationConversionSpread
+		);
 	}
 
 	getConversionSpread() {
 		const originConversionSpread = this.getOriginConversionSpread();
 		const destinationConversionSpread = this.getDestinationConversionSpread();
-		return this.getBetterSpread(originConversionSpread, destinationConversionSpread);
+		return this.getBetterSpread(
+			originConversionSpread,
+			destinationConversionSpread
+		);
 	}
 
-	getBetterSpread(originConversionSpread: number, destinationConversionSpread: number) {
+	getBetterSpread(
+		originConversionSpread: number,
+		destinationConversionSpread: number
+	) {
 		const hasOriginConversion = !Number.isNaN(originConversionSpread);
 		const hasDestinationConversion = !Number.isNaN(destinationConversionSpread);
 
 		if (this.conversionType === ArbConversionType.EitherSide) {
-			if (Math.abs(destinationConversionSpread) < Math.abs(originConversionSpread)) {
+			if (
+				Math.abs(destinationConversionSpread) < Math.abs(originConversionSpread)
+			) {
 				return originConversionSpread;
 			} else {
 				return destinationConversionSpread;
@@ -306,10 +358,10 @@ export class Arb {
 		const sell = this.getSellOperation();
 		const instructions = {
 			id: this.getInstId(InstructionType.Direct),
-			spread: spread,
+			spread,
 			type: InstructionType.Direct,
-			buy: buy,
-			sell: sell
+			buy,
+			sell
 		};
 		return instructions;
 	}
@@ -324,8 +376,8 @@ export class Arb {
 				id: this.getInstId(InstructionType.OriginConversion),
 				spread: buyConvertSpread,
 				type: InstructionType.OriginConversion,
-				buy: buy,
-				sell: sell,
+				buy,
+				sell,
 				convert: buyConvert
 			};
 			return instructions;
@@ -344,8 +396,8 @@ export class Arb {
 				id: this.getInstId(InstructionType.DestinationConversion),
 				spread: sellConvertSpread,
 				type: InstructionType.DestinationConversion,
-				buy: buy,
-				sell: sell,
+				buy,
+				sell,
 				convert: sellConvert
 			};
 			return instructions;
@@ -364,21 +416,33 @@ export class Arb {
 		} else if (this.type === ArbType.Complex) {
 			if (this.conversionType === ArbConversionType.EitherSide) {
 				const sellConvertInstruction = this.getDestinationConvertInstructions();
-				if (sellConvertInstruction && !Number.isNaN(sellConvertInstruction.spread)) {
+				if (
+					sellConvertInstruction &&
+					!Number.isNaN(sellConvertInstruction.spread)
+				) {
 					instructions.push(sellConvertInstruction);
 				}
 				const buyConvertInstruction = this.getOriginConvertInstructions();
-				if (buyConvertInstruction && ! !Number.isNaN(buyConvertInstruction.spread)) {
+				if (
+					buyConvertInstruction &&
+					!!Number.isNaN(buyConvertInstruction.spread)
+				) {
 					instructions.push(buyConvertInstruction);
 				}
 			} else if (this.conversionType === ArbConversionType.BuySide) {
 				const buyConvertInstruction = this.getOriginConvertInstructions();
-				if (buyConvertInstruction && !Number.isNaN(buyConvertInstruction.spread)) {
+				if (
+					buyConvertInstruction &&
+					!Number.isNaN(buyConvertInstruction.spread)
+				) {
 					instructions.push(buyConvertInstruction);
 				}
 			} else if (this.conversionType === ArbConversionType.SellSide) {
 				const sellConvertInstruction = this.getDestinationConvertInstructions();
-				if (sellConvertInstruction && !Number.isNaN(sellConvertInstruction.spread)) {
+				if (
+					sellConvertInstruction &&
+					!Number.isNaN(sellConvertInstruction.spread)
+				) {
 					instructions.push(sellConvertInstruction);
 				}
 			} else {

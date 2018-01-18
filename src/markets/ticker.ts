@@ -1,5 +1,5 @@
-import { Graph, Market } from '../markets';
-import { IEvent, EventImp } from '../utils';
+import { Graph, Market } from "../markets";
+import { IEvent, EventImp } from "../utils";
 
 export enum TradeType {
 	BUY,
@@ -26,8 +26,8 @@ export enum TimeUnit {
 }
 
 export interface VWAP {
-	vwap: number,
-	duration: number
+	vwap: number;
+	duration: number;
 }
 
 export class VolumeStatistics {
@@ -38,9 +38,9 @@ export class VolumeStatistics {
 	onVwapUpdated: EventImp<VWAP> = new EventImp<VWAP>();
 	get vwapUpdated(): IEvent<VWAP> {
 		return this.onVwapUpdated.expose();
-	};
+	}
 
-	constructor(private market: Market) { }
+	constructor(private market: Market) {}
 
 	getVwap() {
 		return this.vwapNumerator / this.vwapDenominator;
@@ -122,5 +122,4 @@ export class VolumeStatistics {
 		// console.log(`Ticker Triggered VWAP: ${JSON.stringify(vwap)}`);
 		this.onVwapUpdated.trigger(vwap);
 	}
-
 }
