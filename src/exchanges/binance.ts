@@ -1,15 +1,10 @@
-import { Exchange } from './exchange';
-import { Hub, Market, Graph, TradeType } from '../markets';
-import { Asset } from '../assets';
+import { Exchange } from "./exchange";
+import { Hub, Market, Graph, TradeType } from "../markets";
+import { Asset } from "../assets";
 
-const _ = require('lodash');
-const binance = require('node-binance-api');
-const hubSymbols = new Set([
-	'BTC',
-	'ETH',
-	'BNB',
-	'USDT'
-]);
+const _ = require("lodash");
+const binance = require("node-binance-api");
+const hubSymbols = new Set(["BTC", "ETH", "BNB", "USDT"]);
 
 binance.options({
 	reconnect: false,
@@ -19,17 +14,12 @@ binance.options({
 
 export class BinanceExchange extends Exchange {
 	symbolList: string[];
-	constructor(
-		graph: Graph
-	) {
-		super('BIN', 'BINANCE', graph);
-		this.updateExchangeInfo()
-			.then(() => {
-				this.setupWebsockets(this.symbolList);
-			});
+	constructor(graph: Graph) {
+		super("BIN", "BINANCE", graph);
+		this.updateExchangeInfo().then(() => {
+			this.setupWebsockets(this.symbolList);
+		});
 	}
-	marketBuy() { }
-	marketSell() { }
 
 	updateExchangeInfo(): Promise<void> {
 		const exchange = this;
@@ -42,7 +32,7 @@ export class BinanceExchange extends Exchange {
 					// console.log(`Binance mapping symbols: Hub ${hubSymbol} -> Market ${marketSymbol}`);
 					exchange.mapMarket(hubSymbol, marketSymbol);
 				});
-				this.symbolList = markets.map((m: any) => { return m.symbol; });
+				this.symbolList = markets.map((m: any) => m.symbol);
 				this.graph.mapBasis();
 				resolve();
 			});
@@ -70,11 +60,11 @@ export class BinanceExchange extends Exchange {
 	}
 
 	setupWebsockets(symbols: string[]) {
-		console.log('Init BINA Websocket');
+		console.log("Init BINA Websocket");
 		const exchange = this;
-		let binaUpdates = 0;
+		const binaUpdates = 0;
 		try {
-			binance.websockets.trades(symbols, function (trades: any) {
+			binance.websockets.trades(symbols, (trades: any) => {
 				// let {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId} = trades;
 				// console.log(symbol+" trade update. price: "+price+", quantity: "+quantity+", maker: "+maker);
 				const parsedSymbols = exchange.parseSymbols(trades.s);
@@ -89,9 +79,13 @@ export class BinanceExchange extends Exchange {
 					size: Number(trades.q)
 				});
 
-				_.throttle(() => {
-					console.log('BINA still alive ' + Date.now());
-				}, 1000, { leading: true });
+				_.throttle(
+					() => {
+						console.log("BINA still alive " + Date.now());
+					},
+					1000,
+					{ leading: true }
+				);
 			});
 		} catch (err) {
 			console.log(err);
@@ -99,7 +93,7 @@ export class BinanceExchange extends Exchange {
 	}
 
 	// static binaMarketUpdateLoop(exchange: BinanceExchange){
-	//     // const exchange = this;    
+	//     // const exchange = this;
 	//     binance.bookTickers(function(tickers: any) {
 	//         // console.log("bookTickers", ticker);
 	//         exchange.handleTickers(tickers);
@@ -126,5 +120,5 @@ export class BinanceExchange extends Exchange {
 
 	//         }
 	//     });
-	// } 
+	// }
 }

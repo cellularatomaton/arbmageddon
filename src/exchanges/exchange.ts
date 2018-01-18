@@ -1,5 +1,5 @@
-import { Hub, Market, Graph, Ticker, TradeType } from '../markets';
-import { Asset } from '../assets';
+import { Hub, Market, Graph, Ticker, TradeType } from "../markets";
+import { Asset } from "../assets";
 
 export interface HubMarketPair {
 	hubSymbol: string;
@@ -8,11 +8,7 @@ export interface HubMarketPair {
 
 export class Exchange {
 	hubs: Map<string, Hub>;
-	constructor(
-		public id: string,
-		public name: string,
-		public graph: Graph
-	) {
+	constructor(public id: string, public name: string, public graph: Graph) {
 		this.hubs = new Map<string, Hub>();
 	}
 
@@ -20,37 +16,13 @@ export class Exchange {
 		return this.id;
 	}
 
-	marketBuy() { }
-
-	marketSell() { }
-
-	fillHandler(callback: any) { }
-
-	positionHandler(callback: any) { }
-
-	mapMarket(
-		hubSymbol: string,
-		marketSymbol: string): any {
+	mapMarket(hubSymbol: string, marketSymbol: string): any {
 		if (!this.hubs.has(hubSymbol)) {
-			this.hubs.set(
-				hubSymbol,
-				new Hub(
-					hubSymbol,
-					this,
-					this.graph,
-				)
-			);
+			this.hubs.set(hubSymbol, new Hub(hubSymbol, this, this.graph));
 		}
 		const hub = this.hubs.get(hubSymbol);
 		if (hub && !hub.markets.has(marketSymbol)) {
-			hub.markets.set(
-				marketSymbol,
-				new Market(
-					marketSymbol,
-					hub,
-					this.graph
-				)
-			);
+			hub.markets.set(marketSymbol, new Market(marketSymbol, hub, this.graph));
 		}
 		if (hub) {
 			const market = hub.markets.get(marketSymbol);
@@ -59,10 +31,7 @@ export class Exchange {
 	}
 
 	updateTicker(ticker: Ticker) {
-		const response = this.mapMarket(
-			ticker.hubSymbol,
-			ticker.marketSymbol
-		);
+		const response = this.mapMarket(ticker.hubSymbol, ticker.marketSymbol);
 		if (response) {
 			const market = response;
 			market.updateVwap(ticker);
@@ -73,11 +42,11 @@ export class Exchange {
 		console.log(`Exchange: ${this.id}`.green);
 		this.hubs.forEach((hub: Hub, symbol: string) => {
 			console.log(`Hub: ${symbol}`.blue);
-			let marketList: string[] = [];
+			const marketList: string[] = [];
 			hub.markets.forEach((market: Market, marketSymbol: string) => {
 				marketList.push(marketSymbol);
 			});
-			console.log(`Markets: ${marketList.join(',')}`.magenta);
+			console.log(`Markets: ${marketList.join(",")}`.magenta);
 		});
 	}
-};
+}

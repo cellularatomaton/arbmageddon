@@ -1,9 +1,14 @@
-import { Hub, Market } from '../markets';
-import { Asset } from '../assets';
-import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from '../exchanges';
-import { ExecutionInstruction, Arb, ArbType } from '../strategies';
-import { IEvent, EventImp } from '../utils';
-import { InitiationType } from '../strategies/arbitrage';
+import { Hub, Market } from "../markets";
+import { Asset } from "../assets";
+import {
+	Exchange,
+	GdaxExchange,
+	BinanceExchange,
+	PoloniexExchange
+} from "../exchanges";
+import { ExecutionInstruction, Arb, ArbType } from "../strategies";
+import { IEvent, EventImp } from "../utils";
+import { InitiationType } from "../strategies/arbitrage";
 
 import * as _ from "lodash";
 
@@ -18,7 +23,7 @@ export class Graph {
 	onArb: EventImp<ExecutionInstruction> = new EventImp<ExecutionInstruction>();
 	get arb(): IEvent<ExecutionInstruction> {
 		return this.onArb.expose();
-	};
+	}
 	constructor() {
 		this.assetMap = new Map<string, Asset>();
 		this.arbMap = new Map<string, Arb>();
@@ -30,7 +35,7 @@ export class Graph {
 		const arbFinder = () => {
 			this.findArbs();
 			setTimeout(arbFinder, 1000);
-		}
+		};
 		arbFinder();
 	}
 
@@ -44,27 +49,30 @@ export class Graph {
 	findArbs() {
 		this.assetMap.forEach((asset: Asset, symbol: string) => {
 			asset.markets.forEach((originMarket: Market, originIndex: number) => {
-				asset.markets.forEach((destinationMarket: Market, destinationIndex: number) => {
-					const arb = new Arb(originMarket, destinationMarket);
-					const arbType = arb.type;
-					if (arbType !== ArbType.None) {
-						const id = arb.getId();
-						if (!this.arbMap.has(id)) {
-							// console.log(`Mapping Arb: ${id}`);
-							arb.updated.on(
-								_.throttle((inst?: ExecutionInstruction) => {
-									if (inst) {
-										// console.log(`Arb Triggered Instructions: ${JSON.stringify(inst)}`);
-										this.onArb.trigger(inst);
-									}
-								}, 1000));
-							this.arbMap.set(arb.getId(), arb);
-							arb.subscribeToEvents();
+				asset.markets.forEach(
+					(destinationMarket: Market, destinationIndex: number) => {
+						const arb = new Arb(originMarket, destinationMarket);
+						const arbType = arb.type;
+						if (arbType !== ArbType.None) {
+							const id = arb.getId();
+							if (!this.arbMap.has(id)) {
+								// console.log(`Mapping Arb: ${id}`);
+								arb.updated.on(
+									_.throttle((inst?: ExecutionInstruction) => {
+										if (inst) {
+											// console.log(`Arb Triggered Instructions: ${JSON.stringify(inst)}`);
+											this.onArb.trigger(inst);
+										}
+									}, 1000)
+								);
+								this.arbMap.set(arb.getId(), arb);
+								arb.subscribeToEvents();
+							}
+						} else {
+							// console.log(`ArbType: NONE`);
 						}
-					} else {
-						// console.log(`ArbType: NONE`);
 					}
-				});
+				);
 			});
 		});
 	}

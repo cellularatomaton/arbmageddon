@@ -1,11 +1,11 @@
-import { Graph } from '../../src/markets';
-import { Exchange } from '../../src/exchanges';
+import { Graph } from "../../src/markets";
+import { Exchange } from "../../src/exchanges";
 
-import express = require('express');
+import express = require("express");
 const router = express.Router();
 
-module.exports = function (graph: Graph) {
-	router.get('/exchanges', function (req, res, next) {
+module.exports = (graph: Graph) => {
+	router.get("/exchanges", (req, res, next) => {
 		const exchanges = graph.exchanges.map((exch: Exchange) => {
 			return {
 				id: exch.id,

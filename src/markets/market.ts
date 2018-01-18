@@ -1,17 +1,14 @@
-import { Asset } from '../assets';
-import { Hub } from './hub';
-import { Graph, Ticker, TradeType } from '../markets';
-import { TimeUnit, VolumeStatistics } from './ticker';
+import { Asset } from "../assets";
+import { Hub } from "./hub";
+import { Graph, Ticker, TradeType } from "../markets";
+import { TimeUnit, VolumeStatistics } from "./ticker";
 
 export class Market {
 	asset: Asset;
 	vwapBuyStats: VolumeStatistics;
 	vwapSellStats: VolumeStatistics;
 
-	constructor(
-		assetSymbol: string,
-		public hub: Hub,
-		public graph: Graph) {
+	constructor(assetSymbol: string, public hub: Hub, public graph: Graph) {
 		this.asset = Asset.getAsset(assetSymbol, graph.assetMap);
 		this.asset.markets.push(this);
 		this.vwapBuyStats = new VolumeStatistics(this);
@@ -23,7 +20,7 @@ export class Market {
 
 	updateVwap(ticker: Ticker) {
 		// console.log(`Adding ticker: ${JSON.stringify(ticker)}`);
-		if (ticker.side as TradeType === TradeType.BUY) {
+		if ((ticker.side as TradeType) === TradeType.BUY) {
 			this.vwapBuyStats.handleTicker(ticker);
 			// console.log(`Buy vwap: ${this.vwapBuyStats.getVwap()}`);
 		} else {
@@ -31,4 +28,4 @@ export class Market {
 			// console.log(`Sell vwap: ${this.vwapSellStats.getVwap()}`);
 		}
 	}
-};
+}
