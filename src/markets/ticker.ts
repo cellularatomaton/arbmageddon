@@ -75,7 +75,7 @@ export class VolumeStatistics {
 
 	calcWindowSize(): number {
 		const graph = this.market.graph;
-		const basisSize = graph.basisSize;
+		const basisSize = graph.parameters.basisSize;
 		const basisAsset = graph.basisAsset;
 		if (basisAsset) {
 			const hubAsset = this.market.hub.asset;

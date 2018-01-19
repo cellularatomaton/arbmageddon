@@ -21,7 +21,7 @@ export class Market {
 
 	getBuyVwap(initiationType?: InitiationType): number {
 		if (!initiationType) {
-			initiationType = this.graph.initiationType;
+			initiationType = this.graph.parameters.initiationType;
 		}
 		if ((initiationType as InitiationType) === InitiationType.Maker) {
 			return this.vwapSellStats.getVwap();
@@ -32,7 +32,7 @@ export class Market {
 
 	getSellVwap(initiationType?: InitiationType) {
 		if (!initiationType) {
-			initiationType = this.graph.initiationType;
+			initiationType = this.graph.parameters.initiationType;
 		}
 		if ((initiationType as InitiationType) === InitiationType.Maker) {
 			return this.vwapBuyStats.getVwap();
@@ -43,7 +43,7 @@ export class Market {
 
 	getBuyDuration(initiationType?: InitiationType): number {
 		if (!initiationType) {
-			initiationType = this.graph.initiationType;
+			initiationType = this.graph.parameters.initiationType;
 		}
 		if ((initiationType as InitiationType) === InitiationType.Maker) {
 			return this.vwapSellStats.getDuration();
@@ -54,7 +54,7 @@ export class Market {
 
 	getSellDuration(initiationType?: InitiationType) {
 		if (!initiationType) {
-			initiationType = this.graph.initiationType;
+			initiationType = this.graph.parameters.initiationType;
 		}
 		if ((initiationType as InitiationType) === InitiationType.Maker) {
 			return this.vwapBuyStats.getDuration();

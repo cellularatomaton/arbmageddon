@@ -8,6 +8,7 @@ import {
 } from "../src/exchanges";
 import { ExecutionInstruction } from "../src/strategies";
 import { NextFunction, Request, Response, Router } from "express";
+import { GraphParameters } from "../src/markets/graph";
 
 const express = require("express");
 const path = require("path");
@@ -65,9 +66,35 @@ graphModel.arb.on((inst?: ExecutionInstruction) => {
 	if (inst) {
 		// console.log(`Broadcasting...`);
 		wss.broadcast({
+			from: "graph",
+			to: "gui",
+			action: "update",
 			type: "arb",
 			data: inst
 		});
+	}
+});
+
+wss.on("message", (message: any) => {
+	if (
+		message.from === "gui" &&
+		message.to === "graph" &&
+		message.type === "params"
+	) {
+		if (message.action === "set") {
+			console.log(`Setting graph params: ${JSON.stringify(message.data)}`);
+			graphModel.updateParams(message.data as GraphParameters);
+		} else if (message.action === "get") {
+			wss.send(
+				JSON.stringify({
+					from: "graph",
+					to: "gui",
+					type: "params",
+					action: "set",
+					data: graphModel.parameters
+				})
+			);
+		}
 	}
 });
 

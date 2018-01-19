@@ -204,11 +204,11 @@
 				<div class="flex-col flex-start">
 					<span>Pricing:</span>
 					<div>
-						<input type="radio" id="taker" value="Taker" v-model="pricingMode">
+						<input type="radio" id="taker" value="Taker" v-model="initiationType">
 						<label for="taker">Taker</label>
 					</div>
 					<div>
-						<input type="radio" id="maker" value="Maker" v-model="pricingMode">
+						<input type="radio" id="maker" value="Maker" v-model="initiationType">
 						<label for="maker">Maker</label>
 					</div>
 				</div>
@@ -259,11 +259,11 @@
 	<script>
 		let exchMap = {};
 		const arbMap = {};
-
-		const getCoinigySymbol = function (op) {
+		const ws = new WebSocket('ws://localhost:8080/');
+		const getCoinigySymbol = (op) => {
 			return `${exchMap[op.exchange]}:${op.market}${op.hub}`;
 		}
-		const getMccQueryString = function (inst) {
+		const getMccQueryString = (inst) => {
 			if (inst) {
 				const buy = getCoinigySymbol(inst.buy);
 				const sell = getCoinigySymbol(inst.sell);
@@ -281,12 +281,12 @@
 				}
 			}
 		}
-		const opSymbolMatch = function (symbol, op) {
+		const opSymbolMatch = (symbol, op) => {
 			return op.exchange.startsWith(symbol) ||
 				op.hub.startsWith(symbol) ||
 				op.market.startsWith(symbol);
 		}
-		const instSymbolMatch = function (symbol, inst) {
+		const instSymbolMatch = (symbol, inst) => {
 			const convertMatch = inst.convert ? opSymbolMatch(symbol, inst.convert) : false;
 			return convertMatch ||
 				opSymbolMatch(symbol, inst.buy) ||
@@ -296,29 +296,58 @@
 			template: '#operation-template',
 			props: ['title', 'side', 'operation']
 		});
+		const props = {
+			basisSize: 0.1,
+			spreadProperties: 5.0,
+			initiationType: 0
+		};
 		const appDash = new Vue({
 			el: '#app-dash',
 			data: {
 				exchanges: [],
 				arbList: [],
 				// arbMap: [],
-				selectedInst: null,
+				selectedInst: undefined,
 				multichartsUrl: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC',
 				showCrossExchange: false,
 				showSameExchange: true,
 				showDirect: false,
 				showConversion: true,
 				symbolFilter: 'SYM',
-				spreadTarget: 5.0,
-				basisSize: 0.1,
-				pricingMode: 'Taker'
+				basisSize: props.basisSize,
+				spreadTarget: props.spreadTarget,
+				initiationType: props.initiationType,
+				graphProperties: props
+			},
+			watch: {
+				basisSize: (newBasis, oldBasis) => {
+					appDash.graphProperties.basisSize = newBasis;
+					appDash.updateGraphProperties();
+				},
+				spreadTarget: (newTarget, oldTarget) => {
+					appDash.graphProperties.spreadTarget = newTarget;
+					appDash.updateGraphProperties();
+				},
+				initiationType: (newType, oldType) => {
+					appDash.graphProperties.initiationType = newType === 'Maker' ? 0 : 1;
+					appDash.updateGraphProperties();
+				}
 			},
 			methods: {
-				getExchanges: function () {
-					return new Promise(function (resolve, reject) {
+				updateGraphProperties: () => {
+					ws.send(JSON.stringify({
+						to: 'graph',
+						from: 'gui',
+						action: 'set',
+						type: 'params',
+						data: appDash.graphProperties
+					}));
+				},
+				getExchanges: () => {
+					return new Promise((resolve, reject) => {
 						Vue.http.get('/graph/exchanges').then(response => {
 							appDash.exchanges = response.body;
-							exchMap = appDash.exchanges.reduce(function (map, exch) {
+							exchMap = appDash.exchanges.reduce((map, exch) => {
 								map[exch.id] = exch.name;
 								return map;
 							}, {});
@@ -328,8 +357,8 @@
 						});
 					});
 				},
-				getFilteredArbs: function () {
-					return appDash.arbList.filter(function (inst) {
+				getFilteredArbs: () => {
+					return appDash.arbList.filter((inst) => {
 						const isCrossExchange = inst.buy.exchange !== inst.sell.exchange;
 						const crossExchangePasses = appDash.showCrossExchange === isCrossExchange;
 						const isDirect = inst.type === 0;
@@ -342,13 +371,17 @@
 					}).slice(0, 20);
 				},
 				arbIsGood(inst) {
-					return 0 < inst.timeAboveTarget && inst.sumOfDurations < inst.timeAboveTarget;
+					if (inst) {
+						return 0 < inst.timeAboveTarget && inst.sumOfDurations < inst.timeAboveTarget;
+					} else {
+						return false;
+					}
 				},
-				instSpread: function (i) { return `${(i.spread * 100).toFixed(2)}%`; },
-				instString: function (inst) {
+				instSpread: (i) => { return `${(i.spread * 100).toFixed(2)}%`; },
+				instString: (inst) => {
 					return getInstString(inst);
 				},
-				setMulticharts: function (inst) {
+				setMulticharts: (inst) => {
 					if (inst) {
 						const queryString = getMccQueryString(inst);
 						appDash.multichartsUrl = `https://www.multicoincharts.com/${queryString}`;
@@ -359,24 +392,59 @@
 						appDash.selectedInst = inst;
 					}
 				},
-				setup: function () {
+				setup: () => {
 					appDash
 						.getExchanges()
-						.then(function () {
+						.then(() => {
 							return appDash.setupWebsocket();
 						})
-						.then(appDash.sortLoop);
+						.then(() => {
+							appDash.sortLoop();
+						});
 				},
-				sortLoop: function () {
+				sortLoop: () => {
 					appDash.arbList.sort((a, b) => {
 						return b.spread - a.spread;
 					});
 					setTimeout(appDash.sortLoop, 1000);
 				},
-				setupWebsocket: function () {
-					return new Promise(function (resolve, reject) {
-						const ws = new WebSocket('ws://localhost:8080/');
+				updateArb: (update) => {
+					const arb = arbMap[update.id];
+					if (arb) {
+						const target = appDash.graphProperties.spreadTarget / 100;
+						if (arb.spread < target && target < update.spread) {
+							arb.spreadEnteredAt = Date.now();
+						}
+						arb.timeAboveTarget = Date.now() - arb.spreadEnteredAt;
+						arb.spread = update.spread;
+						arb.buy.price = update.buy.price;
+						arb.buy.duration = update.buy.duration;
+						arb.sell.price = update.sell.price;
+						arb.sell.duration = update.sell.duration;
+						if (arb.convert) {
+							arb.convert.price = update.convert.price;
+							arb.convert.duration = update.convert.duration;
+							arb.sumOfDurations =
+								update.buy.duration +
+								update.sell.duration +
+								update.convert.duration;
+						} else {
+							arb.sumOfDurations =
+								update.buy.duration +
+								update.sell.duration;
+						}
 
+					} else {
+						update.spreadEnteredAt = Date.now();
+						arbMap[update.id] = update;
+						appDash.arbList.push(update);
+					}
+					if (!appDash.selectedInst) {
+						appDash.setMulticharts(appDash.arbList[0]);
+					}
+				},
+				setupWebsocket: () => {
+					return new Promise((resolve, reject) => {
 						ws.onclose = () => {
 							console.log('Application Websocket closed.');
 							setTimeout(appDash.setupWebsocket, 1000);
@@ -384,46 +452,24 @@
 
 						ws.onmessage = (message) => {
 							const msg = JSON.parse(message.data);
-							if (msg.type === 'arb') { // Spread Update
-								const update = msg.data;
-								const instruction = arbMap[update.id];
-								if (instruction) {
-									const target = appDash.spreadTarget / 100;
-									if (instruction.spread < target && target < update.spread) {
-										instruction.spreadEnteredAt = Date.now();
-									}
-									instruction.timeAboveTarget = Date.now() - instruction.spreadEnteredAt;
-									instruction.spread = update.spread;
-									instruction.buy.price = update.buy.price;
-									instruction.buy.duration = update.buy.duration;
-									instruction.sell.price = update.sell.price;
-									instruction.sell.duration = update.sell.duration;
-									if (instruction.convert) {
-										instruction.convert.price = update.convert.price;
-										instruction.convert.duration = update.convert.duration;
-										instruction.sumOfDurations =
-											update.buy.duration +
-											update.sell.duration +
-											update.convert.duration;
-									} else {
-										instruction.sumOfDurations =
-											update.buy.duration +
-											update.sell.duration;
-									}
-
-								} else {
-									update.spreadEnteredAt = Date.now();
-									arbMap[update.id] = update;
-									appDash.arbList.push(update);
-								}
-								if (!appDash.selectedInst) {
-									appDash.setMulticharts(appDash.arbList[0]);
+							if (msg.to === 'gui' && msg.from === 'graph') {
+								if (msg.type === 'arb' && msg.action === 'update') {
+									appDash.updateArb(msg.data);
+								} else if (msg.type === 'params' && msg.action === 'set') {
+									appDash.graphProperties = msg.data;
 								}
 							}
 						};
 
 						ws.onopen = () => {
 							console.log('App Websocket opened.');
+							ws.send(JSON.stringify({
+								to: 'graph',
+								from: 'gui',
+								type: 'params',
+								action: 'get'
+							}));
+							console.log('Graph params requested.');
 						};
 
 						// it's the least you could do!

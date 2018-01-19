@@ -12,13 +12,26 @@ import { InitiationType, ArbType } from "../utils";
 
 import * as _ from "lodash";
 
+export interface GraphParameters {
+	basisAssetSymbol: string;
+	basisSize: number;
+	spreadTarget: number;
+	initiationType: InitiationType;
+}
+
 export class Graph {
 	assetMap: Map<string, Asset>;
 	arbMap: Map<string, Arb>;
-	basisAssetSymbol: string = "BTC";
-	basisSize: number = 0.1;
+	// basisAssetSymbol: string = "BTC";
+	// basisSize: number = 0.1;
 	basisAsset: Asset | undefined;
-	initiationType: InitiationType = InitiationType.Taker;
+	// initiationType: InitiationType = InitiationType.Taker;
+	parameters: GraphParameters = {
+		basisAssetSymbol: "BTC",
+		basisSize: 0.1,
+		spreadTarget: 3.0,
+		initiationType: InitiationType.Taker
+	};
 	exchanges: Exchange[];
 	onArb: EventImp<ExecutionInstruction> = new EventImp<ExecutionInstruction>();
 	get arb(): IEvent<ExecutionInstruction> {
@@ -42,8 +55,13 @@ export class Graph {
 	mapBasis() {
 		// Gets called once for each exchange currently.
 		if (!this.basisAsset) {
-			this.basisAsset = this.assetMap.get(this.basisAssetSymbol);
+			this.basisAsset = this.assetMap.get(this.parameters.basisAssetSymbol);
 		}
+	}
+
+	updateParams(params: GraphParameters) {
+		this.parameters = params;
+		this.mapBasis();
 	}
 
 	findArbs() {

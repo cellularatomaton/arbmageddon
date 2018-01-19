@@ -1,7 +1,8 @@
 import { Graph } from "../../src/markets";
 import { Exchange } from "../../src/exchanges";
-
+import { GraphParameters } from "../../src/markets/graph";
 import express = require("express");
+
 const router = express.Router();
 
 module.exports = (graph: Graph) => {

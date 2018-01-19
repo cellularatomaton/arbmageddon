@@ -93,7 +93,10 @@ export class Arb {
 	}
 
 	subscribeToEvents(graph: Graph) {
-		if ((graph.initiationType as InitiationType) === InitiationType.Maker) {
+		if (
+			(graph.parameters.initiationType as InitiationType) ===
+			InitiationType.Maker
+		) {
 			this.subscribeToVwap(this.destinationMarket.vwapBuyStats.vwapUpdated);
 			this.subscribeToVwap(this.originMarket.vwapSellStats.vwapUpdated);
 			if (this.originConversion) {
