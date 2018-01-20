@@ -204,11 +204,11 @@
 				<div class="flex-col flex-start">
 					<span>Pricing:</span>
 					<div>
-						<input type="radio" id="taker" value="Taker" v-model="initiationType">
+						<input type="radio" id="taker" value="1" v-model="initiationType">
 						<label for="taker">Taker</label>
 					</div>
 					<div>
-						<input type="radio" id="maker" value="Maker" v-model="initiationType">
+						<input type="radio" id="maker" value="0" v-model="initiationType">
 						<label for="maker">Maker</label>
 					</div>
 				</div>
@@ -321,15 +321,22 @@
 			},
 			watch: {
 				basisSize: (newBasis, oldBasis) => {
-					appDash.graphProperties.basisSize = newBasis;
-					appDash.updateGraphProperties();
+					const basis = parseFloat(newBasis);
+					if (!Number.isNaN(basis)) {
+						appDash.graphProperties.basisSize = basis;
+						appDash.updateGraphProperties();
+					}
 				},
 				spreadTarget: (newTarget, oldTarget) => {
-					appDash.graphProperties.spreadTarget = newTarget;
-					appDash.updateGraphProperties();
+					const target = parseFloat(newTarget);
+					if (!Number.isNaN(target)) {
+						appDash.graphProperties.spreadTarget = target;
+						appDash.updateGraphProperties();
+					}
 				},
 				initiationType: (newType, oldType) => {
-					appDash.graphProperties.initiationType = newType === 'Maker' ? 0 : 1;
+					const type = parseInt(newType);
+					appDash.graphProperties.initiationType = type;
 					appDash.updateGraphProperties();
 				}
 			},

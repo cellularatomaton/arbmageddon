@@ -75,27 +75,30 @@ graphModel.arb.on((inst?: ExecutionInstruction) => {
 	}
 });
 
-wss.on("message", (message: any) => {
-	if (
-		message.from === "gui" &&
-		message.to === "graph" &&
-		message.type === "params"
-	) {
-		if (message.action === "set") {
-			console.log(`Setting graph params: ${JSON.stringify(message.data)}`);
-			graphModel.updateParams(message.data as GraphParameters);
-		} else if (message.action === "get") {
-			wss.send(
-				JSON.stringify({
-					from: "graph",
-					to: "gui",
-					type: "params",
-					action: "set",
-					data: graphModel.parameters
-				})
-			);
+wss.on("connection", (ws: any) => {
+	ws.on("message", (message: any) => {
+		console.log(`Websocket message received: ${JSON.stringify(message)}`);
+		if (
+			message.from === "gui" &&
+			message.to === "graph" &&
+			message.type === "params"
+		) {
+			if (message.action === "set") {
+				console.log(`Setting graph params: ${JSON.stringify(message.data)}`);
+				graphModel.updateParams(message.data as GraphParameters);
+			} else if (message.action === "get") {
+				wss.send(
+					JSON.stringify({
+						from: "graph",
+						to: "gui",
+						type: "params",
+						action: "set",
+						data: graphModel.parameters
+					})
+				);
+			}
 		}
-	}
+	});
 });
 
 // catch 404 and forward to error handler
