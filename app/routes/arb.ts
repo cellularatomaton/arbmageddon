@@ -1,5 +1,9 @@
 import { Graph, Market } from "../../src/markets";
-import { Arb, ArbType, ExecutionInstruction } from "../../src/strategies";
+import {
+	DeprecatedArb,
+	ArbType,
+	ExecutionInstruction
+} from "../../src/strategies";
 import { Asset } from "../../src/assets";
 import { ExecutionOperation } from "../../src/strategies/arbitrage";
 

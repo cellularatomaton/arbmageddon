@@ -1,9 +1,4 @@
 import { ArbType } from "./enums";
-export { Http } from "./web-utils";
+export { Http } from "./webUtils";
 export { IEvent, EventImp } from "./event";
-export {
-	ArbType,
-	ArbConversionType,
-	InitiationType,
-	InstructionType
-} from "./enums";
+export { ArbType, InitiationType } from "./enums";

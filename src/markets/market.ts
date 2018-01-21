@@ -30,7 +30,7 @@ export class Market {
 		}
 	}
 
-	getSellVwap(initiationType?: InitiationType) {
+	getSellVwap(initiationType?: InitiationType): number {
 		if (!initiationType) {
 			initiationType = this.graph.parameters.initiationType;
 		}
@@ -52,7 +52,7 @@ export class Market {
 		}
 	}
 
-	getSellDuration(initiationType?: InitiationType) {
+	getSellDuration(initiationType?: InitiationType): number {
 		if (!initiationType) {
 			initiationType = this.graph.parameters.initiationType;
 		}

@@ -17,16 +17,19 @@ export class Exchange {
 	}
 
 	mapMarket(hubSymbol: string, marketSymbol: string): any {
-		if (!this.hubs.has(hubSymbol)) {
-			this.hubs.set(hubSymbol, new Hub(hubSymbol, this, this.graph));
-		}
-		const hub = this.hubs.get(hubSymbol);
-		if (hub && !hub.markets.has(marketSymbol)) {
-			hub.markets.set(marketSymbol, new Market(marketSymbol, hub, this.graph));
-		}
+		const hub = this.getHub(hubSymbol);
+		const market = hub.getMarket(marketSymbol);
+		return market;
+	}
+
+	getHub(symbol: string): Hub {
+		let hub = this.hubs.get(symbol);
 		if (hub) {
-			const market = hub.markets.get(marketSymbol);
-			return market;
+			return hub;
+		} else {
+			hub = new Hub(symbol, this, this.graph);
+			this.hubs.set(symbol, hub);
+			return hub;
 		}
 	}
 

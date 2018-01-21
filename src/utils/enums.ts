@@ -1,22 +1,22 @@
-export enum ArbType {
-	Simple,
-	Complex,
-	None
-}
+// export enum ArbType {
+// 	Simple,
+// 	Complex,
+// 	None
+// }
 
-export enum ArbConversionType {
-	BuySide,
-	SellSide,
-	EitherSide,
-	None
-}
+// export enum StrategyType {
+// 	OriginConversionArb,
+// 	DestinationConversionArb,
+// 	EitherSide,
+// 	None
+// }
 
 export enum InitiationType {
 	Maker,
 	Taker
 }
 
-export enum InstructionType {
+export enum ArbType {
 	Direct,
 	OriginConversion,
 	DestinationConversion
