@@ -28,6 +28,7 @@ export class Graph {
 		originMarket: Market,
 		destinationMarket: Market
 	): ArbType[] {
+		const supportedTypes: ArbType[] = [];
 		const originConversion = Graph.getOriginConversionMarket(
 			originMarket,
 			destinationMarket
@@ -41,21 +42,18 @@ export class Graph {
 			destinationMarket.getSellVwap() === 0
 		) {
 			return [];
-		} else if (originConversion || destinationConversion) {
-			if (originConversion && destinationConversion) {
-				return [ArbType.OriginConversion, ArbType.DestinationConversion];
-			} else if (originConversion) {
-				return [ArbType.OriginConversion];
-			} else if (destinationConversion) {
-				return [ArbType.DestinationConversion];
-			} else {
-				return [];
-			}
-		} else if (Graph.isSimpleArb(originMarket, destinationMarket)) {
-			return [ArbType.Direct];
 		} else {
-			return [];
+			if (Graph.isSimpleArb(originMarket, destinationMarket)) {
+				supportedTypes.push(ArbType.Direct);
+			}
+			if (originConversion) {
+				supportedTypes.push(ArbType.OriginConversion);
+			}
+			if (destinationConversion) {
+				supportedTypes.push(ArbType.DestinationConversion);
+			}
 		}
+		return supportedTypes;
 	}
 
 	public static getOriginConversionMarket(
@@ -169,11 +167,13 @@ export class Graph {
 							if (arb) {
 								const id = arb.getId();
 								if (!this.arbMap.has(id)) {
-									// console.log(`Mapping Arb: ${id}`);
+									console.log(`Mapping Arb: ${id}`);
 									arb.updated.on(
 										_.throttle((inst?: ExecutionInstruction) => {
 											if (inst) {
-												// console.log(`Arb Triggered Instructions: ${JSON.stringify(inst)}`);
+												// console.log(
+												// 	`Arb Triggered Instructions: ${JSON.stringify(inst)}`
+												// );
 												this.onArb.trigger(inst);
 											}
 										}, 1000)
