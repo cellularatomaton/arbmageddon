@@ -3,11 +3,22 @@ import { Hub } from "./hub";
 import { Graph, Ticker, TradeType } from "../markets";
 import { TimeUnit, VolumeStatistics } from "./ticker";
 import { InitiationType } from "../utils/enums";
+import { EventImp, IEvent } from "../utils/event";
 
 export class Market {
 	asset: Asset;
 	vwapBuyStats: VolumeStatistics;
 	vwapSellStats: VolumeStatistics;
+
+	onBuy: EventImp<Ticker> = new EventImp<Ticker>();
+	get buy(): IEvent<Ticker> {
+		return this.onBuy.expose();
+	}
+
+	onSell: EventImp<Ticker> = new EventImp<Ticker>();
+	get sell(): IEvent<Ticker> {
+		return this.onSell.expose();
+	}
 
 	constructor(assetSymbol: string, public hub: Hub, public graph: Graph) {
 		this.asset = Asset.getAsset(assetSymbol, graph.assetMap);
@@ -63,14 +74,88 @@ export class Market {
 		}
 	}
 
-	updateVwap(ticker: Ticker) {
+	updateTicker(ticker: Ticker) {
 		// console.log(`Adding ticker: ${JSON.stringify(ticker)}`);
 		if ((ticker.side as TradeType) === TradeType.BUY) {
+			this.onBuy.trigger(ticker);
 			this.vwapBuyStats.handleTicker(ticker);
 			// console.log(`Buy vwap: ${this.vwapBuyStats.getVwap()}`);
 		} else {
+			this.onSell.trigger(ticker);
 			this.vwapSellStats.handleTicker(ticker);
 			// console.log(`Sell vwap: ${this.vwapSellStats.getVwap()}`);
+		}
+	}
+
+	getMarketSize(basisSize?: number): number {
+		const graph = this.graph;
+		if (!basisSize) {
+			basisSize = graph.parameters.basisSize;
+		}
+		const basisAsset = graph.basisAsset;
+		if (basisAsset) {
+			const hubAsset = this.hub.asset;
+			const alreadyPricedInBasis = hubAsset.symbol === basisAsset.symbol;
+			const price = this.getBuyVwap();
+			if (alreadyPricedInBasis) {
+				const size = basisSize / price;
+				// ***************** Debug *****************
+				console.log(
+					`Market size for ${this.asset.symbol}/${this.hub.asset.symbol}:
+	basisSize=${basisSize},
+	price=${price},
+	marketSize=${size},`
+				);
+				// ***************** End Debug *****************
+				return size;
+			} else {
+				// Look through hub markets for conversion:
+				const conversionMarket = this.hub.markets.get(basisAsset.symbol);
+				if (conversionMarket) {
+					const conversionPrice = conversionMarket.getBuyVwap();
+					const size = basisSize / conversionPrice / price;
+					// ***************** Debug *****************
+					console.log(
+						`Market size for ${this.asset.symbol}/${this.hub.asset.symbol}:
+	basisSize=${basisSize},
+	conversionPrice=${conversionPrice},
+	price=${price},
+	marketSize=${size},`
+					);
+					// ***************** End Debug *****************
+					return size;
+				} else {
+					return Number.NaN;
+				}
+			}
+		} else {
+			return Number.NaN;
+		}
+	}
+
+	getBasisSize(size: number): number {
+		const graph = this.graph;
+		const basisAsset = graph.basisAsset;
+		if (basisAsset) {
+			const hubAsset = this.hub.asset;
+			const alreadyPricedInBasis = hubAsset.symbol === basisAsset.symbol;
+			const price = this.getBuyVwap();
+			if (alreadyPricedInBasis) {
+				const basisSize = size * price;
+				return basisSize;
+			} else {
+				// Look through hub markets for conversion:
+				const conversionMarket = this.hub.markets.get(basisAsset.symbol);
+				if (conversionMarket) {
+					const conversionPrice = conversionMarket.getBuyVwap();
+					const basisSize = size * conversionPrice * price;
+					return basisSize;
+				} else {
+					return Number.NaN;
+				}
+			}
+		} else {
+			return Number.NaN;
 		}
 	}
 }

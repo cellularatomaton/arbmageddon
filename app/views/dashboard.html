@@ -298,7 +298,7 @@
 		});
 		const props = {
 			basisSize: 0.1,
-			spreadProperties: 5.0,
+			spreadTarget: 0.0,
 			initiationType: 0
 		};
 		const appDash = new Vue({
@@ -416,38 +416,43 @@
 					setTimeout(appDash.sortLoop, 1000);
 				},
 				updateArb: (update) => {
-					const arb = arbMap[update.id];
-					if (arb) {
-						const target = appDash.graphProperties.spreadTarget / 100;
-						if (arb.spread < target && target < update.spread) {
-							arb.spreadEnteredAt = Date.now();
-						}
-						arb.timeAboveTarget = Date.now() - arb.spreadEnteredAt;
-						arb.spread = update.spread;
-						arb.buy.price = update.buy.price;
-						arb.buy.duration = update.buy.duration;
-						arb.sell.price = update.sell.price;
-						arb.sell.duration = update.sell.duration;
-						if (arb.convert) {
-							arb.convert.price = update.convert.price;
-							arb.convert.duration = update.convert.duration;
-							arb.sumOfDurations =
-								update.buy.duration +
-								update.sell.duration +
-								update.convert.duration;
-						} else {
-							arb.sumOfDurations =
-								update.buy.duration +
-								update.sell.duration;
-						}
 
+					if (update.spread) {
+						const arb = arbMap[update.id];
+						if (arb) {
+							const target = appDash.graphProperties.spreadTarget / 100;
+							if (arb.spread < target && target < update.spread) {
+								arb.spreadEnteredAt = Date.now();
+							}
+							arb.timeAboveTarget = Date.now() - arb.spreadEnteredAt;
+							arb.spread = update.spread;
+							arb.buy.price = update.buy.price;
+							arb.buy.duration = update.buy.duration;
+							arb.sell.price = update.sell.price;
+							arb.sell.duration = update.sell.duration;
+							if (arb.convert) {
+								arb.convert.price = update.convert.price;
+								arb.convert.duration = update.convert.duration;
+								arb.sumOfDurations =
+									update.buy.duration +
+									update.sell.duration +
+									update.convert.duration;
+							} else {
+								arb.sumOfDurations =
+									update.buy.duration +
+									update.sell.duration;
+							}
+						} else {
+
+							update.spreadEnteredAt = Date.now();
+							arbMap[update.id] = update;
+							appDash.arbList.push(update);
+						}
+						if (!appDash.selectedInst) {
+							appDash.setMulticharts(appDash.arbList[0]);
+						}
 					} else {
-						update.spreadEnteredAt = Date.now();
-						arbMap[update.id] = update;
-						appDash.arbList.push(update);
-					}
-					if (!appDash.selectedInst) {
-						appDash.setMulticharts(appDash.arbList[0]);
+						// Only update selected spread:
 					}
 				},
 				setupWebsocket: () => {

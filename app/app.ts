@@ -6,7 +6,7 @@ import {
 	BinanceExchange,
 	PoloniexExchange
 } from "../src/exchanges";
-import { ExecutionInstruction } from "../src/strategies";
+import { SpreadExecution } from "../src/strategies";
 import { NextFunction, Request, Response, Router } from "express";
 import { GraphParameters } from "../src/markets/graph";
 
@@ -61,7 +61,7 @@ wss.broadcast = (event: any) => {
 	});
 };
 
-graphModel.arb.on((inst?: ExecutionInstruction) => {
+graphModel.arb.on((inst?: SpreadExecution) => {
 	// console.log(`Graph Triggered Instructions: ${JSON.stringify(inst)}`)
 	if (inst) {
 		// console.log(`Broadcasting...`);

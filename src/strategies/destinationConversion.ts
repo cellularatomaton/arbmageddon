@@ -1,28 +1,33 @@
 import { Arb } from "./arb";
 import { ArbType, InitiationType } from "../utils/enums";
-import { ExecutionInstruction, ExecutionOperation } from "./arbitrage";
+import { SpreadExecution, ExecutionOperation } from "./arbitrage";
 import { Graph } from "../markets/graph";
 import { Market } from "../markets/market";
+import { Ticker } from "../markets/ticker";
 
 export class DestinationConversion extends Arb {
 	public conversionMarket: Market;
 
-	constructor(public originMarket: Market, public destinationMarket: Market) {
-		super(originMarket, destinationMarket);
+	constructor(
+		public originMarket: Market,
+		public destinationMarket: Market,
+		public graph: Graph
+	) {
+		super(originMarket, destinationMarket, graph);
 		this.conversionMarket = Graph.getDestinationConversionMarket(
 			originMarket,
 			destinationMarket
 		);
 	}
 
-	getId(): string {
-		const originExchange = this.originMarket.hub.exchange.id;
-		const originMarket = this.originMarket.asset.symbol;
-		const destinationExchange = this.destinationMarket.hub.exchange.id;
-		const destinationMarket = this.destinationMarket.asset.symbol;
-		const destinationConvert = this.conversionMarket.asset.symbol;
-		return `DC.${originExchange}.${originMarket}->${destinationExchange}.${destinationConvert}->${destinationMarket}`;
-	}
+	// getId(): string {
+	// 	const originExchange = this.originMarket.hub.exchange.id;
+	// 	const originMarket = this.originMarket.asset.symbol;
+	// 	const destinationExchange = this.destinationMarket.hub.exchange.id;
+	// 	const destinationMarket = this.destinationMarket.asset.symbol;
+	// 	const destinationConvert = this.conversionMarket.asset.symbol;
+	// 	return `DC.${originExchange}.${originMarket}->${destinationExchange}.${destinationConvert}->${destinationMarket}`;
+	// }
 
 	getInstId(): string {
 		const originExchange = this.originMarket.hub.exchange.id;
@@ -42,10 +47,10 @@ export class DestinationConversion extends Arb {
 		return `DC:${oHub}->${dMkt}->${dcMkt}->${dcHub}`;
 	}
 
-	getInstruction(): ExecutionInstruction {
-		const instruction = this.getDestinationConvertInstructions();
-		return instruction;
-	}
+	// getInstruction(): SpreadExecution {
+	// 	const instruction = this.getDestinationConvertInstructions();
+	// 	return instruction;
+	// }
 
 	getSpread(): number {
 		return (
@@ -64,44 +69,132 @@ export class DestinationConversion extends Arb {
 		}
 	}
 
-	subscribeToEvents(graph: Graph): void {
-		if (
-			(graph.parameters.initiationType as InitiationType) ===
-			InitiationType.Maker
-		) {
-			this.subscribeToVwap(this.destinationMarket.vwapBuyStats.vwapUpdated);
-			this.subscribeToVwap(this.originMarket.vwapSellStats.vwapUpdated);
-			this.subscribeToVwap(this.conversionMarket.vwapBuyStats.vwapUpdated);
-		} else {
-			this.subscribeToVwap(this.destinationMarket.vwapSellStats.vwapUpdated);
-			this.subscribeToVwap(this.originMarket.vwapBuyStats.vwapUpdated);
-			this.subscribeToVwap(this.conversionMarket.vwapSellStats.vwapUpdated);
-		}
-	}
-
-	public getDestinationConvOperation(): ExecutionOperation {
+	getNewSpread(
+		ticker: Ticker,
+		size: number,
+		basisSize: number
+	): SpreadExecution {
 		return {
-			exchange: this.conversionMarket.hub.exchange.id,
-			hub: this.conversionMarket.hub.asset.symbol,
-			market: this.conversionMarket.asset.symbol,
-			price: this.conversionMarket.getSellVwap(),
-			duration: this.conversionMarket.vwapBuyStats.getDuration()
+			id: this.getInstId(),
+			spread: Number.NaN,
+			type: ArbType.DestinationConversion,
+			buy: this.getOperation(
+				this.originMarket.hub.exchange.name,
+				this.originMarket.hub.asset.symbol,
+				this.originMarket.asset.symbol,
+				ticker.price,
+				size,
+				basisSize,
+				ticker.time
+			),
+			sell: this.getOperation(
+				this.destinationMarket.hub.exchange.name,
+				this.destinationMarket.hub.asset.symbol,
+				this.destinationMarket.asset.symbol
+			),
+			convert: this.getOperation(
+				this.conversionMarket.hub.exchange.name,
+				this.conversionMarket.hub.asset.symbol,
+				this.conversionMarket.asset.symbol
+			)
 		};
 	}
 
-	public getDestinationConvertInstructions(): ExecutionInstruction {
-		const sellConvertSpread = this.getSpreadPercent();
-		const buy = this.getBuyOperation();
-		const sell = this.getSellOperation();
-		const sellConvert = this.getDestinationConvOperation();
-		const instructions = {
-			id: this.getInstId(),
-			spread: sellConvertSpread,
-			type: ArbType.DestinationConversion,
-			buy,
-			sell,
-			convert: sellConvert
-		};
-		return instructions;
+	handleOriginTickers(ticker: Ticker, initiationType: InitiationType) {
+		this.legIn(ticker, initiationType, this.originMarket);
 	}
+
+	handleDestinationTickers(ticker: Ticker, initiationType: InitiationType) {
+		this.legConvert(
+			ticker,
+			initiationType,
+			this.destinationMarket,
+			(spread: SpreadExecution) => {
+				return {
+					fromLeg: spread.buy,
+					toLeg: spread.sell
+				};
+			}
+		);
+	}
+
+	handleConversionTickers(ticker: Ticker, initiationType: InitiationType) {
+		this.legOut(
+			ticker,
+			initiationType,
+			this.conversionMarket,
+			(spread: SpreadExecution) => {
+				if (spread.convert) {
+					return {
+						fromLeg: spread.sell,
+						toLeg: spread.convert
+					};
+				} else {
+					return undefined;
+				}
+			}
+		);
+	}
+
+	subscribeToEvents(graph: Graph): void {
+		// Maker Spreads
+		this.originMarket.sell.on((ticker: Ticker) => {
+			this.handleOriginTickers(ticker, InitiationType.Maker);
+		});
+		this.destinationMarket.buy.on((ticker: Ticker) => {
+			this.handleDestinationTickers(ticker, InitiationType.Maker);
+		});
+		this.conversionMarket.buy.on((ticker: Ticker) => {
+			this.handleConversionTickers(ticker, InitiationType.Maker);
+		});
+		// Taker Spreads
+		this.originMarket.buy.on((ticker: Ticker) => {
+			this.handleOriginTickers(ticker, InitiationType.Taker);
+		});
+		this.destinationMarket.sell.on((ticker: Ticker) => {
+			this.handleDestinationTickers(ticker, InitiationType.Taker);
+		});
+		this.conversionMarket.sell.on((ticker: Ticker) => {
+			this.handleConversionTickers(ticker, InitiationType.Taker);
+		});
+
+		// if (
+		// 	(graph.parameters.initiationType as InitiationType) ===
+		// 	InitiationType.Maker
+		// ) {
+		// 	this.subscribeToVwap(this.destinationMarket.vwapBuyStats.vwapUpdated);
+		// 	this.subscribeToVwap(this.originMarket.vwapSellStats.vwapUpdated);
+		// 	this.subscribeToVwap(this.conversionMarket.vwapBuyStats.vwapUpdated);
+		// } else {
+		// 	this.subscribeToVwap(this.destinationMarket.vwapSellStats.vwapUpdated);
+		// 	this.subscribeToVwap(this.originMarket.vwapBuyStats.vwapUpdated);
+		// 	this.subscribeToVwap(this.conversionMarket.vwapSellStats.vwapUpdated);
+		// }
+	}
+
+	// public getDestinationConvOperation(): ExecutionOperation {
+	// 	return {
+	// 		exchange: this.conversionMarket.hub.exchange.id,
+	// 		hub: this.conversionMarket.hub.asset.symbol,
+	// 		market: this.conversionMarket.asset.symbol,
+	// 		price: this.conversionMarket.getSellVwap(),
+	// 		duration: this.conversionMarket.vwapBuyStats.getDuration()
+	// 	};
+	// }
+
+	// public getDestinationConvertInstructions(): SpreadExecution {
+	// 	const sellConvertSpread = this.getSpreadPercent();
+	// 	const buy = this.getBuyOperation();
+	// 	const sell = this.getSellOperation();
+	// 	const sellConvert = this.getDestinationConvOperation();
+	// 	const instructions = {
+	// 		id: this.getInstId(),
+	// 		spread: sellConvertSpread,
+	// 		type: ArbType.DestinationConversion,
+	// 		buy,
+	// 		sell,
+	// 		convert: sellConvert
+	// 	};
+	// 	return instructions;
+	// }
 }

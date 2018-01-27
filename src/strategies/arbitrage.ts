@@ -4,11 +4,14 @@ export interface ExecutionOperation {
 	exchange: string;
 	hub: string;
 	market: string;
+	start?: Date;
 	price: number;
+	size: number;
+	basisSize: number;
 	duration: number;
 }
 
-export interface ExecutionInstruction {
+export interface SpreadExecution {
 	id: string | null;
 	spread: number;
 	type: ArbType;

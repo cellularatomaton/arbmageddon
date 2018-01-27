@@ -14,14 +14,19 @@ export class Hub {
 		return `${this.exchange.getId()}_${this.asset.symbol}`;
 	}
 
-	getMarket(symbol: string): Market {
-		let market = this.markets.get(symbol);
-		if (market) {
-			return market;
+	getMarket(symbol: string): Market | undefined {
+		if (symbol === this.asset.symbol) {
+			// console.log(`Bad hub -> market mapping: ${symbol}/${this.asset.symbol}`);
+			return undefined;
 		} else {
-			market = new Market(symbol, this, this.graph);
-			this.markets.set(symbol, market);
-			return market;
+			let market = this.markets.get(symbol);
+			if (market) {
+				return market;
+			} else {
+				market = new Market(symbol, this, this.graph);
+				this.markets.set(symbol, market);
+				return market;
+			}
 		}
 	}
 }

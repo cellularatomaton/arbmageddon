@@ -1,16 +1,31 @@
 import { Arb } from "./arb";
 import { ArbType, InitiationType } from "../utils/enums";
-import { ExecutionInstruction } from "./arbitrage";
+import { SpreadExecution, ExecutionOperation } from "./arbitrage";
 import { Graph } from "../markets/graph";
+import { Market } from "../markets/market";
+import { Ticker } from "../markets/ticker";
+
+const SIMULATION_QUEUE_SIZE = 5;
+
+export interface ExecutionSizes {
+	buySize?: number;
+	buyBasisSize?: number;
+	sellSize?: number;
+	sellBasisSize?: number;
+	tickerSize: number;
+	tickerBasisSize: number;
+	remainderBasisSize: number;
+	remainderSize: number;
+}
 
 export class DirectArb extends Arb {
-	getId(): string {
-		const originExchange = this.originMarket.hub.exchange.id;
-		const originMarket = this.originMarket.asset.symbol;
-		const destinationExchange = this.destinationMarket.hub.exchange.id;
-		const destinationMarket = this.destinationMarket.asset.symbol;
-		return `DA.NA:${originExchange}.${originMarket}->${destinationExchange}.${destinationMarket}`;
-	}
+	// getId(): string {
+	// 	const originExchange = this.originMarket.hub.exchange.id;
+	// 	const originMarket = this.originMarket.asset.symbol;
+	// 	const destinationExchange = this.destinationMarket.hub.exchange.id;
+	// 	const destinationMarket = this.destinationMarket.asset.symbol;
+	// 	return `DA.NA:${originExchange}.${originMarket}->${destinationExchange}.${destinationMarket}`;
+	// }
 
 	getInstId(): string {
 		const originExchange = this.originMarket.hub.exchange.id;
@@ -26,10 +41,10 @@ export class DirectArb extends Arb {
 		return `DA:${oHub}->${oMkt}->${dHub}`;
 	}
 
-	getInstruction(): ExecutionInstruction {
-		const instruction = this.getDirectInstructions();
-		return instruction;
-	}
+	// getInstruction(): SpreadExecution {
+	// 	const instruction = this.getDirectInstructions();
+	// 	return instruction;
+	// }
 
 	getSpread(): number {
 		const spread =
@@ -46,30 +61,92 @@ export class DirectArb extends Arb {
 		}
 	}
 
-	subscribeToEvents(graph: Graph): void {
-		if (
-			(graph.parameters.initiationType as InitiationType) ===
-			InitiationType.Maker
-		) {
-			this.subscribeToVwap(this.destinationMarket.vwapBuyStats.vwapUpdated);
-			this.subscribeToVwap(this.originMarket.vwapSellStats.vwapUpdated);
-		} else {
-			this.subscribeToVwap(this.destinationMarket.vwapSellStats.vwapUpdated);
-			this.subscribeToVwap(this.originMarket.vwapBuyStats.vwapUpdated);
-		}
+	getNewSpread(
+		ticker: Ticker,
+		size: number,
+		basisSize: number
+	): SpreadExecution {
+		return {
+			id: this.getInstId(),
+			spread: Number.NaN,
+			type: ArbType.Direct,
+			buy: this.getOperation(
+				this.originMarket.hub.exchange.name,
+				this.originMarket.hub.asset.symbol,
+				this.originMarket.asset.symbol,
+				ticker.price,
+				size,
+				basisSize,
+				ticker.time
+			),
+			sell: this.getOperation(
+				this.destinationMarket.hub.exchange.name,
+				this.destinationMarket.hub.asset.symbol,
+				this.destinationMarket.asset.symbol
+			),
+			convert: undefined
+		};
 	}
 
-	public getDirectInstructions(): ExecutionInstruction {
-		const spread = this.getSpreadPercent();
-		const buy = this.getBuyOperation();
-		const sell = this.getSellOperation();
-		const instructions = {
-			id: this.getInstId(),
-			spread,
-			type: ArbType.Direct,
-			buy,
-			sell
-		};
-		return instructions;
+	handleOriginTickers(ticker: Ticker, initiationType: InitiationType) {
+		this.legIn(ticker, initiationType, this.originMarket);
 	}
+
+	handleDestinationTickers(
+		ticker: Ticker,
+		initiationType: InitiationType,
+		market: Market
+	) {
+		this.legOut(ticker, initiationType, market, (spread: SpreadExecution) => {
+			return {
+				fromLeg: spread.buy,
+				toLeg: spread.sell
+			};
+		});
+	}
+
+	subscribeToEvents(graph: Graph): void {
+		// Maker Spreads
+		this.originMarket.sell.on((ticker: Ticker) => {
+			this.handleOriginTickers(ticker, InitiationType.Maker);
+		});
+		this.destinationMarket.buy.on((ticker: Ticker) => {
+			this.handleDestinationTickers(
+				ticker,
+				InitiationType.Maker,
+				this.destinationMarket
+			);
+		});
+		// Taker Spreads
+		this.originMarket.buy.on((ticker: Ticker) => {
+			this.handleOriginTickers(ticker, InitiationType.Taker);
+		});
+		this.destinationMarket.sell.on((ticker: Ticker) => {
+			this.handleDestinationTickers(
+				ticker,
+				InitiationType.Taker,
+				this.destinationMarket
+			);
+		});
+
+		// Vwaps:
+		// this.subscribeToVwap(this.destinationMarket.vwapBuyStats.vwapUpdated);
+		// this.subscribeToVwap(this.originMarket.vwapSellStats.vwapUpdated);
+		// this.subscribeToVwap(this.destinationMarket.vwapSellStats.vwapUpdated);
+		// this.subscribeToVwap(this.originMarket.vwapBuyStats.vwapUpdated);
+	}
+
+	// public getDirectInstructions(): SpreadExecution {
+	// 	const spread = this.getSpreadPercent();
+	// 	const buy = this.getBuyOperation();
+	// 	const sell = this.getSellOperation();
+	// 	const instructions = {
+	// 		id: this.getInstId(),
+	// 		spread,
+	// 		type: ArbType.Direct,
+	// 		buy,
+	// 		sell
+	// 	};
+	// 	return instructions;
+	// }
 }

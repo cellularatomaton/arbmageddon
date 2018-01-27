@@ -25,7 +25,7 @@ export enum TimeUnit {
 	HOUR
 }
 
-export interface VWAP {
+export interface Vwap {
 	vwap: number;
 	duration: number;
 }
@@ -35,8 +35,8 @@ export class VolumeStatistics {
 	vwapNumerator: number = 0;
 	vwapDenominator: number = 0;
 
-	onVwapUpdated: EventImp<VWAP> = new EventImp<VWAP>();
-	get vwapUpdated(): IEvent<VWAP> {
+	onVwapUpdated: EventImp<Vwap> = new EventImp<Vwap>();
+	get vwapUpdated(): IEvent<Vwap> {
 		return this.onVwapUpdated.expose();
 	}
 
@@ -73,35 +73,8 @@ export class VolumeStatistics {
 		}
 	}
 
-	calcWindowSize(): number {
-		const graph = this.market.graph;
-		const basisSize = graph.parameters.basisSize;
-		const basisAsset = graph.basisAsset;
-		if (basisAsset) {
-			const hubAsset = this.market.hub.asset;
-			const alreadyPricedInBasis = hubAsset.symbol === basisAsset.symbol;
-			const price = this.market.getBuyVwap();
-			if (alreadyPricedInBasis) {
-				const size = basisSize / price;
-				return size;
-			} else {
-				// Look through hub markets for conversion:
-				const conversionMarket = this.market.hub.markets.get(basisAsset.symbol);
-				if (conversionMarket) {
-					const conversionPrice = conversionMarket.getBuyVwap();
-					const size = basisSize / conversionPrice / price;
-					return size;
-				} else {
-					return Number.NaN;
-				}
-			}
-		} else {
-			return Number.NaN;
-		}
-	}
-
 	handleTicker(ticker: Ticker) {
-		const windowSize = this.calcWindowSize();
+		const windowSize = this.market.getMarketSize();
 		if (!Number.isNaN(this.vwapDenominator) && !Number.isNaN(windowSize)) {
 			let rolling = true;
 			while (rolling) {
@@ -115,7 +88,7 @@ export class VolumeStatistics {
 			}
 		}
 		this.addTicker(ticker);
-		const vwap: VWAP = {
+		const vwap: Vwap = {
 			vwap: this.getVwap(),
 			duration: this.getDuration()
 		};

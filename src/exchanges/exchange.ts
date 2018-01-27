@@ -17,6 +17,9 @@ export class Exchange {
 	}
 
 	mapMarket(hubSymbol: string, marketSymbol: string): any {
+		// if (hubSymbol === marketSymbol) {
+		// 	console.log(`Bad mapping ${marketSymbol}/${hubSymbol}`);
+		// }
 		const hub = this.getHub(hubSymbol);
 		const market = hub.getMarket(marketSymbol);
 		return market;
@@ -37,7 +40,7 @@ export class Exchange {
 		const response = this.mapMarket(ticker.hubSymbol, ticker.marketSymbol);
 		if (response) {
 			const market = response;
-			market.updateVwap(ticker);
+			market.updateTicker(ticker);
 		}
 	}
 
