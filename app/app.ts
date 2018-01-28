@@ -20,7 +20,9 @@ const usersRoute = require("./routes/users");
 const graphRoute = require("./routes/graph");
 const arbRoute = require("./routes/arb");
 const WebSocket = require("ws");
+const log = require("winston");
 
+log.level = "info";
 const app = express();
 const graphModel = new Graph();
 const dataPath = path.join(path.dirname(__dirname), "node_modules/vis/dist");
@@ -62,9 +64,9 @@ wss.broadcast = (event: any) => {
 };
 
 graphModel.arb.on((inst?: SpreadExecution) => {
-	// console.log(`Graph Triggered Instructions: ${JSON.stringify(inst)}`)
+	// log.debug(`Graph Triggered Instructions: ${JSON.stringify(inst)}`)
 	if (inst) {
-		// console.log(`Broadcasting...`);
+		// log.debug(`Broadcasting...`);
 		wss.broadcast({
 			from: "graph",
 			to: "gui",
@@ -77,14 +79,14 @@ graphModel.arb.on((inst?: SpreadExecution) => {
 
 wss.on("connection", (ws: any) => {
 	ws.on("message", (message: any) => {
-		console.log(`Websocket message received: ${JSON.stringify(message)}`);
+		log.debug(`Websocket message received: ${JSON.stringify(message)}`);
 		if (
 			message.from === "gui" &&
 			message.to === "graph" &&
 			message.type === "params"
 		) {
 			if (message.action === "set") {
-				console.log(`Setting graph params: ${JSON.stringify(message.data)}`);
+				log.info(`Setting graph params: ${JSON.stringify(message.data)}`);
 				graphModel.updateParams(message.data as GraphParameters);
 			} else if (message.action === "get") {
 				wss.send(

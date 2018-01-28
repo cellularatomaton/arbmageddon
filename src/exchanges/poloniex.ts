@@ -5,6 +5,8 @@ import { Http } from "../utils";
 import { symlink } from "fs";
 import { TradeType } from "../markets/ticker";
 
+const log = require("winston");
+
 export class PoloniexExchange extends Exchange {
 	symbolList: string[];
 	idToSymbolMap: Map<number, HubMarketPair>;
@@ -23,7 +25,7 @@ export class PoloniexExchange extends Exchange {
 			Http.get(
 				`https://poloniex.com/public?command=returnTicker`,
 				(tickers: any) => {
-					// console.log(JSON.stringify(tickers));
+					// log.debug(JSON.stringify(tickers));
 					this.symbolList = [];
 					Object.keys(tickers).forEach(key => {
 						const ticker = tickers[key];
@@ -42,7 +44,7 @@ export class PoloniexExchange extends Exchange {
 	}
 
 	setupWebsocket() {
-		console.log("Init POLO Websocket");
+		log.info("Init POLO Websocket");
 
 		const WebSocket = require("ws");
 
@@ -50,7 +52,7 @@ export class PoloniexExchange extends Exchange {
 		const ws = new WebSocket("wss://api2.poloniex.com/");
 
 		ws.on("open", function open() {
-			console.log("POLO Websocket opened");
+			log.info("POLO Websocket opened");
 			exchange.symbolList.forEach((symbol: string) => {
 				const msg = {
 					command: "subscribe",
@@ -61,11 +63,11 @@ export class PoloniexExchange extends Exchange {
 		});
 
 		ws.on("error", (err: any) => {
-			console.error("POLO Websocket error", err);
+			log.error("POLO Websocket error", err);
 		});
 
 		ws.on("close", () => {
-			console.log("POLO Websocket closed.");
+			log.warn("POLO Websocket closed.");
 		});
 
 		ws.on("message", function incoming(msg: string) {

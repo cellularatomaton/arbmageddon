@@ -16,7 +16,7 @@ export class Hub {
 
 	getMarket(symbol: string): Market | undefined {
 		if (symbol === this.asset.symbol) {
-			// console.log(`Bad hub -> market mapping: ${symbol}/${this.asset.symbol}`);
+			// log.warn(`Bad hub -> market mapping: ${symbol}/${this.asset.symbol}`);
 			return undefined;
 		} else {
 			let market = this.markets.get(symbol);

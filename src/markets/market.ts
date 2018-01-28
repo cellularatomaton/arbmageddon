@@ -5,6 +5,8 @@ import { TimeUnit, VolumeStatistics } from "./ticker";
 import { InitiationType } from "../utils/enums";
 import { EventImp, IEvent } from "../utils/event";
 
+const log = require("winston");
+
 export class Market {
 	asset: Asset;
 	vwapBuyStats: VolumeStatistics;
@@ -75,15 +77,15 @@ export class Market {
 	}
 
 	updateTicker(ticker: Ticker) {
-		// console.log(`Adding ticker: ${JSON.stringify(ticker)}`);
+		// log.debug(`Adding ticker: ${JSON.stringify(ticker)}`);
 		if ((ticker.side as TradeType) === TradeType.BUY) {
 			this.onBuy.trigger(ticker);
 			this.vwapBuyStats.handleTicker(ticker);
-			// console.log(`Buy vwap: ${this.vwapBuyStats.getVwap()}`);
+			// log.debug(`Buy vwap: ${this.vwapBuyStats.getVwap()}`);
 		} else {
 			this.onSell.trigger(ticker);
 			this.vwapSellStats.handleTicker(ticker);
-			// console.log(`Sell vwap: ${this.vwapSellStats.getVwap()}`);
+			// log.debug(`Sell vwap: ${this.vwapSellStats.getVwap()}`);
 		}
 	}
 
@@ -100,7 +102,7 @@ export class Market {
 			if (alreadyPricedInBasis) {
 				const size = basisSize / price;
 				// ***************** Debug *****************
-				console.log(
+				log.debug(
 					`Market size for ${this.asset.symbol}/${this.hub.asset.symbol}:
 	basisSize=${basisSize},
 	price=${price},
@@ -115,7 +117,7 @@ export class Market {
 					const conversionPrice = conversionMarket.getBuyVwap();
 					const size = basisSize / conversionPrice / price;
 					// ***************** Debug *****************
-					console.log(
+					log.debug(
 						`Market size for ${this.asset.symbol}/${this.hub.asset.symbol}:
 	basisSize=${basisSize},
 	conversionPrice=${conversionPrice},

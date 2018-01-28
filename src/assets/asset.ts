@@ -1,6 +1,8 @@
 import { Hub, Market } from "../markets";
 import "colors";
 
+const log = require("winston");
+
 export class Asset {
 	static getAsset(symbol: string, map: Map<string, Asset>): Asset {
 		let asset: Asset;
@@ -19,10 +21,10 @@ export class Asset {
 	constructor(public symbol: string) {}
 
 	public log() {
-		console.log(`Asset: ${this.symbol}`.yellow);
-		console.log(`Hub count: ${this.hubs.length}`.green);
+		log.debug(`Asset: ${this.symbol}`.yellow);
+		log.debug(`Hub count: ${this.hubs.length}`.green);
 		const exchanges = this.hubs.map(h => h.exchange.id).join(",");
-		console.log(`Exchanges: ${exchanges}`.green);
-		console.log(`Market Count: ${this.markets.length}`.blue);
+		log.debug(`Exchanges: ${exchanges}`.green);
+		log.debug(`Market Count: ${this.markets.length}`.blue);
 	}
 }

@@ -92,7 +92,7 @@ export class VolumeStatistics {
 			vwap: this.getVwap(),
 			duration: this.getDuration()
 		};
-		// console.log(`Ticker Triggered VWAP: ${JSON.stringify(vwap)}`);
+		// log.debug(`Ticker Triggered VWAP: ${JSON.stringify(vwap)}`);
 		this.onVwapUpdated.trigger(vwap);
 	}
 }

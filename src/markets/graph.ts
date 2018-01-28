@@ -16,6 +16,8 @@ import { DestinationConversion } from "../strategies/destinationConversion";
 import { DirectArb } from "../strategies/directArb";
 import { OriginConversion } from "../strategies/originConversion";
 
+const log = require("winston");
+
 export interface GraphParameters {
 	basisAssetSymbol: string;
 	basisSize: number;
@@ -159,7 +161,7 @@ export class Graph {
 				asset.markets.forEach(
 					(destinationMarket: Market, destinationIndex: number) => {
 						// if (originMarket.hub.asset.symbol === originMarket.asset.symbol) {
-						// 	console.log(
+						// 	log.warn(
 						// 		`Bad origin symbol ${originMarket.asset.symbol}/${
 						// 			originMarket.hub.asset.symbol
 						// 		}`
@@ -169,7 +171,7 @@ export class Graph {
 						// 	destinationMarket.hub.asset.symbol ===
 						// 	destinationMarket.asset.symbol
 						// ) {
-						// 	console.log(
+						// 	log.warn(
 						// 		`Bad destination symbol ${destinationMarket.asset.symbol}/${
 						// 			destinationMarket.hub.asset.symbol
 						// 		}`
@@ -185,17 +187,17 @@ export class Graph {
 								if (arb) {
 									const id = arb.getId();
 									if (!this.arbMap.has(id)) {
-										console.log(`Mapping Arb: ${id}`);
+										log.debug(`Mapping Arb: ${id}`);
 										arb.updated.on((spread: SpreadExecution) => {
 											// _.throttle((inst?: SpreadExecution) => {
 											// 	if (inst) {
-											// 		console.log(
+											// 		log.debug(
 											// 			`Arb Triggered Instructions: ${JSON.stringify(inst)}`
 											// 		);
 											// 		this.onArb.trigger(inst);
 											// 	}
 											// }, 1000);
-											console.log(
+											log.debug(
 												`Arb Triggered Instructions:\n\t${JSON.stringify(
 													spread
 												)}`

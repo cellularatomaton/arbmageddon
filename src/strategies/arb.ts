@@ -5,6 +5,8 @@ import { ArbType, InitiationType } from "../utils/enums";
 import { Graph } from "../markets/graph";
 import { Vwap, Ticker } from "../markets/ticker";
 
+const log = require("winston");
+
 export interface Swing {
 	fromLeg: ExecutionOperation;
 	toLeg: ExecutionOperation;
@@ -45,7 +47,7 @@ export abstract class Arb {
 	// subscribeToVwap(event: IEvent<Vwap>) {
 	// 	event.on((vwap: Vwap | undefined) => {
 	// 		const inst: SpreadExecution = this.getInstruction();
-	// 		// console.log(`VWAP Triggered Instructions: ${JSON.stringify(inst)}`);
+	// 		// log.debug(`VWAP Triggered Instructions: ${JSON.stringify(inst)}`);
 	// 		this.onUpdated.trigger(inst);
 	// 	});
 	// }
@@ -133,7 +135,7 @@ export abstract class Arb {
 		const legName = `${market.hub.exchange.name}:${market.asset.symbol}/${
 			market.hub.asset.symbol
 		}`;
-		console.log(
+		log.debug(
 			`Leg into ${legName}:
 	size=${size},
 	basisSize=${tickerBasisSize},
@@ -181,7 +183,7 @@ export abstract class Arb {
 		let finished: boolean = false;
 		let remainderTickerBasisSize: number = tickerBasisSize;
 		while (!finished) {
-			// console.log(`swingToFrom while: ${Arb.debugCount}`);
+			// log.debug(`swingToFrom while: ${Arb.debugCount}`);
 			let spread;
 			if ((initiationType as InitiationType) === InitiationType.Maker) {
 				spread = this.makerSpreads[0];
@@ -214,7 +216,7 @@ export abstract class Arb {
 						// const toLegName = `${swing.toLeg.exchange}:${swing.toLeg.market}/${
 						// 	swing.toLeg.hub
 						// }`;
-						// console.log(
+						// log.debug(
 						// 	`Swing from ${fromLegName} to ${toLegName}:
 						// 		tickerMarketSize=${tickerMarketSize},
 						// 		tickerBasisSize=${tickerBasisSize},

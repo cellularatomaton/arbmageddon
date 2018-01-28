@@ -1,6 +1,8 @@
 import { get as httpGet } from "https";
 import { IncomingMessage } from "http";
 
+const log = require("winston");
+
 export class Http {
 	static get(url: string, callback: (obj: any) => void) {
 		httpGet(url, (res: IncomingMessage) => {
@@ -17,7 +19,7 @@ export class Http {
 				);
 			}
 			if (error) {
-				console.log(error.message);
+				log.error(error.message);
 				// consume response data to free up memory
 				res.resume();
 				return;
@@ -31,11 +33,11 @@ export class Http {
 					const parsedData = JSON.parse(rawData);
 					callback(parsedData);
 				} catch (e) {
-					console.log(e.message);
+					log.error(e.message);
 				}
 			});
 		}).on("error", e => {
-			console.log(`Http error: ${e.message}`);
+			log.error(`Http error: ${e.message}`);
 		});
 	}
 }
