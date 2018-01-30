@@ -2,6 +2,8 @@ import { Market, Graph } from "../markets";
 import { Asset } from "../assets";
 import { Exchange } from "../exchanges";
 
+const logger = require("winston");
+
 export class Hub {
 	asset: Asset;
 	markets: Map<string, Market>;
@@ -14,19 +16,20 @@ export class Hub {
 		return `${this.exchange.getId()}_${this.asset.symbol}`;
 	}
 
-	getMarket(symbol: string): Market | undefined {
+	getMarket(symbol: string): Market {
 		if (symbol === this.asset.symbol) {
-			// log.warn(`Bad hub -> market mapping: ${symbol}/${this.asset.symbol}`);
-			return undefined;
+			logger.log({
+				level: "warn",
+				message: `Bad hub -> market mapping: ${symbol}/${this.asset.symbol}`
+			});
+		}
+		let market = this.markets.get(symbol);
+		if (market) {
+			return market;
 		} else {
-			let market = this.markets.get(symbol);
-			if (market) {
-				return market;
-			} else {
-				market = new Market(symbol, this, this.graph);
-				this.markets.set(symbol, market);
-				return market;
-			}
+			market = new Market(symbol, this, this.graph);
+			this.markets.set(symbol, market);
+			return market;
 		}
 	}
 }

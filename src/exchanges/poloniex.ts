@@ -5,7 +5,7 @@ import { Http } from "../utils";
 import { symlink } from "fs";
 import { TradeType } from "../markets/ticker";
 
-const log = require("winston");
+const logger = require("winston");
 
 export class PoloniexExchange extends Exchange {
 	symbolList: string[];
@@ -25,7 +25,11 @@ export class PoloniexExchange extends Exchange {
 			Http.get(
 				`https://poloniex.com/public?command=returnTicker`,
 				(tickers: any) => {
-					// log.debug(JSON.stringify(tickers));
+					logger.log({
+						level: "silly",
+						message: "POLO Update Products",
+						data: tickers
+					});
 					this.symbolList = [];
 					Object.keys(tickers).forEach(key => {
 						const ticker = tickers[key];
@@ -44,15 +48,20 @@ export class PoloniexExchange extends Exchange {
 	}
 
 	setupWebsocket() {
-		log.info("Init POLO Websocket");
-
+		logger.log({
+			level: "info",
+			message: "Init POLO Websocket"
+		});
 		const WebSocket = require("ws");
 
 		const exchange = this;
 		const ws = new WebSocket("wss://api2.poloniex.com/");
 
 		ws.on("open", function open() {
-			log.info("POLO Websocket opened");
+			logger.log({
+				level: "info",
+				message: "POLO Websocket opened"
+			});
 			exchange.symbolList.forEach((symbol: string) => {
 				const msg = {
 					command: "subscribe",
@@ -63,11 +72,18 @@ export class PoloniexExchange extends Exchange {
 		});
 
 		ws.on("error", (err: any) => {
-			log.error("POLO Websocket error", err);
+			logger.log({
+				level: "error",
+				message: "POLO Websocket error",
+				data: err
+			});
 		});
 
 		ws.on("close", () => {
-			log.warn("POLO Websocket closed.");
+			logger.log({
+				level: "warn",
+				message: "POLO Websocket closed."
+			});
 		});
 
 		ws.on("message", function incoming(msg: string) {

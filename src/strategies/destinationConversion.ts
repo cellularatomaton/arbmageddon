@@ -52,20 +52,41 @@ export class DestinationConversion extends Arb {
 	// 	return instruction;
 	// }
 
-	getSpread(): number {
-		return (
-			this.destinationMarket.getSellVwap() *
-				this.conversionMarket.getSellVwap() -
-			this.originMarket.getBuyVwap()
-		);
+	getSpread(spread: SpreadExecution): number {
+		// return (
+		// 	this.destinationMarket.getSellVwap() *
+		// 		this.conversionMarket.getSellVwap() -
+		// 	this.originMarket.getBuyVwap()
+		// );
+		const convertBasis = spread.convert ? spread.convert.basisSize : Number.NaN;
+		const basisSpread = convertBasis - spread.buy.basisSize;
+		return basisSpread;
 	}
 
-	getSpreadPercent(): number {
-		const initialValue = this.originMarket.getBuyVwap();
-		if (initialValue === 0) {
-			return Number.NaN;
+	getSpreadPercent(spread: SpreadExecution): number {
+		// const initialValue = this.originMarket.getBuyVwap();
+		// if (initialValue === 0) {
+		// 	return Number.NaN;
+		// } else {
+		// 	return this.getSpread() / initialValue;
+		// }
+		const basisSpread = this.getSpread(spread);
+		return basisSpread / spread.buy.basisSize;
+	}
+
+	getSpreadStart(spread: SpreadExecution): number {
+		if (spread.buy) {
+			return spread.buy.start ? spread.buy.start.getTime() : Number.NaN;
 		} else {
-			return this.getSpread() / initialValue;
+			return Number.NaN;
+		}
+	}
+
+	getSpreadEnd(spread: SpreadExecution): number {
+		if (spread.convert) {
+			return spread.convert.end ? spread.convert.end.getTime() : Number.NaN;
+		} else {
+			return Number.NaN;
 		}
 	}
 
@@ -77,6 +98,8 @@ export class DestinationConversion extends Arb {
 		return {
 			id: this.getInstId(),
 			spread: Number.NaN,
+			spreadPercent: Number.NaN,
+			spreadsPerMinute: 0,
 			type: ArbType.DestinationConversion,
 			buy: this.getOperation(
 				this.originMarket.hub.exchange.name,

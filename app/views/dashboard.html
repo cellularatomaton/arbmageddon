@@ -131,38 +131,46 @@
 		}
 	</style>
 	<script type="text/x-template" id="operation-template">
-        <div class="flex-col elbow-room ">
-            <div class="center-contents">
-                <strong v-if="side === 'buy'">{{ title }}: [{{ operation.exchange }}] {{ operation.hub }} -> {{ operation.market }}</strong>
-                <strong v-else>{{ title }}: [{{ operation.exchange }}] {{ operation.market }} -> {{ operation.hub }}</strong>
-            </div>
-            <div class="flex-grow flex-row flex-wrap flex-stretch">
-                <div class="flex-grow">
-                    <span>VWAP</span>
-                    <span>{{ operation.price.toFixed(8) }}</span>
-                </div>
-                <div class="flex-grow">
-                    <span>Duration</span>
-                    <span>{{ (operation.duration/1000).toFixed(0) }}</span>
-                </div>
-                <div class="flex-grow">
-                    <span>Position</span>
-                    <span>{{ operation.position }}</span>
-                </div>
-            </div>
-            <div class="flex-grow flex-row flex-wrap flex-stretch">
-                <div class="flex-grow">
-                    <span>Open Bids</span>
-                    <span>{{ operation.openBids }}</span>
-                </div>
-                <div class="flex-grow">
-                    <span>Open Asks</span>
-                    <span>{{ operation.openAsks }}</span>
-                </div>
-            </div>
-            <button>Execute!</button>
-        </div>
-    </script>
+		<div class="flex-col elbow-room ">
+			<div class="center-contents">
+				<strong v-if="side === 'buy'">{{ title }}: [{{ operation.exchange }}] {{ operation.hub }} -> {{ operation.market }}</strong>
+				<strong v-else>{{ title }}: [{{ operation.exchange }}] {{ operation.market }} -> {{ operation.hub }}</strong>
+			</div>
+			<div class="flex-grow flex-row flex-wrap flex-stretch">
+				<div class="flex-grow">
+					<span>VWAP</span>
+					<span>{{ operation.price.toFixed(8) }}</span>
+				</div>
+				<div class="flex-grow">
+					<span>Duration</span>
+					<span>{{ (operation.duration/1000).toFixed(0) }}</span>
+				</div>
+				<div class="flex-grow">
+					<span>Size</span>
+					<span>{{ operation.size.toFixed(8) }}</span>
+				</div>
+				<div class="flex-grow">
+					<span>BasisSize</span>
+					<span>{{ operation.basisSize.toFixed(8) }}</span>
+				</div>
+			</div>
+			<div class="flex-grow flex-row flex-wrap flex-stretch">
+				<div class="flex-grow">
+					<span>Position</span>
+					<span>{{ operation.position }}</span>
+				</div>
+			<div class="flex-grow">
+					<span>Open Bids</span>
+					<span>{{ operation.openBids }}</span>
+				</div>
+				<div class="flex-grow">
+					<span>Open Asks</span>
+					<span>{{ operation.openAsks }}</span>
+				</div>
+			</div>
+			<button>Execute!</button>
+		</div>
+	</script>
 </head>
 
 <body>
@@ -212,18 +220,17 @@
 						<label for="maker">Maker</label>
 					</div>
 				</div>
-				<div class="flex-col flex-start" v-bind:class="{ 'arb-good': arbIsGood(selectedInst), 'arb-bad': !arbIsGood(selectedInst) }">
-					<strong>Time Above Target: {{ (selectedInst.timeAboveTarget/1000).toFixed(0) }} s</strong>
-					<strong>Execution Time: {{ (selectedInst.sumOfDurations/1000).toFixed(0) }} s</strong>
+				<div v-if="selectedInst" class="flex-col flex-start" v-bind:class="{ 'arb-good': arbIsGood(selectedInst), 'arb-bad': !arbIsGood(selectedInst) }">
+					<strong>Spreads Per Minute: {{ selectedInst.spreadsPerMinute }}</strong>
 				</div>
 				<div class="flex-col flex-start">
 					<div>
 						<span>Basis Size (BTC): </span>
-						<input v-model="basisSize" type="number" min="0" max="10" step="0.1" placeholder="0.1">
+						<input v-model="basisSize" type="number" min="0" max="10" step="0.1">
 					</div>
 					<div>
 						<span>Spread Target (%): </span>
-						<input v-model="spreadTarget" type="number" min="2" max="20" step="0.5" placeholder="3.5">
+						<input v-model="spreadTarget" type="number" min="2" max="20" step="0.5">
 					</div>
 				</div>
 			</div>
@@ -234,9 +241,9 @@
 					<table>
 						<thead>
 							<th>Arb</th>
-							<th>Spread</th>
-							<th>TAT</th>
-							<th>SOD</th>
+							<th>Basis</th>
+							<th>%</th>
+							<th>SPM</th>
 						</thead>
 						<tbody>
 							<tr v-for="inst in getFilteredArbs(arbList)">
@@ -244,8 +251,8 @@
 								<td>
 									<button v-on:click="setMulticharts(inst)" v-bind:class="{ selected: inst.selected }">{{ instSpread(inst) }}</button>
 								</td>
-								<td v-bind:class="{ 'arb-good': arbIsGood(inst), 'arb-bad': !arbIsGood(inst) }">{{ (inst.timeAboveTarget/1000).toFixed(0) }}</td>
-								<td v-bind:class="{ 'arb-good': arbIsGood(inst), 'arb-bad': !arbIsGood(inst) }">{{ (inst.sumOfDurations/1000).toFixed(0) }}</td>
+								<td>{{ (inst.spreadPercent * 100).toFixed(2) }}</td>
+								<td>{{ inst.spreadsPerMinute }}</td>
 							</tr>
 						</tbody>
 					</table>
@@ -297,8 +304,8 @@
 			props: ['title', 'side', 'operation']
 		});
 		const props = {
-			basisSize: 0.1,
-			spreadTarget: 0.0,
+			basisSize: 0.05,
+			spreadTarget: 0.5,
 			initiationType: 0
 		};
 		const appDash = new Vue({
@@ -311,7 +318,7 @@
 				multichartsUrl: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC',
 				showCrossExchange: false,
 				showSameExchange: true,
-				showDirect: false,
+				showDirect: true,
 				showConversion: true,
 				symbolFilter: 'SYM',
 				basisSize: props.basisSize,
@@ -355,7 +362,8 @@
 						Vue.http.get('/graph/exchanges').then(response => {
 							appDash.exchanges = response.body;
 							exchMap = appDash.exchanges.reduce((map, exch) => {
-								map[exch.id] = exch.name;
+								// map[exch.id] = exch.name;
+								map[exch.name] = exch.id;
 								return map;
 							}, {});
 							resolve();
@@ -365,17 +373,21 @@
 					});
 				},
 				getFilteredArbs: () => {
-					return appDash.arbList.filter((inst) => {
-						const isCrossExchange = inst.buy.exchange !== inst.sell.exchange;
-						const crossExchangePasses = appDash.showCrossExchange === isCrossExchange;
-						const isDirect = inst.type === 0;
-						const directPasses = appDash.showDirect === isDirect;
-						const isConversion = inst.type !== 0;
-						const conversionPasses = appDash.showConversion === isConversion;
-						// const spreadPasses = Number.parseFloat(appDash.spreadFilter) / 100 < inst.spread;
-						// return (crossExchangePasses || directPasses || conversionPasses) && spreadPasses;
-						return crossExchangePasses && directPasses && conversionPasses;
-					}).slice(0, 20);
+					if (appDash) {
+						return appDash.arbList.filter((inst) => {
+							const isCrossExchange = inst.buy.exchange !== inst.sell.exchange;
+							const crossExchangePasses = appDash.showCrossExchange === isCrossExchange;
+							const isDirect = inst.type === 0;
+							const directPasses = appDash.showDirect === isDirect;
+							const isConversion = inst.type !== 0;
+							const conversionPasses = appDash.showConversion === isConversion;
+							// const spreadPasses = Number.parseFloat(appDash.spreadFilter) / 100 < inst.spread;
+							// return (crossExchangePasses || directPasses || conversionPasses) && spreadPasses;
+							return crossExchangePasses || directPasses || conversionPasses;
+						}).slice(0, 25);
+					} else {
+						return [];
+					}
 				},
 				arbIsGood(inst) {
 					if (inst) {
@@ -420,19 +432,27 @@
 					if (update.spread) {
 						const arb = arbMap[update.id];
 						if (arb) {
-							const target = appDash.graphProperties.spreadTarget / 100;
+							const target = appDash.graphProperties.spreadTarget;
 							if (arb.spread < target && target < update.spread) {
 								arb.spreadEnteredAt = Date.now();
 							}
 							arb.timeAboveTarget = Date.now() - arb.spreadEnteredAt;
 							arb.spread = update.spread;
+							arb.spreadPercent = update.spreadsPerMinute;
+							arb.spreadsPerMinute = update.spreadsPerMinute;
 							arb.buy.price = update.buy.price;
 							arb.buy.duration = update.buy.duration;
+							arb.buy.size = update.buy.size;
+							arb.buy.basisSize = update.buy.basisSize;
 							arb.sell.price = update.sell.price;
 							arb.sell.duration = update.sell.duration;
+							arb.sell.size = update.sell.size;
+							arb.sell.basisSize = update.sell.basisSize;
 							if (arb.convert) {
 								arb.convert.price = update.convert.price;
 								arb.convert.duration = update.convert.duration;
+								arb.convert.size = update.convert.size;
+								arb.convert.basisSize = update.convert.basisSize;
 								arb.sumOfDurations =
 									update.buy.duration +
 									update.sell.duration +

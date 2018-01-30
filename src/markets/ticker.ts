@@ -1,6 +1,8 @@
 import { Graph, Market } from "../markets";
 import { IEvent, EventImp } from "../utils";
 
+const logger = require("winston");
+
 export enum TradeType {
 	BUY,
 	SELL
@@ -92,7 +94,11 @@ export class VolumeStatistics {
 			vwap: this.getVwap(),
 			duration: this.getDuration()
 		};
-		// log.debug(`Ticker Triggered VWAP: ${JSON.stringify(vwap)}`);
+		logger.log({
+			level: "silly",
+			message: `Ticker Triggered VWAP`,
+			data: vwap
+		});
 		this.onVwapUpdated.trigger(vwap);
 	}
 }

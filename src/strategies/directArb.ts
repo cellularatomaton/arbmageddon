@@ -46,19 +46,29 @@ export class DirectArb extends Arb {
 	// 	return instruction;
 	// }
 
-	getSpread(): number {
-		const spread =
-			this.destinationMarket.getSellVwap() - this.originMarket.getBuyVwap();
-		return spread;
+	getSpread(spread: SpreadExecution): number {
+		// const spread =
+		// 	this.destinationMarket.getSellVwap() - this.originMarket.getBuyVwap();
+		const basisSpread = spread.sell.basisSize - spread.buy.basisSize;
+		return basisSpread;
 	}
 
-	getSpreadPercent(): number {
-		const spread = this.getSpread();
-		if (this.originMarket.getBuyVwap() === 0) {
-			return Number.NaN;
-		} else {
-			return spread / this.originMarket.getBuyVwap();
-		}
+	getSpreadPercent(spread: SpreadExecution): number {
+		const basisSpread = this.getSpread(spread);
+		// if (this.originMarket.getBuyVwap() === 0) {
+		// 	return Number.NaN;
+		// } else {
+		// 	return spread / this.originMarket.getBuyVwap();
+		// }
+		return basisSpread / spread.buy.basisSize;
+	}
+
+	getSpreadStart(spread: SpreadExecution): number {
+		return spread.buy.start ? spread.buy.start.getTime() : Number.NaN;
+	}
+
+	getSpreadEnd(spread: SpreadExecution): number {
+		return spread.sell.end ? spread.sell.end.getTime() : Number.NaN;
 	}
 
 	getNewSpread(
@@ -69,6 +79,8 @@ export class DirectArb extends Arb {
 		return {
 			id: this.getInstId(),
 			spread: Number.NaN,
+			spreadPercent: Number.NaN,
+			spreadsPerMinute: 0,
 			type: ArbType.Direct,
 			buy: this.getOperation(
 				this.originMarket.hub.exchange.name,

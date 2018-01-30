@@ -13,16 +13,23 @@ import { GraphParameters } from "../src/markets/graph";
 const express = require("express");
 const path = require("path");
 const favicon = require("serve-favicon");
-const logger = require("morgan");
+// const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const usersRoute = require("./routes/users");
 const graphRoute = require("./routes/graph");
 const arbRoute = require("./routes/arb");
 const WebSocket = require("ws");
-const log = require("winston");
+const logger = require("winston");
 
-log.level = "info";
+logger.configure({
+	level: "debug",
+	transports: [
+		new logger.transports.Console(),
+		new logger.transports.File({ filename: "debug.log" })
+	]
+});
+
 const app = express();
 const graphModel = new Graph();
 const dataPath = path.join(path.dirname(__dirname), "node_modules/vis/dist");
@@ -35,7 +42,7 @@ app.engine(".html", require("ejs").renderFile);
 
 // uncomment after placing your favicon in /public
 // app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
-app.use(logger("dev"));
+// app.use(morgan("dev"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -64,9 +71,15 @@ wss.broadcast = (event: any) => {
 };
 
 graphModel.arb.on((inst?: SpreadExecution) => {
-	// log.debug(`Graph Triggered Instructions: ${JSON.stringify(inst)}`)
+	logger.log({
+		level: "silly",
+		message: `Graph Triggered Instructions: ${JSON.stringify(inst)}`
+	});
 	if (inst) {
-		// log.debug(`Broadcasting...`);
+		logger.log({
+			level: "silly",
+			message: `Broadcasting...`
+		});
 		wss.broadcast({
 			from: "graph",
 			to: "gui",
@@ -79,14 +92,20 @@ graphModel.arb.on((inst?: SpreadExecution) => {
 
 wss.on("connection", (ws: any) => {
 	ws.on("message", (message: any) => {
-		log.debug(`Websocket message received: ${JSON.stringify(message)}`);
+		logger.log({
+			level: "silly",
+			message: `Websocket message received: ${JSON.stringify(message)}`
+		});
 		if (
 			message.from === "gui" &&
 			message.to === "graph" &&
 			message.type === "params"
 		) {
 			if (message.action === "set") {
-				log.info(`Setting graph params: ${JSON.stringify(message.data)}`);
+				logger.log({
+					level: "info",
+					message: `Setting graph params: ${JSON.stringify(message.data)}`
+				});
 				graphModel.updateParams(message.data as GraphParameters);
 			} else if (message.action === "get") {
 				wss.send(

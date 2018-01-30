@@ -3,7 +3,7 @@ import { Hub, Market, Graph, Ticker, TradeType } from "../markets";
 import { Asset } from "../assets";
 
 import Gdax = require("gdax");
-const log = require("winston");
+const logger = require("winston");
 const PRODS = ["eth-btc", "ltc-btc"];
 const URI = "wss://ws-feed.gdax.com/";
 const AUTH = undefined;
@@ -38,13 +38,21 @@ export class GdaxExchange extends Exchange {
 					resolve();
 				})
 				.catch((error: any) => {
-					log.error(`Gdax products update error: ${error}`);
+					logger.log({
+						level: "error",
+						message: `Gdax products update error: ${error}`,
+						data: error
+					});
 				});
 		});
 	}
 
 	handleTicker(exchange: Exchange, data: any) {
-		// log.debug(data);
+		logger.log({
+			level: "silly",
+			message: "GDAX Handle Ticker",
+			data
+		});
 		const symbols = data.product_id.split("-");
 		exchange.updateTicker({
 			exchangeSymbol: this.id,
@@ -60,11 +68,17 @@ export class GdaxExchange extends Exchange {
 	}
 
 	setupWebsocket(): any {
-		log.info("Init GDAX websocket");
+		logger.log({
+			level: "info",
+			message: "Init GDAX websocket"
+		});
 		const ws = new Gdax.WebsocketClient(PRODS, URI, AUTH, OPTS);
 		const exchange = this;
 		ws.on("open", () => {
-			log.info("GDAX websocket opened.");
+			logger.log({
+				level: "info",
+				message: "GDAX websocket opened."
+			});
 		});
 		ws.on("message", (data: any) => {
 			if (data.type === "ticker" && data.last_size) {
@@ -72,11 +86,18 @@ export class GdaxExchange extends Exchange {
 			}
 		});
 		ws.on("error", (err: any) => {
-			log.error("GDAX Websocket error", err);
+			logger.log({
+				level: "error",
+				message: "GDAX Websocket error",
+				data: err
+			});
 		});
 
 		ws.on("close", () => {
-			log.warn("GDAX Websocket closed.");
+			logger.log({
+				level: "warn",
+				message: "GDAX Websocket closed."
+			});
 		});
 	}
 

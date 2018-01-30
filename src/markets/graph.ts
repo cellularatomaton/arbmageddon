@@ -61,7 +61,7 @@ export class Graph {
 	public static getOriginConversionMarket(
 		originMarket: Market,
 		destinationMarket: Market
-	): Market | undefined {
+	): Market {
 		const destinationHub = destinationMarket.hub.asset.symbol;
 		const originHub = originMarket.hub.asset.symbol;
 		const originExchange = originMarket.hub.exchange;
@@ -73,7 +73,7 @@ export class Graph {
 	public static getDestinationConversionMarket(
 		originMarket: Market,
 		destinationMarket: Market
-	): Market | undefined {
+	): Market {
 		const originHub = originMarket.hub.asset.symbol;
 		const destinationHub = destinationMarket.hub.asset.symbol;
 		const destinationExchange = destinationMarket.hub.exchange;
@@ -187,21 +187,25 @@ export class Graph {
 								if (arb) {
 									const id = arb.getId();
 									if (!this.arbMap.has(id)) {
-										log.debug(`Mapping Arb: ${id}`);
+										log.log({
+											level: "debug",
+											message: `Mapping Arb: ${id}`
+										});
 										arb.updated.on((spread: SpreadExecution) => {
 											// _.throttle((inst?: SpreadExecution) => {
 											// 	if (inst) {
-											// 		log.debug(
-											// 			`Arb Triggered Instructions: ${JSON.stringify(inst)}`
-											// 		);
+											// log.log({
+											// 	level: "debug",
+											// 	message: `Arb Triggered Instructions: ${JSON.stringify(inst)}`
+											// });
 											// 		this.onArb.trigger(inst);
 											// 	}
 											// }, 1000);
-											log.debug(
-												`Arb Triggered Instructions:\n\t${JSON.stringify(
-													spread
-												)}`
-											);
+											log.log({
+												level: "debug",
+												message: `Arb Triggered Instructions`,
+												data: spread
+											});
 											this.onArb.trigger(spread);
 										});
 										this.arbMap.set(arb.getId(), arb);

@@ -5,7 +5,7 @@ import { TimeUnit, VolumeStatistics } from "./ticker";
 import { InitiationType } from "../utils/enums";
 import { EventImp, IEvent } from "../utils/event";
 
-const log = require("winston");
+const logger = require("winston");
 
 export class Market {
 	asset: Asset;
@@ -77,15 +77,24 @@ export class Market {
 	}
 
 	updateTicker(ticker: Ticker) {
-		// log.debug(`Adding ticker: ${JSON.stringify(ticker)}`);
+		logger.log({
+			level: "silly",
+			message: `Adding ticker: ${JSON.stringify(ticker)}`
+		});
 		if ((ticker.side as TradeType) === TradeType.BUY) {
 			this.onBuy.trigger(ticker);
 			this.vwapBuyStats.handleTicker(ticker);
-			// log.debug(`Buy vwap: ${this.vwapBuyStats.getVwap()}`);
+			logger.log({
+				level: "silly",
+				message: `Buy vwap: ${this.vwapBuyStats.getVwap()}`
+			});
 		} else {
 			this.onSell.trigger(ticker);
 			this.vwapSellStats.handleTicker(ticker);
-			// log.debug(`Sell vwap: ${this.vwapSellStats.getVwap()}`);
+			logger.log({
+				level: "silly",
+				message: `Sell vwap: ${this.vwapSellStats.getVwap()}`
+			});
 		}
 	}
 
@@ -101,14 +110,15 @@ export class Market {
 			const price = this.getBuyVwap();
 			if (alreadyPricedInBasis) {
 				const size = basisSize / price;
-				// ***************** Debug *****************
-				log.debug(
-					`Market size for ${this.asset.symbol}/${this.hub.asset.symbol}:
+				logger.log({
+					level: "debug",
+					message: `Market size for ${this.asset.symbol}/${
+						this.hub.asset.symbol
+					}:
 	basisSize=${basisSize},
 	price=${price},
 	marketSize=${size},`
-				);
-				// ***************** End Debug *****************
+				});
 				return size;
 			} else {
 				// Look through hub markets for conversion:
@@ -116,15 +126,16 @@ export class Market {
 				if (conversionMarket) {
 					const conversionPrice = conversionMarket.getBuyVwap();
 					const size = basisSize / conversionPrice / price;
-					// ***************** Debug *****************
-					log.debug(
-						`Market size for ${this.asset.symbol}/${this.hub.asset.symbol}:
+					logger.log({
+						level: "debug",
+						message: `Market size for ${this.asset.symbol}/${
+							this.hub.asset.symbol
+						}:
 	basisSize=${basisSize},
 	conversionPrice=${conversionPrice},
 	price=${price},
 	marketSize=${size},`
-					);
-					// ***************** End Debug *****************
+					});
 					return size;
 				} else {
 					return Number.NaN;

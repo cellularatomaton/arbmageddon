@@ -2,7 +2,7 @@ import { Exchange } from "./exchange";
 import { Hub, Market, Graph, TradeType } from "../markets";
 import { Asset } from "../assets";
 
-const log = require("winston");
+const logger = require("winston");
 const _ = require("lodash");
 const binance = require("node-binance-api");
 const hubSymbols = new Set(["BTC", "ETH", "BNB", "USDT"]);
@@ -30,7 +30,10 @@ export class BinanceExchange extends Exchange {
 				markets.forEach((market: any) => {
 					const hubSymbol = market.quoteAsset;
 					const marketSymbol = market.baseAsset;
-					// log.debug(`Binance mapping symbols: Hub ${hubSymbol} -> Market ${marketSymbol}`);
+					logger.log({
+						level: "silly",
+						message: `BINA mapping symbols: Hub ${hubSymbol} -> Market ${marketSymbol}`
+					});
 					exchange.mapMarket(hubSymbol, marketSymbol);
 				});
 				this.symbolList = markets.map((m: any) => m.symbol);
@@ -61,13 +64,25 @@ export class BinanceExchange extends Exchange {
 	}
 
 	setupWebsockets(symbols: string[]) {
-		log.info("Init BINA Websocket");
+		logger.log({
+			level: "info",
+			message: "Init BINA Websocket"
+		});
 		const exchange = this;
 		const binaUpdates = 0;
 		try {
 			binance.websockets.trades(symbols, (trades: any) => {
-				// let {e:eventType, E:eventTime, s:symbol, p:price, q:quantity, m:maker, a:tradeId} = trades;
-				// log.debug(symbol+" trade update. price: "+price+", quantity: "+quantity+", maker: "+maker);
+				logger.log({
+					level: "debug",
+					message:
+						trades.s +
+						" trade update. price: " +
+						trades.p +
+						", quantity: " +
+						trades.q +
+						", maker: " +
+						trades.m
+				});
 				const parsedSymbols = exchange.parseSymbols(trades.s);
 
 				exchange.updateTicker({
@@ -82,21 +97,32 @@ export class BinanceExchange extends Exchange {
 
 				_.throttle(
 					() => {
-						log.info("BINA still alive " + Date.now());
+						logger.log({
+							level: "info",
+							message: "BINA still alive " + Date.now()
+						});
 					},
 					1000,
 					{ leading: true }
 				);
 			});
 		} catch (err) {
-			log.error(err);
+			logger.log({
+				level: "error",
+				message: "BINA Websocket Error",
+				data: err
+			});
 		}
 	}
 
 	// static binaMarketUpdateLoop(exchange: BinanceExchange){
 	//     // const exchange = this;
 	//     binance.bookTickers(function(tickers: any) {
-	//         // log.debug("bookTickers", ticker);
+	// log.log({
+	// 	level: "debug",
+	// 	message: "bookTickers",
+	// 	data: ticker
+	// });
 	//         exchange.handleTickers(tickers);
 	//     });
 	//     setTimeout(() => {BinanceExchange.binaMarketUpdateLoop(exchange);}, 1000);
@@ -110,7 +136,10 @@ export class BinanceExchange extends Exchange {
 	//         const hubSymbol = parsedSymbols[0];
 	//         const marketSymbol = parsedSymbols[1];
 	//         if(hubSymbol === `NOHUB`){
-	//             log.debug(`Binance malformed symbol ${key}`);
+	// log.log({
+	// 	level: "debug",
+	// 	message: `Binance malformed symbol ${key}`
+	// });
 	//         }else{
 	//             exchange.updateMarket(
 	//                 hubSymbol,
