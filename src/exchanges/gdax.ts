@@ -1,9 +1,10 @@
 import { Exchange } from "./exchange";
 import { Hub, Market, Graph, Ticker, TradeType } from "../markets";
 import { Asset } from "../assets";
+import { Logger } from "../utils/logger";
 
 import Gdax = require("gdax");
-const logger = require("winston");
+
 const PRODS = ["eth-btc", "ltc-btc"];
 const URI = "wss://ws-feed.gdax.com/";
 const AUTH = undefined;
@@ -38,7 +39,7 @@ export class GdaxExchange extends Exchange {
 					resolve();
 				})
 				.catch((error: any) => {
-					logger.log({
+					Logger.log({
 						level: "error",
 						message: `Gdax products update error: ${error}`,
 						data: error
@@ -48,7 +49,7 @@ export class GdaxExchange extends Exchange {
 	}
 
 	handleTicker(exchange: Exchange, data: any) {
-		logger.log({
+		Logger.log({
 			level: "silly",
 			message: "GDAX Handle Ticker",
 			data
@@ -68,14 +69,14 @@ export class GdaxExchange extends Exchange {
 	}
 
 	setupWebsocket(): any {
-		logger.log({
+		Logger.log({
 			level: "info",
 			message: "Init GDAX websocket"
 		});
 		const ws = new Gdax.WebsocketClient(PRODS, URI, AUTH, OPTS);
 		const exchange = this;
 		ws.on("open", () => {
-			logger.log({
+			Logger.log({
 				level: "info",
 				message: "GDAX websocket opened."
 			});
@@ -86,7 +87,7 @@ export class GdaxExchange extends Exchange {
 			}
 		});
 		ws.on("error", (err: any) => {
-			logger.log({
+			Logger.log({
 				level: "error",
 				message: "GDAX Websocket error",
 				data: err
@@ -94,7 +95,7 @@ export class GdaxExchange extends Exchange {
 		});
 
 		ws.on("close", () => {
-			logger.log({
+			Logger.log({
 				level: "warn",
 				message: "GDAX Websocket closed."
 			});

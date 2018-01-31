@@ -46,21 +46,11 @@ export class DirectArb extends Arb {
 	// 	return instruction;
 	// }
 
-	getSpread(spread: SpreadExecution): number {
-		// const spread =
-		// 	this.destinationMarket.getSellVwap() - this.originMarket.getBuyVwap();
-		const basisSpread = spread.sell.basisSize - spread.buy.basisSize;
-		return basisSpread;
-	}
-
-	getSpreadPercent(spread: SpreadExecution): number {
-		const basisSpread = this.getSpread(spread);
-		// if (this.originMarket.getBuyVwap() === 0) {
-		// 	return Number.NaN;
-		// } else {
-		// 	return spread / this.originMarket.getBuyVwap();
-		// }
-		return basisSpread / spread.buy.basisSize;
+	updateSpreadBasis(spread: SpreadExecution): void {
+		spread.entryBasisSize = spread.buy.basisSize;
+		if (spread.buy.size <= spread.sell.size) {
+			spread.exitBasisSize = spread.sell.basisSize;
+		}
 	}
 
 	getSpreadStart(spread: SpreadExecution): number {
@@ -112,7 +102,10 @@ export class DirectArb extends Arb {
 		this.legOut(ticker, initiationType, market, (spread: SpreadExecution) => {
 			return {
 				fromLeg: spread.buy,
-				toLeg: spread.sell
+				toLeg: spread.sell,
+				getSwingSize: (price: number, size: number): number => {
+					return size / price;
+				}
 			};
 		});
 	}

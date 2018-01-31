@@ -1,8 +1,8 @@
 import { Exchange } from "./exchange";
 import { Hub, Market, Graph, TradeType } from "../markets";
 import { Asset } from "../assets";
+import { Logger } from "../utils/logger";
 
-const logger = require("winston");
 const _ = require("lodash");
 const binance = require("node-binance-api");
 const hubSymbols = new Set(["BTC", "ETH", "BNB", "USDT"]);
@@ -30,7 +30,7 @@ export class BinanceExchange extends Exchange {
 				markets.forEach((market: any) => {
 					const hubSymbol = market.quoteAsset;
 					const marketSymbol = market.baseAsset;
-					logger.log({
+					Logger.log({
 						level: "silly",
 						message: `BINA mapping symbols: Hub ${hubSymbol} -> Market ${marketSymbol}`
 					});
@@ -64,7 +64,7 @@ export class BinanceExchange extends Exchange {
 	}
 
 	setupWebsockets(symbols: string[]) {
-		logger.log({
+		Logger.log({
 			level: "info",
 			message: "Init BINA Websocket"
 		});
@@ -72,7 +72,7 @@ export class BinanceExchange extends Exchange {
 		const binaUpdates = 0;
 		try {
 			binance.websockets.trades(symbols, (trades: any) => {
-				logger.log({
+				Logger.log({
 					level: "debug",
 					message:
 						trades.s +
@@ -97,7 +97,7 @@ export class BinanceExchange extends Exchange {
 
 				_.throttle(
 					() => {
-						logger.log({
+						Logger.log({
 							level: "info",
 							message: "BINA still alive " + Date.now()
 						});
@@ -107,7 +107,7 @@ export class BinanceExchange extends Exchange {
 				);
 			});
 		} catch (err) {
-			logger.log({
+			Logger.log({
 				level: "error",
 				message: "BINA Websocket Error",
 				data: err

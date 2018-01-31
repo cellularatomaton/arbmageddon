@@ -1,8 +1,7 @@
 import { Market, Graph } from "../markets";
 import { Asset } from "../assets";
 import { Exchange } from "../exchanges";
-
-const logger = require("winston");
+import { Logger } from "../utils/logger";
 
 export class Hub {
 	asset: Asset;
@@ -18,7 +17,7 @@ export class Hub {
 
 	getMarket(symbol: string): Market {
 		if (symbol === this.asset.symbol) {
-			logger.log({
+			Logger.log({
 				level: "warn",
 				message: `Bad hub -> market mapping: ${symbol}/${this.asset.symbol}`
 			});

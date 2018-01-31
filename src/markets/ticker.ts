@@ -1,7 +1,8 @@
 import { Graph, Market } from "../markets";
 import { IEvent, EventImp } from "../utils";
+import { Logger } from "../utils/logger";
 
-const logger = require("winston");
+const Logger = require("winston");
 
 export enum TradeType {
 	BUY,
@@ -94,7 +95,7 @@ export class VolumeStatistics {
 			vwap: this.getVwap(),
 			duration: this.getDuration()
 		};
-		logger.log({
+		Logger.log({
 			level: "silly",
 			message: `Ticker Triggered VWAP`,
 			data: vwap

@@ -4,8 +4,7 @@ import { Asset } from "../assets";
 import { Http } from "../utils";
 import { symlink } from "fs";
 import { TradeType } from "../markets/ticker";
-
-const logger = require("winston");
+import { Logger } from "../utils/logger";
 
 export class PoloniexExchange extends Exchange {
 	symbolList: string[];
@@ -25,7 +24,7 @@ export class PoloniexExchange extends Exchange {
 			Http.get(
 				`https://poloniex.com/public?command=returnTicker`,
 				(tickers: any) => {
-					logger.log({
+					Logger.log({
 						level: "silly",
 						message: "POLO Update Products",
 						data: tickers
@@ -48,7 +47,7 @@ export class PoloniexExchange extends Exchange {
 	}
 
 	setupWebsocket() {
-		logger.log({
+		Logger.log({
 			level: "info",
 			message: "Init POLO Websocket"
 		});
@@ -58,7 +57,7 @@ export class PoloniexExchange extends Exchange {
 		const ws = new WebSocket("wss://api2.poloniex.com/");
 
 		ws.on("open", function open() {
-			logger.log({
+			Logger.log({
 				level: "info",
 				message: "POLO Websocket opened"
 			});
@@ -72,7 +71,7 @@ export class PoloniexExchange extends Exchange {
 		});
 
 		ws.on("error", (err: any) => {
-			logger.log({
+			Logger.log({
 				level: "error",
 				message: "POLO Websocket error",
 				data: err
@@ -80,7 +79,7 @@ export class PoloniexExchange extends Exchange {
 		});
 
 		ws.on("close", () => {
-			logger.log({
+			Logger.log({
 				level: "warn",
 				message: "POLO Websocket closed."
 			});

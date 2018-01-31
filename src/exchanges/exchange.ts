@@ -1,7 +1,6 @@
 import { Hub, Market, Graph, Ticker, TradeType } from "../markets";
 import { Asset } from "../assets";
-
-const logger = require("winston");
+import { Logger } from "../utils/logger";
 
 export interface HubMarketPair {
 	hubSymbol: string;
@@ -47,12 +46,12 @@ export class Exchange {
 	}
 
 	log() {
-		logger.log({
+		Logger.log({
 			level: "debug",
 			message: `Exchange: ${this.id}`
 		});
 		this.hubs.forEach((hub: Hub, symbol: string) => {
-			logger.log({
+			Logger.log({
 				level: "debug",
 				message: `Hub: ${symbol}`
 			});
@@ -60,7 +59,7 @@ export class Exchange {
 			hub.markets.forEach((market: Market, marketSymbol: string) => {
 				marketList.push(marketSymbol);
 			});
-			logger.log({
+			Logger.log({
 				level: "debug",
 				message: `Markets: ${marketList.join(",")}`
 			});

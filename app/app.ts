@@ -9,6 +9,7 @@ import {
 import { SpreadExecution } from "../src/strategies";
 import { NextFunction, Request, Response, Router } from "express";
 import { GraphParameters } from "../src/markets/graph";
+import { Logger } from "../src/utils/logger";
 
 const express = require("express");
 const path = require("path");
@@ -20,15 +21,6 @@ const usersRoute = require("./routes/users");
 const graphRoute = require("./routes/graph");
 const arbRoute = require("./routes/arb");
 const WebSocket = require("ws");
-const logger = require("winston");
-
-logger.configure({
-	level: "debug",
-	transports: [
-		new logger.transports.Console(),
-		new logger.transports.File({ filename: "debug.log" })
-	]
-});
 
 const app = express();
 const graphModel = new Graph();
@@ -71,12 +63,12 @@ wss.broadcast = (event: any) => {
 };
 
 graphModel.arb.on((inst?: SpreadExecution) => {
-	logger.log({
+	Logger.log({
 		level: "silly",
 		message: `Graph Triggered Instructions: ${JSON.stringify(inst)}`
 	});
 	if (inst) {
-		logger.log({
+		Logger.log({
 			level: "silly",
 			message: `Broadcasting...`
 		});
@@ -92,7 +84,7 @@ graphModel.arb.on((inst?: SpreadExecution) => {
 
 wss.on("connection", (ws: any) => {
 	ws.on("message", (message: any) => {
-		logger.log({
+		Logger.log({
 			level: "silly",
 			message: `Websocket message received: ${JSON.stringify(message)}`
 		});
@@ -102,7 +94,7 @@ wss.on("connection", (ws: any) => {
 			message.type === "params"
 		) {
 			if (message.action === "set") {
-				logger.log({
+				Logger.log({
 					level: "info",
 					message: `Setting graph params: ${JSON.stringify(message.data)}`
 				});

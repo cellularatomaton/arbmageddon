@@ -4,8 +4,7 @@ import { Graph, Ticker, TradeType } from "../markets";
 import { TimeUnit, VolumeStatistics } from "./ticker";
 import { InitiationType } from "../utils/enums";
 import { EventImp, IEvent } from "../utils/event";
-
-const logger = require("winston");
+import { Logger } from "../utils/logger";
 
 export class Market {
 	asset: Asset;
@@ -77,21 +76,21 @@ export class Market {
 	}
 
 	updateTicker(ticker: Ticker) {
-		logger.log({
+		Logger.log({
 			level: "silly",
 			message: `Adding ticker: ${JSON.stringify(ticker)}`
 		});
 		if ((ticker.side as TradeType) === TradeType.BUY) {
 			this.onBuy.trigger(ticker);
 			this.vwapBuyStats.handleTicker(ticker);
-			logger.log({
+			Logger.log({
 				level: "silly",
 				message: `Buy vwap: ${this.vwapBuyStats.getVwap()}`
 			});
 		} else {
 			this.onSell.trigger(ticker);
 			this.vwapSellStats.handleTicker(ticker);
-			logger.log({
+			Logger.log({
 				level: "silly",
 				message: `Sell vwap: ${this.vwapSellStats.getVwap()}`
 			});
@@ -110,14 +109,14 @@ export class Market {
 			const price = this.getBuyVwap();
 			if (alreadyPricedInBasis) {
 				const size = basisSize / price;
-				logger.log({
+				Logger.log({
 					level: "debug",
 					message: `Market size for ${this.asset.symbol}/${
 						this.hub.asset.symbol
 					}:
-	basisSize=${basisSize},
-	price=${price},
-	marketSize=${size},`
+	Basis Size = ${basisSize},
+	Price = ${price},
+	Market Size = ${size},`
 				});
 				return size;
 			} else {
@@ -126,15 +125,15 @@ export class Market {
 				if (conversionMarket) {
 					const conversionPrice = conversionMarket.getBuyVwap();
 					const size = basisSize / conversionPrice / price;
-					logger.log({
+					Logger.log({
 						level: "debug",
 						message: `Market size for ${this.asset.symbol}/${
 							this.hub.asset.symbol
 						}:
-	basisSize=${basisSize},
-	conversionPrice=${conversionPrice},
-	price=${price},
-	marketSize=${size},`
+	Basis Size=${basisSize},
+	Conversion Price=${conversionPrice},
+	Price=${price},
+	Market Size=${size},`
 					});
 					return size;
 				} else {

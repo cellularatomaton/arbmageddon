@@ -52,27 +52,36 @@ export class OriginConversion extends Arb {
 	// 	return instructions;
 	// }
 
-	getSpread(spread: SpreadExecution): number {
-		// return (
-		// 	this.destinationMarket.getSellVwap() -
-		// 	this.originMarket.getBuyVwap() * this.conversionMarket.getBuyVwap()
-		// );
-		const basis = spread.convert ? spread.convert.basisSize : Number.NaN;
-		const basisSpread = spread.sell.basisSize - basis;
-		return basisSpread;
-	}
+	// getSpread(spread: SpreadExecution): number {
+	// 	// return (
+	// 	// 	this.destinationMarket.getSellVwap() -
+	// 	// 	this.originMarket.getBuyVwap() * this.conversionMarket.getBuyVwap()
+	// 	// );
+	// 	const basis = spread.convert ? spread.convert.basisSize : Number.NaN;
+	// 	const basisSpread = spread.sell.basisSize - basis;
+	// 	return basisSpread;
+	// }
 
-	getSpreadPercent(spread: SpreadExecution): number {
-		// const initialValue =
-		// 	this.originMarket.getBuyVwap() * this.conversionMarket.getBuyVwap();
-		// if (initialValue === 0) {
-		// 	return Number.NaN;
-		// } else {
-		// 	return this.getSpread() / initialValue;
-		// }
-		const basisSpread = this.getSpread(spread);
-		const basis = spread.convert ? spread.convert.basisSize : Number.NaN;
-		return basisSpread / basis;
+	// getSpreadPercent(spread: SpreadExecution): number {
+	// 	// const initialValue =
+	// 	// 	this.originMarket.getBuyVwap() * this.conversionMarket.getBuyVwap();
+	// 	// if (initialValue === 0) {
+	// 	// 	return Number.NaN;
+	// 	// } else {
+	// 	// 	return this.getSpread() / initialValue;
+	// 	// }
+	// 	const basisSpread = this.getSpread(spread);
+	// 	const basis = spread.convert ? spread.convert.basisSize : Number.NaN;
+	// 	return basisSpread / basis;
+	// }
+
+	updateSpreadBasis(spread: SpreadExecution): void {
+		if (spread.convert) {
+			spread.entryBasisSize = spread.convert.basisSize;
+		}
+		if (spread.buy.size <= spread.sell.size * spread.sell.price) {
+			spread.exitBasisSize = spread.sell.basisSize;
+		}
 	}
 
 	getSpreadStart(spread: SpreadExecution): number {
@@ -133,7 +142,10 @@ export class OriginConversion extends Arb {
 				if (spread.convert) {
 					return {
 						fromLeg: spread.convert,
-						toLeg: spread.buy
+						toLeg: spread.buy,
+						getSwingSize: (price: number, size: number): number => {
+							return size * price;
+						}
 					};
 				} else {
 					return undefined;
@@ -150,7 +162,10 @@ export class OriginConversion extends Arb {
 			(spread: SpreadExecution) => {
 				return {
 					fromLeg: spread.buy,
-					toLeg: spread.sell
+					toLeg: spread.sell,
+					getSwingSize: (price: number, size: number): number => {
+						return size / price;
+					}
 				};
 			}
 		);

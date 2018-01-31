@@ -396,7 +396,7 @@
 						return false;
 					}
 				},
-				instSpread: (i) => { return `${(i.spread * 100).toFixed(2)}%`; },
+				instSpread: (i) => { return `${(i.spread).toFixed(8)}`; },
 				instString: (inst) => {
 					return getInstString(inst);
 				},

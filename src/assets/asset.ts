@@ -1,7 +1,6 @@
 import { Hub, Market } from "../markets";
+import { Logger } from "../utils/logger";
 import "colors";
-
-const logger = require("winston");
 
 export class Asset {
 	static getAsset(symbol: string, map: Map<string, Asset>): Asset {
@@ -21,21 +20,21 @@ export class Asset {
 	constructor(public symbol: string) {}
 
 	public log() {
-		logger.log({
+		Logger.log({
 			level: "debug",
 			message: `Asset: ${this.symbol}`
 		});
-		logger.log({
+		Logger.log({
 			level: "debug",
 			message: `Hub count: ${this.hubs.length}`
 		});
 		const exchanges = this.hubs.map(h => h.exchange.id).join(",");
 
-		logger.log({
+		Logger.log({
 			level: "debug",
 			message: `Exchanges: ${exchanges}`
 		});
-		logger.log({
+		Logger.log({
 			level: "debug",
 			message: `Market Count: ${this.markets.length}`
 		});

@@ -15,8 +15,7 @@ import * as _ from "lodash";
 import { DestinationConversion } from "../strategies/destinationConversion";
 import { DirectArb } from "../strategies/directArb";
 import { OriginConversion } from "../strategies/originConversion";
-
-const log = require("winston");
+import { Logger } from "../utils/logger";
 
 export interface GraphParameters {
 	basisAssetSymbol: string;
@@ -61,27 +60,31 @@ export class Graph {
 	public static getOriginConversionMarket(
 		originMarket: Market,
 		destinationMarket: Market
-	): Market {
+	): Market | undefined {
 		const destinationHub = destinationMarket.hub.asset.symbol;
 		const originHub = originMarket.hub.asset.symbol;
 		const originExchange = originMarket.hub.exchange;
 		const originConversionHub = originExchange.getHub(destinationHub);
-		const originConversion = originConversionHub.getMarket(originHub);
-		return originConversion;
+		if (originConversionHub.asset.symbol !== originHub) {
+			return originConversionHub.getMarket(originHub);
+		} else {
+			return undefined;
+		}
 	}
 
 	public static getDestinationConversionMarket(
 		originMarket: Market,
 		destinationMarket: Market
-	): Market {
+	): Market | undefined {
 		const originHub = originMarket.hub.asset.symbol;
 		const destinationHub = destinationMarket.hub.asset.symbol;
 		const destinationExchange = destinationMarket.hub.exchange;
 		const destinationConversionHub = destinationExchange.getHub(originHub);
-		const destinationConversion = destinationConversionHub.getMarket(
-			destinationHub
-		);
-		return destinationConversion;
+		if (destinationConversionHub.asset.symbol !== destinationHub) {
+			return destinationConversionHub.getMarket(destinationHub);
+		} else {
+			return undefined;
+		}
 	}
 
 	public static isSimpleArb(
@@ -122,7 +125,7 @@ export class Graph {
 		];
 		const arbFinder = () => {
 			this.findArbs();
-			setTimeout(arbFinder, 1000);
+			setTimeout(arbFinder, 5000);
 		};
 		arbFinder();
 	}
@@ -187,7 +190,7 @@ export class Graph {
 								if (arb) {
 									const id = arb.getId();
 									if (!this.arbMap.has(id)) {
-										log.log({
+										Logger.log({
 											level: "debug",
 											message: `Mapping Arb: ${id}`
 										});
@@ -201,7 +204,7 @@ export class Graph {
 											// 		this.onArb.trigger(inst);
 											// 	}
 											// }, 1000);
-											log.log({
+											Logger.log({
 												level: "debug",
 												message: `Arb Triggered Instructions`,
 												data: spread

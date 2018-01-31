@@ -4,12 +4,12 @@ import { Market } from "../markets/market";
 import { ArbType, InitiationType } from "../utils/enums";
 import { Graph } from "../markets/graph";
 import { Vwap, Ticker } from "../markets/ticker";
-
-const logger = require("winston");
+import { Logger } from "../utils/logger";
 
 export interface Swing {
 	fromLeg: ExecutionOperation;
 	toLeg: ExecutionOperation;
+	getSwingSize: (price: number, size: number) => number;
 }
 
 export abstract class Arb {
@@ -38,10 +38,11 @@ export abstract class Arb {
 	}
 
 	abstract getInstId(): string;
-	abstract getSpread(spread: SpreadExecution): number;
-	abstract getSpreadPercent(spread: SpreadExecution): number;
+	// abstract getSpread(spread: SpreadExecution): number;
+	// abstract getSpreadPercent(spread: SpreadExecution): number;
 	abstract getSpreadStart(spread: SpreadExecution): number;
 	abstract getSpreadEnd(spread: SpreadExecution): number;
+	abstract updateSpreadBasis(spread: SpreadExecution): void;
 	abstract subscribeToEvents(graph: Graph): void;
 	abstract getNewSpread(
 		ticker: Ticker,
@@ -82,6 +83,24 @@ export abstract class Arb {
 	// }
 	getId(): string {
 		return this.getInstId();
+	}
+
+	getSpread(spread: SpreadExecution): number {
+		if (spread.entryBasisSize && spread.exitBasisSize) {
+			const basisSpread = spread.exitBasisSize - spread.entryBasisSize;
+			return basisSpread;
+		} else {
+			return Number.NaN;
+		}
+	}
+
+	getSpreadPercent(spread: SpreadExecution): number {
+		if (spread.entryBasisSize) {
+			const basisSpread = this.getSpread(spread);
+			return basisSpread / spread.entryBasisSize;
+		} else {
+			return Number.NaN;
+		}
 	}
 
 	getOperation(
@@ -129,9 +148,8 @@ export abstract class Arb {
 
 	legIn(ticker: Ticker, initiationType: InitiationType, market: Market) {
 		const size: number = ticker.size || Number.NaN;
-		const tickerBasisSize = market.getBasisSize(size);
+		const price: number = ticker.price || Number.NaN;
 		let basisRemainder = Number.NaN;
-		let marketRemainder = Number.NaN;
 		if ((initiationType as InitiationType) === InitiationType.Maker) {
 			basisRemainder =
 				this.graph.parameters.basisSize - this.workingMakerBasisPosition;
@@ -139,43 +157,29 @@ export abstract class Arb {
 			basisRemainder =
 				this.graph.parameters.basisSize - this.workingTakerBasisPosition;
 		}
-		marketRemainder = market.getMarketSize(basisRemainder);
-		// ***************** Debug *****************
-		const legName = `${market.hub.exchange.name}:${market.asset.symbol}/${
-			market.hub.asset.symbol
-		}`;
-		logger.log({
+		const tradableBasisSize = Math.min(
+			market.getBasisSize(size),
+			basisRemainder
+		);
+		const tradableToSize = market.getMarketSize(tradableBasisSize);
+		const mktName = `${market.hub.exchange.name}:${market.asset.symbol}`;
+		const hubName = `${market.hub.exchange.name}:${market.hub.asset.symbol}`;
+		Logger.log({
 			level: "debug",
-			message: `Leg into ${legName}:
-	size=${size},
-	basisSize=${tickerBasisSize},
-	marketRemainder=${marketRemainder},
-	basisRemainder=${basisRemainder}`
+			message: `Leg into ${mktName} from ${hubName}:
+	Ticker Price = ${price},
+	Ticker To Size = ${size},
+	Tradable To Size = ${tradableToSize},
+	Tradable Basis Size = ${tradableBasisSize},
+	Remainder Basis Size = ${basisRemainder}`
 		});
-		// ***************** End Debug *****************
-		if (basisRemainder < tickerBasisSize) {
-			// Won't used all of this ticker. Never want to have more than max basis size.
-			const spread = this.getNewSpread(ticker, marketRemainder, basisRemainder);
-
-			if ((initiationType as InitiationType) === InitiationType.Maker) {
-				this.workingMakerBasisPosition = this.graph.parameters.basisSize;
-				this.makerSpreads.push(spread);
-			} else {
-				this.workingTakerBasisPosition = this.graph.parameters.basisSize;
-				this.takerSpreads.push(spread);
-			}
-			// this.onUpdated.trigger(spread);
+		const spread = this.getNewSpread(ticker, tradableToSize, tradableBasisSize);
+		if ((initiationType as InitiationType) === InitiationType.Maker) {
+			this.workingMakerBasisPosition += tradableBasisSize;
+			this.makerSpreads.push(spread);
 		} else {
-			// Use all of this ticker
-			const spread = this.getNewSpread(ticker, size, tickerBasisSize);
-			if ((initiationType as InitiationType) === InitiationType.Maker) {
-				this.workingMakerBasisPosition += tickerBasisSize;
-				this.makerSpreads.push(spread);
-			} else {
-				this.workingTakerBasisPosition += tickerBasisSize;
-				this.takerSpreads.push(spread);
-			}
-			// this.onUpdated.trigger(spread);
+			this.workingTakerBasisPosition += tradableBasisSize;
+			this.takerSpreads.push(spread);
 		}
 	}
 
@@ -186,14 +190,14 @@ export abstract class Arb {
 		getSwing: (spread: SpreadExecution) => Swing | undefined,
 		legFullyFilled: (spread: SpreadExecution) => void
 	) {
-		// Arb.debugCount++;
+		Arb.debugCount++;
+		const size: number = ticker.size || Number.NaN;
 		const price: number = ticker.price || Number.NaN;
-		const tickerMarketSize: number = ticker.size || Number.NaN;
-		const tickerBasisSize = market.getBasisSize(tickerMarketSize);
+		const tickerFromSize = size * price;
+		let remainderTickerToSize: number = size;
 		let finished: boolean = false;
-		let remainderTickerBasisSize: number = tickerBasisSize;
 		while (!finished) {
-			logger.log({
+			Logger.log({
 				level: "silly",
 				message: `swingToFrom while: ${Arb.debugCount}`
 			});
@@ -206,67 +210,61 @@ export abstract class Arb {
 			if (spread) {
 				const swing = getSwing(spread);
 				if (swing) {
-					// Current Basis Size, "From" Leg:
 					const fromBasisSize = swing.fromLeg.basisSize;
-					if (0 < fromBasisSize) {
-						// Current Basis Size, "To" Leg:
-						const toBasisSize = swing.toLeg.basisSize;
-						// How much to fill "From" Leg:
-						// const tradableBasisSize = fromBasisSize - toBasisSize;
-						// "How much of this ticker is tradable?"
-						const tradableTickerBasisSize = Math.min(
-							fromBasisSize,
-							remainderTickerBasisSize
+					const fromSize = swing.fromLeg.size;
+					const swingSize = swing.getSwingSize(price, fromSize);
+					const toBasisSize = swing.toLeg.basisSize;
+					const currentToSize = swing.toLeg.size;
+					const tradableToSize = swingSize - currentToSize;
+					if (0 < tradableToSize) {
+						const tradableTickerToSize = Math.min(
+							tradableToSize,
+							remainderTickerToSize
 						);
-						// And how much is left over?
-						remainderTickerBasisSize -= tradableTickerBasisSize;
-						const toNewBasisSize = toBasisSize + fromBasisSize;
-						const toNewMarketSize = market.getMarketSize(toNewBasisSize);
-						// ***************** Debug *****************
-						const fromLegName = `${swing.fromLeg.exchange}:${
-							swing.fromLeg.market
-						}/${swing.fromLeg.hub}`;
-						const toLegName = `${swing.toLeg.exchange}:${swing.toLeg.market}/${
-							swing.toLeg.hub
-						}`;
-						logger.log({
-							level: "debug",
-							message: `Swing from ${fromLegName} to ${toLegName}:
-	tickerMarketSize=${tickerMarketSize},
-	tickerBasisSize=${tickerBasisSize},
-	fromBasisSize=${fromBasisSize},
-	toBasisSize=${toBasisSize},
-	remainder=${remainderTickerBasisSize},
-	tradableTicker=${tradableTickerBasisSize}`
-						});
-						// ***************** End Debug *****************
-						if (toBasisSize < fromBasisSize) {
-							if (0 < remainderTickerBasisSize) {
+						remainderTickerToSize -= tradableTickerToSize;
+						const newToSize = currentToSize + tradableTickerToSize;
+						const newToBasisSize = market.getBasisSize(newToSize);
+						if (0 < tradableTickerToSize) {
+							// Log it:
+							const fromLegName = `${swing.fromLeg.exchange}:${
+								swing.fromLeg.market
+							}`;
+							const toLegName = `${swing.toLeg.exchange}:${swing.toLeg.market}`;
+							Logger.log({
+								level: "debug",
+								message: `Swing from ${fromLegName} to ${toLegName}:
+	Ticker Price = ${price},
+	Ticker To Size = ${size},
+	Ticker From Size = ${tickerFromSize},
+	Ticker Tradable Size = ${tradableTickerToSize},
+	Ticker Remainder Size = ${remainderTickerToSize},
+	From Basis Size = ${fromBasisSize},
+	From Size = ${fromSize},
+	To Basis Size Old = ${toBasisSize},
+	To Size Old  = ${currentToSize},
+	To Basis Size New = ${newToBasisSize},
+	To Size New  = ${newToSize},`
+							});
+							// Process it:
+							if (0 < remainderTickerToSize) {
 								// Fill:
 								swing.toLeg.price = this.getToVwapPrice(
 									swing,
 									price,
-									toNewMarketSize
+									newToSize
 								);
-								swing.toLeg.size = toNewMarketSize;
-								swing.toLeg.basisSize = toNewBasisSize;
+								swing.toLeg.size = newToSize;
+								swing.toLeg.basisSize = newToBasisSize;
 								legFullyFilled(spread);
 								// Continue Looping.
 							} else {
 								// Fill:
-								swing.toLeg.price = this.getToVwapPrice(
-									swing,
-									price,
-									tickerMarketSize
-								);
-								swing.toLeg.size = toNewMarketSize;
-								swing.toLeg.basisSize = toNewBasisSize;
+								swing.toLeg.price = this.getToVwapPrice(swing, price, size);
+								swing.toLeg.size = newToSize;
+								swing.toLeg.basisSize = newToBasisSize;
 								// remainderTickerBasisSize = 0;
 								finished = true;
 							}
-							// this.onUpdated.trigger(spread);
-						} else {
-							finished = true;
 						}
 					} else {
 						finished = true;
@@ -309,20 +307,25 @@ export abstract class Arb {
 			market,
 			getSwing,
 			(spread: SpreadExecution) => {
-				if ((initiationType as InitiationType) === InitiationType.Maker) {
-					this.makerSpreads.shift();
-					this.makerStatisticsWindow.push(spread);
-					this.pruneWindow(this.makerStatisticsWindow);
-					spread.spreadsPerMinute = this.makerStatisticsWindow.length;
-				} else {
-					this.takerSpreads.shift();
-					this.takerStatisticsWindow.push(spread);
-					this.pruneWindow(this.takerStatisticsWindow);
-					spread.spreadsPerMinute = this.takerStatisticsWindow.length;
+				this.updateSpreadBasis(spread);
+				if (spread.entryBasisSize && spread.exitBasisSize) {
+					if ((initiationType as InitiationType) === InitiationType.Maker) {
+						this.workingMakerBasisPosition -= spread.entryBasisSize;
+						this.makerSpreads.shift();
+						this.makerStatisticsWindow.push(spread);
+						this.pruneWindow(this.makerStatisticsWindow);
+						spread.spreadsPerMinute = this.makerStatisticsWindow.length;
+					} else {
+						this.workingTakerBasisPosition -= spread.entryBasisSize;
+						this.takerSpreads.shift();
+						this.takerStatisticsWindow.push(spread);
+						this.pruneWindow(this.takerStatisticsWindow);
+						spread.spreadsPerMinute = this.takerStatisticsWindow.length;
+					}
+					spread.spread = this.getSpreadPercent(spread);
+					spread.spreadPercent = this.getSpread(spread);
+					this.onUpdated.trigger(spread);
 				}
-				spread.spread = this.getSpreadPercent(spread);
-				spread.spreadPercent = this.getSpread(spread);
-				this.onUpdated.trigger(spread);
 			}
 		);
 	}

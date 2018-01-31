@@ -23,4 +23,6 @@ export interface SpreadExecution {
 	spreadsPerMinute?: number;
 	start?: Date;
 	end?: Date;
+	entryBasisSize?: number;
+	exitBasisSize?: number;
 }
