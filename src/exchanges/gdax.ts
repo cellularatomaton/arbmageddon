@@ -1,7 +1,8 @@
 import { Exchange } from "./exchange";
-import { Hub, Market, Graph, Ticker, TradeType } from "../markets";
+import { Hub, Market, Graph, Ticker } from "../markets";
 import { Asset } from "../assets";
 import { Logger } from "../utils/logger";
+import { TradeType } from "../utils/enums";
 
 import Gdax = require("gdax");
 

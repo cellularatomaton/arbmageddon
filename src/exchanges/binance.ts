@@ -1,11 +1,18 @@
 import { Exchange } from "./exchange";
-import { Hub, Market, Graph, TradeType } from "../markets";
+import { Hub, Market, Graph } from "../markets";
 import { Asset } from "../assets";
 import { Logger } from "../utils/logger";
+import { TradeType } from "../utils/enums";
 
 const _ = require("lodash");
 const binance = require("node-binance-api");
 const hubSymbols = new Set(["BTC", "ETH", "BNB", "USDT"]);
+
+binance.websockets.trades = (symbols: string[], callback: (trades: any) => void) => {
+	for (const symbol of symbols) {
+		binance.websockets.subscribe(symbol.toLowerCase() + "@aggTrade", callback);
+	}
+};
 
 binance.options({
 	reconnect: false,
@@ -74,14 +81,7 @@ export class BinanceExchange extends Exchange {
 			binance.websockets.trades(symbols, (trades: any) => {
 				Logger.log({
 					level: "debug",
-					message:
-						trades.s +
-						" trade update. price: " +
-						trades.p +
-						", quantity: " +
-						trades.q +
-						", maker: " +
-						trades.m
+					message: trades.s + " trade update. price: " + trades.p + ", quantity: " + trades.q + ", maker: " + trades.m
 				});
 				const parsedSymbols = exchange.parseSymbols(trades.s);
 

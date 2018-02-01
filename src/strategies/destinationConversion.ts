@@ -1,23 +1,21 @@
 import { Arb } from "./arb";
-import { ArbType, InitiationType } from "../utils/enums";
+import { ArbType, InitiationType, TradeType } from "../utils/enums";
 import { SpreadExecution, ExecutionOperation } from "./arbitrage";
 import { Graph } from "../markets/graph";
 import { Market } from "../markets/market";
 import { Ticker } from "../markets/ticker";
 
 export class DestinationConversion extends Arb {
-	public conversionMarket: Market;
+	// public conversionMarket: Market;
 
 	constructor(
 		public originMarket: Market,
 		public destinationMarket: Market,
+		public conversionMarket: Market,
 		public graph: Graph
 	) {
 		super(originMarket, destinationMarket, graph);
-		this.conversionMarket = Graph.getDestinationConversionMarket(
-			originMarket,
-			destinationMarket
-		);
+		// this.conversionMarket = Graph.getDestinationConversionMarket(originMarket, destinationMarket);
 	}
 
 	// getId(): string {
@@ -29,7 +27,7 @@ export class DestinationConversion extends Arb {
 	// 	return `DC.${originExchange}.${originMarket}->${destinationExchange}.${destinationConvert}->${destinationMarket}`;
 	// }
 
-	getInstId(): string {
+	getId(): string {
 		const originExchange = this.originMarket.hub.exchange.id;
 		const originHub = this.originMarket.hub.asset.symbol;
 		const originMarket = this.originMarket.asset.symbol;
@@ -76,10 +74,7 @@ export class DestinationConversion extends Arb {
 
 	updateSpreadBasis(spread: SpreadExecution): void {
 		spread.entryBasisSize = spread.buy.basisSize;
-		if (
-			spread.convert &&
-			spread.sell.size <= spread.convert.size * spread.convert.price
-		) {
+		if (spread.convert && spread.sell.size <= spread.convert.size * spread.convert.price) {
 			spread.exitBasisSize = spread.convert.basisSize;
 		}
 	}
@@ -100,13 +95,9 @@ export class DestinationConversion extends Arb {
 		}
 	}
 
-	getNewSpread(
-		ticker: Ticker,
-		size: number,
-		basisSize: number
-	): SpreadExecution {
+	getNewSpread(ticker: Ticker, size: number, basisSize: number): SpreadExecution {
 		return {
-			id: this.getInstId(),
+			id: this.getId(),
 			spread: Number.NaN,
 			spreadPercent: Number.NaN,
 			spreadsPerMinute: 0,
@@ -138,41 +129,33 @@ export class DestinationConversion extends Arb {
 	}
 
 	handleDestinationTickers(ticker: Ticker, initiationType: InitiationType) {
-		this.legConvert(
-			ticker,
-			initiationType,
-			this.destinationMarket,
-			(spread: SpreadExecution) => {
-				return {
-					fromLeg: spread.buy,
-					toLeg: spread.sell,
-					getSwingSize: (price: number, size: number): number => {
-						return size / price;
-					}
-				};
-			}
-		);
+		this.legConvert(ticker, initiationType, this.destinationMarket, (spread: SpreadExecution) => {
+			return {
+				fromLeg: spread.buy,
+				toLeg: spread.sell,
+				tradeType: TradeType.SELL
+				// getSwingSize: (price: number, size: number): number => {
+				// 	return size / price;
+				// }
+			};
+		});
 	}
 
 	handleConversionTickers(ticker: Ticker, initiationType: InitiationType) {
-		this.legOut(
-			ticker,
-			initiationType,
-			this.conversionMarket,
-			(spread: SpreadExecution) => {
-				if (spread.convert) {
-					return {
-						fromLeg: spread.sell,
-						toLeg: spread.convert,
-						getSwingSize: (price: number, size: number): number => {
-							return size / price;
-						}
-					};
-				} else {
-					return undefined;
-				}
+		this.legOut(ticker, initiationType, this.conversionMarket, (spread: SpreadExecution) => {
+			if (spread.convert) {
+				return {
+					fromLeg: spread.sell,
+					toLeg: spread.convert,
+					tradeType: TradeType.SELL
+					// getSwingSize: (price: number, size: number): number => {
+					// 	return size / price;
+					// }
+				};
+			} else {
+				return undefined;
 			}
-		);
+		});
 	}
 
 	subscribeToEvents(graph: Graph): void {

@@ -1,5 +1,5 @@
 import { Arb } from "./arb";
-import { ArbType, InitiationType } from "../utils/enums";
+import { ArbType, InitiationType, TradeType } from "../utils/enums";
 import { SpreadExecution, ExecutionOperation } from "./arbitrage";
 import { Graph } from "../markets/graph";
 import { Market } from "../markets/market";
@@ -27,7 +27,7 @@ export class DirectArb extends Arb {
 	// 	return `DA.NA:${originExchange}.${originMarket}->${destinationExchange}.${destinationMarket}`;
 	// }
 
-	getInstId(): string {
+	getId(): string {
 		const originExchange = this.originMarket.hub.exchange.id;
 		const originHub = this.originMarket.hub.asset.symbol;
 		const originMarket = this.originMarket.asset.symbol;
@@ -61,13 +61,9 @@ export class DirectArb extends Arb {
 		return spread.sell.end ? spread.sell.end.getTime() : Number.NaN;
 	}
 
-	getNewSpread(
-		ticker: Ticker,
-		size: number,
-		basisSize: number
-	): SpreadExecution {
+	getNewSpread(ticker: Ticker, size: number, basisSize: number): SpreadExecution {
 		return {
-			id: this.getInstId(),
+			id: this.getId(),
 			spread: Number.NaN,
 			spreadPercent: Number.NaN,
 			spreadsPerMinute: 0,
@@ -94,18 +90,15 @@ export class DirectArb extends Arb {
 		this.legIn(ticker, initiationType, this.originMarket);
 	}
 
-	handleDestinationTickers(
-		ticker: Ticker,
-		initiationType: InitiationType,
-		market: Market
-	) {
+	handleDestinationTickers(ticker: Ticker, initiationType: InitiationType, market: Market) {
 		this.legOut(ticker, initiationType, market, (spread: SpreadExecution) => {
 			return {
 				fromLeg: spread.buy,
 				toLeg: spread.sell,
-				getSwingSize: (price: number, size: number): number => {
-					return size / price;
-				}
+				tradeType: TradeType.SELL
+				// getSwingSize: (price: number, size: number): number => {
+				// 	return size / price;
+				// }
 			};
 		});
 	}
@@ -116,22 +109,14 @@ export class DirectArb extends Arb {
 			this.handleOriginTickers(ticker, InitiationType.Maker);
 		});
 		this.destinationMarket.buy.on((ticker: Ticker) => {
-			this.handleDestinationTickers(
-				ticker,
-				InitiationType.Maker,
-				this.destinationMarket
-			);
+			this.handleDestinationTickers(ticker, InitiationType.Maker, this.destinationMarket);
 		});
 		// Taker Spreads
 		this.originMarket.buy.on((ticker: Ticker) => {
 			this.handleOriginTickers(ticker, InitiationType.Taker);
 		});
 		this.destinationMarket.sell.on((ticker: Ticker) => {
-			this.handleDestinationTickers(
-				ticker,
-				InitiationType.Taker,
-				this.destinationMarket
-			);
+			this.handleDestinationTickers(ticker, InitiationType.Taker, this.destinationMarket);
 		});
 
 		// Vwaps:

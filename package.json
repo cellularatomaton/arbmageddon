@@ -42,5 +42,8 @@
   "bugs": {
     "url": "https://github.com/cellularatomaton/crypto-tools/issues"
   },
-  "homepage": "https://github.com/cellularatomaton/crypto-tools#readme"
+  "homepage": "https://github.com/cellularatomaton/crypto-tools#readme",
+  "prettier": {
+    "printWidth": 120
+  }
 }

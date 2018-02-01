@@ -25,7 +25,8 @@ export class Logger {
 			transports: [
 				new winston.transports.File({
 					filename: "debug.log",
-					json: false
+					json: false,
+					maxsize: Math.pow(10, 8)
 				})
 			]
 		});

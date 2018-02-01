@@ -1,13 +1,7 @@
 import { Graph, Market } from "../markets";
 import { IEvent, EventImp } from "../utils";
 import { Logger } from "../utils/logger";
-
-const Logger = require("winston");
-
-export enum TradeType {
-	BUY,
-	SELL
-}
+import { TradeType } from "../utils/enums";
 
 export interface Ticker {
 	exchangeSymbol: string;

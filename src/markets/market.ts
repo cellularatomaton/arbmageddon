@@ -1,8 +1,8 @@
 import { Asset } from "../assets";
 import { Hub } from "./hub";
-import { Graph, Ticker, TradeType } from "../markets";
+import { Graph, Ticker } from "../markets";
 import { TimeUnit, VolumeStatistics } from "./ticker";
-import { InitiationType } from "../utils/enums";
+import { InitiationType, TradeType } from "../utils/enums";
 import { EventImp, IEvent } from "../utils/event";
 import { Logger } from "../utils/logger";
 
@@ -106,14 +106,24 @@ export class Market {
 		if (basisAsset) {
 			const hubAsset = this.hub.asset;
 			const alreadyPricedInBasis = hubAsset.symbol === basisAsset.symbol;
+			const isBasis = this.asset.symbol === basisAsset.symbol;
 			const price = this.getBuyVwap();
-			if (alreadyPricedInBasis) {
-				const size = basisSize / price;
+			if (isBasis) {
+				const size = basisSize;
 				Logger.log({
 					level: "debug",
-					message: `Market size for ${this.asset.symbol}/${
-						this.hub.asset.symbol
-					}:
+					message: `Market Size [Is Basis]  ${this.asset.symbol}:
+	Market & Basis Size = ${size},
+	Price = ${price},`
+				});
+				return size;
+			} else if (alreadyPricedInBasis) {
+				const size = basisSize / price;
+				const s = this.asset.symbol;
+				const hs = this.hub.asset.symbol;
+				Logger.log({
+					level: "debug",
+					message: `Market Size [Priced In Basis] ${hs} -> ${s}:
 	Basis Size = ${basisSize},
 	Price = ${price},
 	Market Size = ${size},`
@@ -125,11 +135,12 @@ export class Market {
 				if (conversionMarket) {
 					const conversionPrice = conversionMarket.getBuyVwap();
 					const size = basisSize / conversionPrice / price;
+					const s = this.asset.symbol;
+					const hs = this.hub.asset.symbol;
+					const chs = conversionMarket.asset.symbol;
 					Logger.log({
 						level: "debug",
-						message: `Market size for ${this.asset.symbol}/${
-							this.hub.asset.symbol
-						}:
+						message: `Market Size [Converted To Basis] ${chs}->${hs}->${s}:
 	Basis Size=${basisSize},
 	Conversion Price=${conversionPrice},
 	Price=${price},
