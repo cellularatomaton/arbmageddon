@@ -1,5 +1,6 @@
-import { Hub, Market, Graph, Ticker, TradeType } from "../markets";
+import { Hub, Market, Graph, Ticker } from "../markets";
 import { Asset } from "../assets";
+import { Logger } from "../utils/logger";
 
 export interface HubMarketPair {
 	hubSymbol: string;
@@ -17,6 +18,9 @@ export class Exchange {
 	}
 
 	mapMarket(hubSymbol: string, marketSymbol: string): any {
+		// if (hubSymbol === marketSymbol) {
+		// 	log.warn(`Bad mapping ${marketSymbol}/${hubSymbol}`);
+		// }
 		const hub = this.getHub(hubSymbol);
 		const market = hub.getMarket(marketSymbol);
 		return market;
@@ -37,19 +41,28 @@ export class Exchange {
 		const response = this.mapMarket(ticker.hubSymbol, ticker.marketSymbol);
 		if (response) {
 			const market = response;
-			market.updateVwap(ticker);
+			market.updateTicker(ticker);
 		}
 	}
 
 	log() {
-		console.log(`Exchange: ${this.id}`.green);
+		Logger.log({
+			level: "debug",
+			message: `Exchange: ${this.id}`
+		});
 		this.hubs.forEach((hub: Hub, symbol: string) => {
-			console.log(`Hub: ${symbol}`.blue);
+			Logger.log({
+				level: "debug",
+				message: `Hub: ${symbol}`
+			});
 			const marketList: string[] = [];
 			hub.markets.forEach((market: Market, marketSymbol: string) => {
 				marketList.push(marketSymbol);
 			});
-			console.log(`Markets: ${marketList.join(",")}`.magenta);
+			Logger.log({
+				level: "debug",
+				message: `Markets: ${marketList.join(",")}`
+			});
 		});
 	}
 }

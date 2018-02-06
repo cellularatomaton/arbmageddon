@@ -1,6 +1,7 @@
 import { Market, Graph } from "../markets";
 import { Asset } from "../assets";
 import { Exchange } from "../exchanges";
+import { Logger } from "../utils/logger";
 
 export class Hub {
 	asset: Asset;
@@ -15,6 +16,12 @@ export class Hub {
 	}
 
 	getMarket(symbol: string): Market {
+		if (symbol === this.asset.symbol) {
+			Logger.log({
+				level: "warn",
+				message: `Bad hub -> market mapping: ${symbol}/${this.asset.symbol}`
+			});
+		}
 		let market = this.markets.get(symbol);
 		if (market) {
 			return market;

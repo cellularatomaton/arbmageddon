@@ -6,14 +6,15 @@ import {
 	BinanceExchange,
 	PoloniexExchange
 } from "../src/exchanges";
-import { ExecutionInstruction } from "../src/strategies";
+import { SpreadExecution } from "../src/strategies";
 import { NextFunction, Request, Response, Router } from "express";
 import { GraphParameters } from "../src/markets/graph";
+import { Logger } from "../src/utils/logger";
 
 const express = require("express");
 const path = require("path");
 const favicon = require("serve-favicon");
-const logger = require("morgan");
+// const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const usersRoute = require("./routes/users");
@@ -33,7 +34,7 @@ app.engine(".html", require("ejs").renderFile);
 
 // uncomment after placing your favicon in /public
 // app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
-app.use(logger("dev"));
+// app.use(morgan("dev"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -61,10 +62,16 @@ wss.broadcast = (event: any) => {
 	});
 };
 
-graphModel.arb.on((inst?: ExecutionInstruction) => {
-	// console.log(`Graph Triggered Instructions: ${JSON.stringify(inst)}`)
+graphModel.arb.on((inst?: SpreadExecution) => {
+	Logger.log({
+		level: "silly",
+		message: `Graph Triggered Instructions: ${JSON.stringify(inst)}`
+	});
 	if (inst) {
-		// console.log(`Broadcasting...`);
+		Logger.log({
+			level: "silly",
+			message: `Broadcasting...`
+		});
 		wss.broadcast({
 			from: "graph",
 			to: "gui",
@@ -77,14 +84,20 @@ graphModel.arb.on((inst?: ExecutionInstruction) => {
 
 wss.on("connection", (ws: any) => {
 	ws.on("message", (message: any) => {
-		console.log(`Websocket message received: ${JSON.stringify(message)}`);
+		Logger.log({
+			level: "silly",
+			message: `Websocket message received: ${JSON.stringify(message)}`
+		});
 		if (
 			message.from === "gui" &&
 			message.to === "graph" &&
 			message.type === "params"
 		) {
 			if (message.action === "set") {
-				console.log(`Setting graph params: ${JSON.stringify(message.data)}`);
+				Logger.log({
+					level: "info",
+					message: `Setting graph params: ${JSON.stringify(message.data)}`
+				});
 				graphModel.updateParams(message.data as GraphParameters);
 			} else if (message.action === "get") {
 				wss.send(

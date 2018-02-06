@@ -1,12 +1,7 @@
 import { Hub, Market } from "../markets";
 import { Asset } from "../assets";
-import {
-	Exchange,
-	GdaxExchange,
-	BinanceExchange,
-	PoloniexExchange
-} from "../exchanges";
-import { ExecutionInstruction } from "../strategies";
+import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from "../exchanges";
+import { SpreadExecution } from "../strategies";
 import { IEvent, EventImp } from "../utils";
 import { InitiationType } from "../utils";
 import { Arb } from "../strategies/arb";
@@ -15,6 +10,7 @@ import * as _ from "lodash";
 import { DestinationConversion } from "../strategies/destinationConversion";
 import { DirectArb } from "../strategies/directArb";
 import { OriginConversion } from "../strategies/originConversion";
+import { Logger } from "../utils/logger";
 
 export interface GraphParameters {
 	basisAssetSymbol: string;
@@ -24,84 +20,53 @@ export interface GraphParameters {
 }
 
 export class Graph {
-	public static getSupportedArbTypes(
-		originMarket: Market,
-		destinationMarket: Market
-	): ArbType[] {
+	public static getSupportedArbTypes(originMarket: Market, destinationMarket: Market): ArbType[] {
 		const supportedTypes: ArbType[] = [];
-		const originConversion = Graph.getOriginConversionMarket(
-			originMarket,
-			destinationMarket
-		);
-		const destinationConversion = Graph.getDestinationConversionMarket(
-			originMarket,
-			destinationMarket
-		);
-		if (
-			originMarket.getBuyVwap() === 0 ||
-			destinationMarket.getSellVwap() === 0
-		) {
+		const originConversion = Graph.getOriginMarketConversion(originMarket, destinationMarket);
+		const destinationConversion = Graph.getDestinationMarketConversion(originMarket, destinationMarket);
+		if (originMarket.getBuyVwap() === Number.NaN || destinationMarket.getSellVwap() === Number.NaN) {
 			return [];
 		} else {
 			if (Graph.isSimpleArb(originMarket, destinationMarket)) {
 				supportedTypes.push(ArbType.Direct);
-			}
-			if (originConversion) {
-				supportedTypes.push(ArbType.OriginConversion);
-			}
-			if (destinationConversion) {
-				supportedTypes.push(ArbType.DestinationConversion);
+			} else {
+				if (originConversion) {
+					supportedTypes.push(ArbType.OriginConversion);
+				}
+				if (destinationConversion) {
+					supportedTypes.push(ArbType.DestinationConversion);
+				}
 			}
 		}
 		return supportedTypes;
 	}
 
-	public static getOriginConversionMarket(
-		originMarket: Market,
-		destinationMarket: Market
-	): Market {
-		const destinationHub = destinationMarket.hub.asset.symbol;
-		const originHub = originMarket.hub.asset.symbol;
-		const originExchange = originMarket.hub.exchange;
-		const originConversionHub = originExchange.getHub(destinationHub);
-		const originConversion = originConversionHub.getMarket(originHub);
-		return originConversion;
-	}
-
-	public static getDestinationConversionMarket(
-		originMarket: Market,
-		destinationMarket: Market
-	): Market {
-		const originHub = originMarket.hub.asset.symbol;
-		const destinationHub = destinationMarket.hub.asset.symbol;
-		const destinationExchange = destinationMarket.hub.exchange;
-		const destinationConversionHub = destinationExchange.getHub(originHub);
-		const destinationConversion = destinationConversionHub.getMarket(
-			destinationHub
+	public static getOriginMarketConversion(originMarket: Market, destinationMarket: Market): Market | undefined {
+		return Graph.getConversion(
+			originMarket.hub.exchange,
+			destinationMarket.hub.asset.symbol,
+			originMarket.hub.asset.symbol
 		);
-		return destinationConversion;
 	}
 
-	public static getArb(
-		arbType: ArbType,
-		originMarket: Market,
-		destinationMarket: Market
-	): Arb | undefined {
-		if ((arbType as ArbType) === ArbType.Direct) {
-			return new DirectArb(originMarket, destinationMarket);
-		} else if ((arbType as ArbType) === ArbType.OriginConversion) {
-			return new OriginConversion(originMarket, destinationMarket);
-		} else if ((arbType as ArbType) === ArbType.DestinationConversion) {
-			return new DestinationConversion(originMarket, destinationMarket);
+	public static getDestinationMarketConversion(originMarket: Market, destinationMarket: Market): Market | undefined {
+		return Graph.getConversion(
+			destinationMarket.hub.exchange,
+			originMarket.hub.asset.symbol,
+			destinationMarket.hub.asset.symbol
+		);
+	}
+
+	public static getConversion(exchange: Exchange, hub: string, market: string): Market | undefined {
+		const conversionHub = exchange.getHub(hub);
+		if (conversionHub.asset.symbol !== market) {
+			return conversionHub.getMarket(market);
 		} else {
 			return undefined;
 		}
 	}
 
-	public static isSimpleArb(
-		originMarket: Market,
-		destinationMarket: Market
-	): boolean {
+	public static isSimpleArb(originMarket: Market, destinationMarket: Market): boolean {
 		const originHub = originMarket.hub.asset.symbol;
 		const originExchange = originMarket.hub.exchange.id;
 		const destinationHub = destinationMarket.hub.asset.symbol;
@@ -122,23 +87,47 @@ export class Graph {
 		initiationType: InitiationType.Taker
 	};
 	exchanges: Exchange[];
-	onArb: EventImp<ExecutionInstruction> = new EventImp<ExecutionInstruction>();
-	get arb(): IEvent<ExecutionInstruction> {
+	onArb: EventImp<SpreadExecution> = new EventImp<SpreadExecution>();
+	get arb(): IEvent<SpreadExecution> {
 		return this.onArb.expose();
 	}
 	constructor() {
 		this.assetMap = new Map<string, Asset>();
 		this.arbMap = new Map<string, Arb>();
-		this.exchanges = [
-			new GdaxExchange(this),
-			new BinanceExchange(this),
-			new PoloniexExchange(this)
-		];
-		const arbFinder = () => {
-			this.findArbs();
-			setTimeout(arbFinder, 1000);
-		};
-		arbFinder();
+		this.exchanges = [new GdaxExchange(this), new BinanceExchange(this), new PoloniexExchange(this)];
+		// const arbFinder = () => {
+		// 	this.findArbs();
+		// 	setTimeout(arbFinder, 5000);
+		// };
+		// arbFinder();
+	}
+
+	exchangeReady(exchange: Exchange) {
+		this.findArbs();
+		Logger.log({
+			level: "info",
+			message: `Exchange Ready [${exchange.name}]
+	Exchange Count: ${this.exchanges.length},
+	Asset Count: ${this.assetMap.size},
+	Arb Count: ${this.arbMap.size}`
+		});
+	}
+
+	getArb(arbType: ArbType, originMarket: Market, destinationMarket: Market): Arb | undefined {
+		if ((arbType as ArbType) === ArbType.Direct) {
+			return new DirectArb(originMarket, destinationMarket, this);
+		} else if ((arbType as ArbType) === ArbType.OriginConversion) {
+			const conversionMarket = Graph.getOriginMarketConversion(originMarket, destinationMarket);
+			if (conversionMarket) {
+				return new OriginConversion(originMarket, destinationMarket, conversionMarket, this);
+			}
+		} else if ((arbType as ArbType) === ArbType.DestinationConversion) {
+			const conversionMarket = Graph.getDestinationMarketConversion(originMarket, destinationMarket);
+			if (conversionMarket) {
+				return new DestinationConversion(originMarket, destinationMarket, conversionMarket, this);
+			}
+		}
+		return undefined;
 	}
 
 	mapBasis() {
@@ -156,35 +145,33 @@ export class Graph {
 	findArbs() {
 		this.assetMap.forEach((asset: Asset, symbol: string) => {
 			asset.markets.forEach((originMarket: Market, originIndex: number) => {
-				asset.markets.forEach(
-					(destinationMarket: Market, destinationIndex: number) => {
-						const arbTypes = Graph.getSupportedArbTypes(
-							originMarket,
-							destinationMarket
-						);
+				asset.markets.forEach((destinationMarket: Market, destinationIndex: number) => {
+					if (originMarket !== destinationMarket) {
+						const arbTypes = Graph.getSupportedArbTypes(originMarket, destinationMarket);
 						arbTypes.forEach((type: ArbType) => {
-							const arb = Graph.getArb(type, originMarket, destinationMarket);
+							const arb = this.getArb(type, originMarket, destinationMarket);
 							if (arb) {
 								const id = arb.getId();
 								if (!this.arbMap.has(id)) {
-									console.log(`Mapping Arb: ${id}`);
-									arb.updated.on(
-										_.throttle((inst?: ExecutionInstruction) => {
-											if (inst) {
-												// console.log(
-												// 	`Arb Triggered Instructions: ${JSON.stringify(inst)}`
-												// );
-												this.onArb.trigger(inst);
-											}
-										}, 1000)
-									);
+									Logger.log({
+										level: "debug",
+										message: `Mapping Arb: ${id}`
+									});
+									arb.updated.on((spread: SpreadExecution) => {
+										Logger.log({
+											level: "debug",
+											message: `Arb Triggered`,
+											data: spread
+										});
+										this.onArb.trigger(spread);
+									});
 									this.arbMap.set(arb.getId(), arb);
 									arb.subscribeToEvents(this);
 								}
 							}
 						});
 					}
-				);
+				});
 			});
 		});
 	}

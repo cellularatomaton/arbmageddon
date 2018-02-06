@@ -1,10 +1,7 @@
 import { Graph, Market } from "../markets";
 import { IEvent, EventImp } from "../utils";
-
-export enum TradeType {
-	BUY,
-	SELL
-}
+import { Logger } from "../utils/logger";
+import { TradeType } from "../utils/enums";
 
 export interface Ticker {
 	exchangeSymbol: string;
@@ -25,7 +22,7 @@ export enum TimeUnit {
 	HOUR
 }
 
-export interface VWAP {
+export interface Vwap {
 	vwap: number;
 	duration: number;
 }
@@ -34,15 +31,22 @@ export class VolumeStatistics {
 	window: Ticker[] = [];
 	vwapNumerator: number = 0;
 	vwapDenominator: number = 0;
+	lastPrice: number = Number.NaN;
 
-	onVwapUpdated: EventImp<VWAP> = new EventImp<VWAP>();
-	get vwapUpdated(): IEvent<VWAP> {
+	onVwapUpdated: EventImp<Vwap> = new EventImp<Vwap>();
+	get vwapUpdated(): IEvent<Vwap> {
 		return this.onVwapUpdated.expose();
 	}
 
 	constructor(private market: Market) {}
 
 	getVwap() {
+		Logger.log({
+			level: "debug",
+			message: `Get Vwap [${this.market.getId()}]
+	Numerator: ${this.vwapNumerator},
+	Denominator: ${this.vwapDenominator}`
+		});
 		return this.vwapNumerator / this.vwapDenominator;
 	}
 
@@ -61,6 +65,7 @@ export class VolumeStatistics {
 		if (ticker.size && ticker.price) {
 			this.vwapNumerator += ticker.size * ticker.price;
 			this.vwapDenominator += ticker.size;
+			this.lastPrice = ticker.price;
 		}
 	}
 
@@ -73,35 +78,8 @@ export class VolumeStatistics {
 		}
 	}
 
-	calcWindowSize(): number {
-		const graph = this.market.graph;
-		const basisSize = graph.parameters.basisSize;
-		const basisAsset = graph.basisAsset;
-		if (basisAsset) {
-			const hubAsset = this.market.hub.asset;
-			const alreadyPricedInBasis = hubAsset.symbol === basisAsset.symbol;
-			const price = this.market.getBuyVwap();
-			if (alreadyPricedInBasis) {
-				const size = basisSize / price;
-				return size;
-			} else {
-				// Look through hub markets for conversion:
-				const conversionMarket = this.market.hub.markets.get(basisAsset.symbol);
-				if (conversionMarket) {
-					const conversionPrice = conversionMarket.getBuyVwap();
-					const size = basisSize / conversionPrice / price;
-					return size;
-				} else {
-					return Number.NaN;
-				}
-			}
-		} else {
-			return Number.NaN;
-		}
-	}
-
 	handleTicker(ticker: Ticker) {
-		const windowSize = this.calcWindowSize();
+		const windowSize = this.market.asset.getMarketSize(this.market);
 		if (!Number.isNaN(this.vwapDenominator) && !Number.isNaN(windowSize)) {
 			let rolling = true;
 			while (rolling) {
@@ -115,11 +93,15 @@ export class VolumeStatistics {
 			}
 		}
 		this.addTicker(ticker);
-		const vwap: VWAP = {
+		const vwap: Vwap = {
 			vwap: this.getVwap(),
 			duration: this.getDuration()
 		};
-		// console.log(`Ticker Triggered VWAP: ${JSON.stringify(vwap)}`);
+		Logger.log({
+			level: "silly",
+			message: `Ticker Triggered VWAP`,
+			data: vwap
+		});
 		this.onVwapUpdated.trigger(vwap);
 	}
 }
