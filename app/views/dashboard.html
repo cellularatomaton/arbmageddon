@@ -273,8 +273,8 @@
 								<td>{{ (spread.hubSpread).toFixed(4) }}</td>
 								<td>{{ (spread.spreadPercent * 100).toFixed(2) }}</td>
 								<td>{{ spread.spreadsPerMinute }}</td>
-								<td>{{ (spread.spreadsPerMinute * spread.hubSpread).toFixed(4) }}</td>
-								<td>{{ (spread.spreadsPerMinute * spread.spread).toFixed(4) }}</td>
+								<td>{{ spread.hubPerMinute.toFixed(4) }}</td>
+								<td>{{ spread.basisPerMinute.toFixed(4) }}</td>
 							</tr>
 						</tbody>
 					</table>
@@ -292,7 +292,7 @@
 		let validUpdateCount = 0;
 		const ws = new WebSocket('ws://localhost:8080/');
 		const getCoinigySymbol = (op) => {
-			return `${exchMap[op.exchange]}:${op.market}${op.hub}`;
+			return `${op.exchange}:${op.market}${op.hub}`;
 		}
 		const getMccQueryString = (spread) => {
 			if (spread) {
@@ -376,7 +376,7 @@
 							appDash.exchanges = response.body;
 							exchMap = appDash.exchanges.reduce((map, exch) => {
 								// map[exch.id] = exch.name;
-								map[exch.name] = exch.id;
+								map[exch.id] = exch.name;
 								return map;
 							}, {});
 							resolve();
@@ -404,7 +404,7 @@
 				},
 				arbIsGood(spread) {
 					if (spread) {
-						return 0 < spread.timeAboveTarget && spread.sumOfDurations < spread.timeAboveTarget;
+						return 0 < spread.spreadsPerMinute;
 					} else {
 						return false;
 					}
@@ -432,7 +432,7 @@
 				},
 				sortLoop: () => {
 					appDash.arbList.sort((a, b) => {
-						return b.spread - a.spread;
+						return b.basisPerMinute - a.basisPerMinute;
 					});
 					setTimeout(appDash.sortLoop, 1000);
 				},
@@ -451,8 +451,11 @@
 							}
 							arb.timeAboveTarget = Date.now() - arb.spreadEnteredAt;
 							arb.spread = update.spread;
+							arb.hubSpread = update.hubSpread;
 							arb.spreadPercent = update.spreadPercent;
 							arb.spreadsPerMinute = update.spreadsPerMinute;
+							arb.hubPerMinute = update.spreadsPerMinute * update.hubSpread;
+							arb.basisPerMinute = update.spreadsPerMinute * update.spread;
 							arb.buy.price = update.buy.price;
 							arb.buy.duration = update.buy.duration;
 							arb.buy.size = update.buy.size;
