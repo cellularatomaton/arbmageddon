@@ -31,6 +31,7 @@ export class VolumeStatistics {
 	window: Ticker[] = [];
 	vwapNumerator: number = 0;
 	vwapDenominator: number = 0;
+	lastPrice: number = Number.NaN;
 
 	onVwapUpdated: EventImp<Vwap> = new EventImp<Vwap>();
 	get vwapUpdated(): IEvent<Vwap> {
@@ -40,6 +41,12 @@ export class VolumeStatistics {
 	constructor(private market: Market) {}
 
 	getVwap() {
+		Logger.log({
+			level: "debug",
+			message: `Get Vwap [${this.market.getId()}]
+	Numerator: ${this.vwapNumerator},
+	Denominator: ${this.vwapDenominator}`
+		});
 		return this.vwapNumerator / this.vwapDenominator;
 	}
 
@@ -58,6 +65,7 @@ export class VolumeStatistics {
 		if (ticker.size && ticker.price) {
 			this.vwapNumerator += ticker.size * ticker.price;
 			this.vwapDenominator += ticker.size;
+			this.lastPrice = ticker.price;
 		}
 	}
 
@@ -71,7 +79,7 @@ export class VolumeStatistics {
 	}
 
 	handleTicker(ticker: Ticker) {
-		const windowSize = this.market.getMarketSize();
+		const windowSize = this.market.asset.getMarketSize(this.market);
 		if (!Number.isNaN(this.vwapDenominator) && !Number.isNaN(windowSize)) {
 			let rolling = true;
 			while (rolling) {

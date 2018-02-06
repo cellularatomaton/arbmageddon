@@ -22,43 +22,45 @@ export interface GraphParameters {
 export class Graph {
 	public static getSupportedArbTypes(originMarket: Market, destinationMarket: Market): ArbType[] {
 		const supportedTypes: ArbType[] = [];
-		const originConversion = Graph.getOriginConversionMarket(originMarket, destinationMarket);
-		const destinationConversion = Graph.getDestinationConversionMarket(originMarket, destinationMarket);
+		const originConversion = Graph.getOriginMarketConversion(originMarket, destinationMarket);
+		const destinationConversion = Graph.getDestinationMarketConversion(originMarket, destinationMarket);
 		if (originMarket.getBuyVwap() === Number.NaN || destinationMarket.getSellVwap() === Number.NaN) {
 			return [];
 		} else {
 			if (Graph.isSimpleArb(originMarket, destinationMarket)) {
 				supportedTypes.push(ArbType.Direct);
-			}
-			if (originConversion) {
-				supportedTypes.push(ArbType.OriginConversion);
-			}
-			if (destinationConversion) {
-				supportedTypes.push(ArbType.DestinationConversion);
+			} else {
+				if (originConversion) {
+					supportedTypes.push(ArbType.OriginConversion);
+				}
+				if (destinationConversion) {
+					supportedTypes.push(ArbType.DestinationConversion);
+				}
 			}
 		}
 		return supportedTypes;
 	}
 
-	public static getOriginConversionMarket(originMarket: Market, destinationMarket: Market): Market | undefined {
-		const destinationHub = destinationMarket.hub.asset.symbol;
-		const originHub = originMarket.hub.asset.symbol;
-		const originExchange = originMarket.hub.exchange;
-		const originConversionHub = originExchange.getHub(destinationHub);
-		if (originConversionHub.asset.symbol !== originHub) {
-			return originConversionHub.getMarket(originHub);
-		} else {
-			return undefined;
-		}
+	public static getOriginMarketConversion(originMarket: Market, destinationMarket: Market): Market | undefined {
+		return Graph.getConversion(
+			originMarket.hub.exchange,
+			destinationMarket.hub.asset.symbol,
+			originMarket.hub.asset.symbol
+		);
 	}
 
-	public static getDestinationConversionMarket(originMarket: Market, destinationMarket: Market): Market | undefined {
-		const originHub = originMarket.hub.asset.symbol;
-		const destinationHub = destinationMarket.hub.asset.symbol;
-		const destinationExchange = destinationMarket.hub.exchange;
-		const destinationConversionHub = destinationExchange.getHub(originHub);
-		if (destinationConversionHub.asset.symbol !== destinationHub) {
-			return destinationConversionHub.getMarket(destinationHub);
+	public static getDestinationMarketConversion(originMarket: Market, destinationMarket: Market): Market | undefined {
+		return Graph.getConversion(
+			destinationMarket.hub.exchange,
+			originMarket.hub.asset.symbol,
+			destinationMarket.hub.asset.symbol
+		);
+	}
+
+	public static getConversion(exchange: Exchange, hub: string, market: string): Market | undefined {
+		const conversionHub = exchange.getHub(hub);
+		if (conversionHub.asset.symbol !== market) {
+			return conversionHub.getMarket(market);
 		} else {
 			return undefined;
 		}
@@ -93,23 +95,34 @@ export class Graph {
 		this.assetMap = new Map<string, Asset>();
 		this.arbMap = new Map<string, Arb>();
 		this.exchanges = [new GdaxExchange(this), new BinanceExchange(this), new PoloniexExchange(this)];
-		const arbFinder = () => {
-			this.findArbs();
-			setTimeout(arbFinder, 5000);
-		};
-		arbFinder();
+		// const arbFinder = () => {
+		// 	this.findArbs();
+		// 	setTimeout(arbFinder, 5000);
+		// };
+		// arbFinder();
+	}
+
+	exchangeReady(exchange: Exchange) {
+		this.findArbs();
+		Logger.log({
+			level: "info",
+			message: `Exchange Ready [${exchange.name}]
+	Exchange Count: ${this.exchanges.length},
+	Asset Count: ${this.assetMap.size},
+	Arb Count: ${this.arbMap.size}`
+		});
 	}
 
 	getArb(arbType: ArbType, originMarket: Market, destinationMarket: Market): Arb | undefined {
 		if ((arbType as ArbType) === ArbType.Direct) {
 			return new DirectArb(originMarket, destinationMarket, this);
 		} else if ((arbType as ArbType) === ArbType.OriginConversion) {
-			const conversionMarket = Graph.getOriginConversionMarket(originMarket, destinationMarket);
+			const conversionMarket = Graph.getOriginMarketConversion(originMarket, destinationMarket);
 			if (conversionMarket) {
 				return new OriginConversion(originMarket, destinationMarket, conversionMarket, this);
 			}
 		} else if ((arbType as ArbType) === ArbType.DestinationConversion) {
-			const conversionMarket = Graph.getDestinationConversionMarket(originMarket, destinationMarket);
+			const conversionMarket = Graph.getDestinationMarketConversion(originMarket, destinationMarket);
 			if (conversionMarket) {
 				return new DestinationConversion(originMarket, destinationMarket, conversionMarket, this);
 			}
@@ -133,23 +146,6 @@ export class Graph {
 		this.assetMap.forEach((asset: Asset, symbol: string) => {
 			asset.markets.forEach((originMarket: Market, originIndex: number) => {
 				asset.markets.forEach((destinationMarket: Market, destinationIndex: number) => {
-					// if (originMarket.hub.asset.symbol === originMarket.asset.symbol) {
-					// 	log.warn(
-					// 		`Bad origin symbol ${originMarket.asset.symbol}/${
-					// 			originMarket.hub.asset.symbol
-					// 		}`
-					// 	);
-					// }
-					// if (
-					// 	destinationMarket.hub.asset.symbol ===
-					// 	destinationMarket.asset.symbol
-					// ) {
-					// 	log.warn(
-					// 		`Bad destination symbol ${destinationMarket.asset.symbol}/${
-					// 			destinationMarket.hub.asset.symbol
-					// 		}`
-					// 	);
-					// }
 					if (originMarket !== destinationMarket) {
 						const arbTypes = Graph.getSupportedArbTypes(originMarket, destinationMarket);
 						arbTypes.forEach((type: ArbType) => {
@@ -162,18 +158,9 @@ export class Graph {
 										message: `Mapping Arb: ${id}`
 									});
 									arb.updated.on((spread: SpreadExecution) => {
-										// _.throttle((inst?: SpreadExecution) => {
-										// 	if (inst) {
-										// log.log({
-										// 	level: "debug",
-										// 	message: `Arb Triggered Instructions: ${JSON.stringify(inst)}`
-										// });
-										// 		this.onArb.trigger(inst);
-										// 	}
-										// }, 1000);
 										Logger.log({
 											level: "debug",
-											message: `Arb Triggered Instructions`,
+											message: `Arb Triggered`,
 											data: spread
 										});
 										this.onArb.trigger(spread);

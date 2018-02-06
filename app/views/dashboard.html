@@ -66,8 +66,16 @@
 			padding: 5px;
 		}
 
+		.spread {
+			border: solid;
+			border-width: 2px;
+			border-color: white;
+			color: white;
+		}
+
 		.selected {
 			background-color: aqua;
+			color: black;
 		}
 
 		.buy-convert-op {
@@ -133,39 +141,41 @@
 	<script type="text/x-template" id="operation-template">
 		<div class="flex-col elbow-room ">
 			<div class="center-contents">
-				<strong v-if="side === 'buy'">{{ title }}: [{{ operation.exchange }}] {{ operation.hub }} -> {{ operation.market }}</strong>
-				<strong v-else>{{ title }}: [{{ operation.exchange }}] {{ operation.market }} -> {{ operation.hub }}</strong>
+				<strong v-if="side === 'buy'">{{ title }}: [{{ operation.exchange }}] {{ operation.market }} / {{ operation.hub }}</strong>
+				<strong v-else>{{ title }}: [{{ operation.exchange }}] {{ operation.market }} / {{ operation.hub }}</strong>
 			</div>
 			<div class="flex-grow flex-row flex-wrap flex-stretch">
 				<div class="flex-grow">
 					<span>VWAP</span>
 					<span>{{ operation.price.toFixed(8) }}</span>
 				</div>
+			</div>
+			<div class="flex-grow flex-row flex-wrap flex-stretch">
 				<div class="flex-grow">
-					<span>Duration</span>
-					<span>{{ (operation.duration/1000).toFixed(0) }}</span>
-				</div>
-				<div class="flex-grow">
-					<span>Size</span>
+					<span>Market Size: </span>
 					<span>{{ operation.size.toFixed(8) }}</span>
 				</div>
 				<div class="flex-grow">
-					<span>BasisSize</span>
+					<span>Hub Size: </span>
+					<span>{{ operation.hubSize.toFixed(8) }}</span>
+				</div>
+				<div class="flex-grow">
+					<span>Basis Size: </span>
 					<span>{{ operation.basisSize.toFixed(8) }}</span>
 				</div>
 			</div>
 			<div class="flex-grow flex-row flex-wrap flex-stretch">
 				<div class="flex-grow">
-					<span>Position</span>
+					<span>Hub Position</span>
 					<span>{{ operation.position }}</span>
 				</div>
-			<div class="flex-grow">
-					<span>Open Bids</span>
-					<span>{{ operation.openBids }}</span>
+				<div class="flex-grow">
+					<span>Market Position</span>
+					<span>{{ operation.position }}</span>
 				</div>
 				<div class="flex-grow">
-					<span>Open Asks</span>
-					<span>{{ operation.openAsks }}</span>
+					<span>Basis Position</span>
+					<span>{{ operation.position }}</span>
 				</div>
 			</div>
 			<button>Execute!</button>
@@ -177,15 +187,26 @@
 	<div id="app-dash" class="app-container flex-col elbow-room">
 		<div>
 			<div class="flex-row flex-stretch elbow-room">
-				<execution-component v-if="selectedInst && selectedInst.type === 1" side="buy" class="buy-convert-op flex-grow" title="Buy Convert"
-				 :operation="selectedInst.convert"></execution-component>
-				<execution-component v-if="selectedInst" side="buy" class="buy-op flex-grow" title="Buy" :operation="selectedInst ? selectedInst.buy : null"></execution-component>
-				<execution-component v-if="selectedInst" side="sell" class="sell-op flex-grow" title="Sell" :operation="selectedInst ? selectedInst.sell: null"></execution-component>
-				<execution-component v-if="selectedInst && selectedInst.type === 2" side="sell" class="sell-convert-op flex-grow" title="Sell Convert"
-				 :operation="selectedInst.convert"></execution-component>
+				<execution-component v-if="selectedSpread && selectedSpread.type === 1" side="buy" class="buy-convert-op flex-grow" title="Buy Convert"
+				 :operation="selectedSpread.convert"></execution-component>
+				<execution-component v-if="selectedSpread" side="buy" class="buy-op flex-grow" title="Buy" :operation="selectedSpread ? selectedSpread.buy : null"></execution-component>
+				<execution-component v-if="selectedSpread" side="sell" class="sell-op flex-grow" title="Sell" :operation="selectedSpread ? selectedSpread.sell: null"></execution-component>
+				<execution-component v-if="selectedSpread && selectedSpread.type === 2" side="sell" class="sell-convert-op flex-grow" title="Sell Convert"
+				 :operation="selectedSpread.convert"></execution-component>
 			</div>
 		</div>
 		<div>
+			<div v-if="selectedSpread" class="spread elbow-room flex-row flex-justify">
+				<div>
+					<strong>Arb: {{ selectedSpread.id }}</strong>
+				</div>
+				<div v-bind:class="{ 'arb-good': arbIsGood(selectedSpread), 'arb-bad': !arbIsGood(selectedSpread) }">
+					<strong>Spreads Per Minute: {{ selectedSpread.spreadsPerMinute }}</strong>
+				</div>
+				<div v-bind:class="{ 'arb-good': arbIsGood(selectedSpread), 'arb-bad': !arbIsGood(selectedSpread) }">
+					<strong>Basis Per Minute: {{ (selectedSpread.spreadsPerMinute * selectedSpread.spread).toFixed(4) }}</strong>
+				</div>
+			</div>
 			<div class="flex-row flex-justify">
 				<div class="flex-col flex-start">
 					<span>Arb Types:</span>
@@ -220,9 +241,6 @@
 						<label for="maker">Maker</label>
 					</div>
 				</div>
-				<div v-if="selectedInst" class="flex-col flex-start" v-bind:class="{ 'arb-good': arbIsGood(selectedInst), 'arb-bad': !arbIsGood(selectedInst) }">
-					<strong>Spreads Per Minute: {{ selectedInst.spreadsPerMinute }}</strong>
-				</div>
 				<div class="flex-col flex-start">
 					<div>
 						<span>Basis Size (BTC): </span>
@@ -242,17 +260,21 @@
 						<thead>
 							<th>Arb</th>
 							<th>Basis</th>
+							<th>Hub</th>
 							<th>%</th>
 							<th>SPM</th>
+							<th>HPM</th>
+							<th>BPM</th>
 						</thead>
 						<tbody>
-							<tr v-for="inst in getFilteredArbs(arbList)">
-								<td>{{ inst.id }}</td>
-								<td>
-									<button v-on:click="setMulticharts(inst)" v-bind:class="{ selected: inst.selected }">{{ instSpread(inst) }}</button>
-								</td>
-								<td>{{ (inst.spreadPercent * 100).toFixed(2) }}</td>
-								<td>{{ inst.spreadsPerMinute }}</td>
+							<tr v-for="spread in getFilteredArbs(arbList)" v-on:click="setMulticharts(spread)" v-bind:class="{ selected: spread.selected }">
+								<td>{{ spread.id }}</td>
+								<td>{{ (spread.spread).toFixed(4) }}</td>
+								<td>{{ (spread.hubSpread).toFixed(4) }}</td>
+								<td>{{ (spread.spreadPercent * 100).toFixed(2) }}</td>
+								<td>{{ spread.spreadsPerMinute }}</td>
+								<td>{{ (spread.spreadsPerMinute * spread.hubSpread).toFixed(4) }}</td>
+								<td>{{ (spread.spreadsPerMinute * spread.spread).toFixed(4) }}</td>
 							</tr>
 						</tbody>
 					</table>
@@ -266,38 +288,29 @@
 	<script>
 		let exchMap = {};
 		const arbMap = {};
+		let updateCount = 0;
+		let validUpdateCount = 0;
 		const ws = new WebSocket('ws://localhost:8080/');
 		const getCoinigySymbol = (op) => {
 			return `${exchMap[op.exchange]}:${op.market}${op.hub}`;
 		}
-		const getMccQueryString = (inst) => {
-			if (inst) {
-				const buy = getCoinigySymbol(inst.buy);
-				const sell = getCoinigySymbol(inst.sell);
-				if (inst.type === 0) { // Buy Spread
+		const getMccQueryString = (spread) => {
+			if (spread) {
+				const buy = getCoinigySymbol(spread.buy);
+				const sell = getCoinigySymbol(spread.sell);
+				if (spread.type === 0) { // Buy Spread
 					return `?chart=${buy}&chart=${sell}&chart=${sell}-${buy}`;
 				} else { // Conversion
-					const convert = getCoinigySymbol(inst.convert);
-					if (inst.type === 1) { // Origin Conversion
+					const convert = getCoinigySymbol(spread.convert);
+					if (spread.type === 1) { // Origin Conversion
 						return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}-${buy}*${convert}`;
-					} else if (inst.type === 2) { // Destination Conversion
+					} else if (spread.type === 2) { // Destination Conversion
 						return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}*${convert}-${buy}`;
 					} else {
 						return null;
 					}
 				}
 			}
-		}
-		const opSymbolMatch = (symbol, op) => {
-			return op.exchange.startsWith(symbol) ||
-				op.hub.startsWith(symbol) ||
-				op.market.startsWith(symbol);
-		}
-		const instSymbolMatch = (symbol, inst) => {
-			const convertMatch = inst.convert ? opSymbolMatch(symbol, inst.convert) : false;
-			return convertMatch ||
-				opSymbolMatch(symbol, inst.buy) ||
-				opSymbolMatch(symbol, inst.sell);
 		}
 		Vue.component('execution-component', {
 			template: '#operation-template',
@@ -314,7 +327,7 @@
 				exchanges: [],
 				arbList: [],
 				// arbMap: [],
-				selectedInst: undefined,
+				selectedSpread: undefined,
 				multichartsUrl: 'https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC',
 				showCrossExchange: false,
 				showSameExchange: true,
@@ -374,14 +387,14 @@
 				},
 				getFilteredArbs: () => {
 					if (appDash) {
-						return appDash.arbList.filter((inst) => {
-							const isCrossExchange = inst.buy.exchange !== inst.sell.exchange;
+						return appDash.arbList.filter((spread) => {
+							const isCrossExchange = spread.buy.exchange !== spread.sell.exchange;
 							const crossExchangePasses = appDash.showCrossExchange === isCrossExchange;
-							const isDirect = inst.type === 0;
+							const isDirect = spread.type === 0;
 							const directPasses = appDash.showDirect === isDirect;
-							const isConversion = inst.type !== 0;
+							const isConversion = spread.type !== 0;
 							const conversionPasses = appDash.showConversion === isConversion;
-							// const spreadPasses = Number.parseFloat(appDash.spreadFilter) / 100 < inst.spread;
+							// const spreadPasses = Number.parseFloat(appDash.spreadFilter) / 100 < spread.spread;
 							// return (crossExchangePasses || directPasses || conversionPasses) && spreadPasses;
 							return crossExchangePasses || directPasses || conversionPasses;
 						}).slice(0, 25);
@@ -389,26 +402,22 @@
 						return [];
 					}
 				},
-				arbIsGood(inst) {
-					if (inst) {
-						return 0 < inst.timeAboveTarget && inst.sumOfDurations < inst.timeAboveTarget;
+				arbIsGood(spread) {
+					if (spread) {
+						return 0 < spread.timeAboveTarget && spread.sumOfDurations < spread.timeAboveTarget;
 					} else {
 						return false;
 					}
 				},
-				instSpread: (i) => { return `${(i.spread).toFixed(8)}`; },
-				instString: (inst) => {
-					return getInstString(inst);
-				},
-				setMulticharts: (inst) => {
-					if (inst) {
-						const queryString = getMccQueryString(inst);
+				setMulticharts: (spread) => {
+					if (spread) {
+						const queryString = getMccQueryString(spread);
 						appDash.multichartsUrl = `https://www.multicoincharts.com/${queryString}`;
-						inst.selected = true;
-						if (appDash.selectedInst && appDash.selectedInst.selected) {
-							appDash.selectedInst.selected = false;
+						spread.selected = true;
+						if (appDash.selectedSpread && appDash.selectedSpread.selected) {
+							appDash.selectedSpread.selected = false;
 						}
-						appDash.selectedInst = inst;
+						appDash.selectedSpread = spread;
 					}
 				},
 				setup: () => {
@@ -428,8 +437,12 @@
 					setTimeout(appDash.sortLoop, 1000);
 				},
 				updateArb: (update) => {
-
+					updateCount++;
 					if (update.spread) {
+						validUpdateCount++;
+						if (validUpdateCount % 10 === 0) {
+							console.log(`Update Count: Spread=${validUpdateCount}, No Spread=${updateCount}`);
+						}
 						const arb = arbMap[update.id];
 						if (arb) {
 							const target = appDash.graphProperties.spreadTarget;
@@ -438,20 +451,23 @@
 							}
 							arb.timeAboveTarget = Date.now() - arb.spreadEnteredAt;
 							arb.spread = update.spread;
-							arb.spreadPercent = update.spreadsPerMinute;
+							arb.spreadPercent = update.spreadPercent;
 							arb.spreadsPerMinute = update.spreadsPerMinute;
 							arb.buy.price = update.buy.price;
 							arb.buy.duration = update.buy.duration;
 							arb.buy.size = update.buy.size;
+							arb.buy.hubSize = update.buy.hubSize;
 							arb.buy.basisSize = update.buy.basisSize;
 							arb.sell.price = update.sell.price;
 							arb.sell.duration = update.sell.duration;
 							arb.sell.size = update.sell.size;
+							arb.sell.hubSize = update.sell.hubSize;
 							arb.sell.basisSize = update.sell.basisSize;
 							if (arb.convert) {
 								arb.convert.price = update.convert.price;
 								arb.convert.duration = update.convert.duration;
 								arb.convert.size = update.convert.size;
+								arb.convert.hubSize = update.convert.hubSize;
 								arb.convert.basisSize = update.convert.basisSize;
 								arb.sumOfDurations =
 									update.buy.duration +
@@ -468,7 +484,7 @@
 							arbMap[update.id] = update;
 							appDash.arbList.push(update);
 						}
-						if (!appDash.selectedInst) {
+						if (!appDash.selectedSpread) {
 							appDash.setMulticharts(appDash.arbList[0]);
 						}
 					} else {

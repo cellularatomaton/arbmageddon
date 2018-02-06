@@ -8,6 +8,7 @@ export interface ExecutionOperation {
 	end?: Date;
 	price: number;
 	size: number;
+	hubSize: number;
 	basisSize: number;
 	duration: number;
 }
@@ -15,6 +16,7 @@ export interface ExecutionOperation {
 export interface SpreadExecution {
 	id: string | null;
 	spread: number;
+	hubSpread: number;
 	spreadPercent: number;
 	type: ArbType;
 	buy: ExecutionOperation;
@@ -25,4 +27,6 @@ export interface SpreadExecution {
 	end?: Date;
 	entryBasisSize?: number;
 	exitBasisSize?: number;
+	entryHubSize?: number;
+	exitHubSize?: number;
 }

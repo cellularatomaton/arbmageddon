@@ -23,6 +23,7 @@ export class GdaxExchange extends Exchange {
 		super("GDX", "COINBASE", graph);
 		this.updateProducts().then(() => {
 			this.setupWebsocket();
+			graph.exchangeReady(this);
 		});
 	}
 

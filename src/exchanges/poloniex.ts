@@ -14,6 +14,7 @@ export class PoloniexExchange extends Exchange {
 		this.idToSymbolMap = new Map<number, HubMarketPair>();
 		this.updateProducts().then(() => {
 			this.setupWebsocket();
+			graph.exchangeReady(this);
 		});
 	}
 

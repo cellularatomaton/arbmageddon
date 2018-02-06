@@ -10,7 +10,7 @@ const hubSymbols = new Set(["BTC", "ETH", "BNB", "USDT"]);
 
 binance.websockets.trades = (symbols: string[], callback: (trades: any) => void) => {
 	for (const symbol of symbols) {
-		binance.websockets.subscribe(symbol.toLowerCase() + "@aggTrade", callback);
+		binance.websockets.subscribe(symbol.toLowerCase() + "@aggTrade", callback, true);
 	}
 };
 
@@ -26,6 +26,7 @@ export class BinanceExchange extends Exchange {
 		super("BIN", "BINANCE", graph);
 		this.updateExchangeInfo().then(() => {
 			this.setupWebsockets(this.symbolList);
+			graph.exchangeReady(this);
 		});
 	}
 
