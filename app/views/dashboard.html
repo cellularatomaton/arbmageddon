@@ -269,8 +269,8 @@
 						<tbody>
 							<tr v-for="spread in getFilteredArbs(arbList)" v-on:click="setMulticharts(spread)" v-bind:class="{ selected: spread.selected }">
 								<td>{{ spread.id }}</td>
-								<td>{{ (spread.spread).toFixed(4) }}</td>
-								<td>{{ (spread.hubSpread).toFixed(4) }}</td>
+								<td>{{ spread.spread.toFixed(4) }}</td>
+								<td>{{ spread.hubSpread.toFixed(4) }}</td>
 								<td>{{ (spread.spreadPercent * 100).toFixed(2) }}</td>
 								<td>{{ spread.spreadsPerMinute }}</td>
 								<td>{{ spread.hubPerMinute.toFixed(4) }}</td>
@@ -389,14 +389,13 @@
 					if (appDash) {
 						return appDash.arbList.filter((spread) => {
 							const isCrossExchange = spread.buy.exchange !== spread.sell.exchange;
-							const crossExchangePasses = appDash.showCrossExchange === isCrossExchange;
+							const crossExchangePasses = appDash.showCrossExchange && isCrossExchange;
+							const sameExchangePasses = appDash.showSameExchange && !isCrossExchange;
 							const isDirect = spread.type === 0;
-							const directPasses = appDash.showDirect === isDirect;
+							const directPasses = appDash.showDirect && isDirect;
 							const isConversion = spread.type !== 0;
-							const conversionPasses = appDash.showConversion === isConversion;
-							// const spreadPasses = Number.parseFloat(appDash.spreadFilter) / 100 < spread.spread;
-							// return (crossExchangePasses || directPasses || conversionPasses) && spreadPasses;
-							return crossExchangePasses || directPasses || conversionPasses;
+							const conversionPasses = appDash.showConversion && isConversion;
+							return (crossExchangePasses || sameExchangePasses) && (directPasses || conversionPasses);
 						}).slice(0, 25);
 					} else {
 						return [];
@@ -437,56 +436,43 @@
 					setTimeout(appDash.sortLoop, 1000);
 				},
 				updateArb: (update) => {
-					updateCount++;
+					console.dir(update);
 					if (update.spread) {
-						validUpdateCount++;
-						if (validUpdateCount % 10 === 0) {
-							console.log(`Update Count: Spread=${validUpdateCount}, No Spread=${updateCount}`);
-						}
+						update.hubPerMinute = update.spreadsPerMinute * update.hubSpread;
+						update.basisPerMinute = update.spreadsPerMinute * update.spread;
 						const arb = arbMap[update.id];
+						console.dir(arb);
 						if (arb) {
 							const target = appDash.graphProperties.spreadTarget;
 							if (arb.spread < target && target < update.spread) {
 								arb.spreadEnteredAt = Date.now();
 							}
-							arb.timeAboveTarget = Date.now() - arb.spreadEnteredAt;
 							arb.spread = update.spread;
 							arb.hubSpread = update.hubSpread;
 							arb.spreadPercent = update.spreadPercent;
 							arb.spreadsPerMinute = update.spreadsPerMinute;
-							arb.hubPerMinute = update.spreadsPerMinute * update.hubSpread;
-							arb.basisPerMinute = update.spreadsPerMinute * update.spread;
+							arb.hubPerMinute = update.hubPerMinute;
+							arb.basisPerMinute = update.basisPerMinute;
 							arb.buy.price = update.buy.price;
-							arb.buy.duration = update.buy.duration;
 							arb.buy.size = update.buy.size;
 							arb.buy.hubSize = update.buy.hubSize;
 							arb.buy.basisSize = update.buy.basisSize;
 							arb.sell.price = update.sell.price;
-							arb.sell.duration = update.sell.duration;
 							arb.sell.size = update.sell.size;
 							arb.sell.hubSize = update.sell.hubSize;
 							arb.sell.basisSize = update.sell.basisSize;
 							if (arb.convert) {
 								arb.convert.price = update.convert.price;
-								arb.convert.duration = update.convert.duration;
 								arb.convert.size = update.convert.size;
 								arb.convert.hubSize = update.convert.hubSize;
 								arb.convert.basisSize = update.convert.basisSize;
-								arb.sumOfDurations =
-									update.buy.duration +
-									update.sell.duration +
-									update.convert.duration;
-							} else {
-								arb.sumOfDurations =
-									update.buy.duration +
-									update.sell.duration;
 							}
 						} else {
-
 							update.spreadEnteredAt = Date.now();
 							arbMap[update.id] = update;
 							appDash.arbList.push(update);
 						}
+						console.dir(arb);
 						if (!appDash.selectedSpread) {
 							appDash.setMulticharts(appDash.arbList[0]);
 						}
