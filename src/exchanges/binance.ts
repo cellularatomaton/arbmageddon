@@ -81,8 +81,8 @@ export class BinanceExchange extends Exchange {
 		try {
 			binance.websockets.trades(symbols, (trades: any) => {
 				Logger.log({
-					level: "debug",
-					message: trades.s + " trade update. price: " + trades.p + ", quantity: " + trades.q + ", maker: " + trades.m
+					level: "silly",
+					message: `BINA  ${trades.s} trade update. price:  ${trades.p}, quantity:  ${trades.q}, maker: ${trades.m}`
 				});
 				const parsedSymbols = exchange.parseSymbols(trades.s);
 

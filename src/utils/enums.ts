@@ -9,7 +9,10 @@ export enum InitiationType {
 }
 
 export enum ArbType {
-	Direct,
-	OriginConversion,
-	DestinationConversion
+	MakerDirect,
+	TakerDirect,
+	MakerOriginConversion,
+	TakerOriginConversion,
+	MakerDestinationConversion,
+	TakerDestinationConversion
 }

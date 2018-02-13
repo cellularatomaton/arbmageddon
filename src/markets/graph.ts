@@ -3,20 +3,21 @@ import { Asset } from "../assets";
 import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from "../exchanges";
 import { SpreadExecution } from "../strategies";
 import { IEvent, EventImp } from "../utils";
-import { InitiationType } from "../utils";
 import { Arb } from "../strategies/arb";
-import { ArbType } from "../utils/enums";
+import { ArbType, InitiationType } from "../utils/enums";
 import * as _ from "lodash";
-import { DestinationConversion } from "../strategies/destinationConversion";
-import { DirectArb } from "../strategies/directArb";
-import { OriginConversion } from "../strategies/originConversion";
 import { Logger } from "../utils/logger";
+import { MakerDirectArb } from "../strategies/makerDirectArb";
+import { MakerOriginConversion } from "../strategies/makerOriginConversion";
+import { MakerDestinationConversion } from "../strategies/makerDestinationConversion";
+import { TakerDirectArb } from "../strategies/takerDirectArb";
+import { TakerOriginConversion } from "../strategies/takerOriginConversion";
+import { TakerDestinationConversion } from "../strategies/takerDestinationConversion";
 
 export interface GraphParameters {
 	basisAssetSymbol: string;
 	basisSize: number;
 	spreadTarget: number;
-	initiationType: InitiationType;
 }
 
 export class Graph {
@@ -24,18 +25,17 @@ export class Graph {
 		const supportedTypes: ArbType[] = [];
 		const originConversion = Graph.getOriginMarketConversion(originMarket, destinationMarket);
 		const destinationConversion = Graph.getDestinationMarketConversion(originMarket, destinationMarket);
-		if (originMarket.getBuyVwap() === Number.NaN || destinationMarket.getSellVwap() === Number.NaN) {
-			return [];
+		if (Graph.isSimpleArb(originMarket, destinationMarket)) {
+			supportedTypes.push(ArbType.MakerDirect);
+			supportedTypes.push(ArbType.TakerDirect);
 		} else {
-			if (Graph.isSimpleArb(originMarket, destinationMarket)) {
-				supportedTypes.push(ArbType.Direct);
-			} else {
-				if (originConversion) {
-					supportedTypes.push(ArbType.OriginConversion);
-				}
-				if (destinationConversion) {
-					supportedTypes.push(ArbType.DestinationConversion);
-				}
+			if (originConversion) {
+				supportedTypes.push(ArbType.MakerOriginConversion);
+				supportedTypes.push(ArbType.TakerOriginConversion);
+			}
+			if (destinationConversion) {
+				supportedTypes.push(ArbType.MakerDestinationConversion);
+				supportedTypes.push(ArbType.TakerDestinationConversion);
 			}
 		}
 		return supportedTypes;
@@ -82,9 +82,8 @@ export class Graph {
 	basisAsset: Asset | undefined;
 	parameters: GraphParameters = {
 		basisAssetSymbol: "BTC",
-		basisSize: 0.1,
-		spreadTarget: 3.0,
-		initiationType: InitiationType.Taker
+		basisSize: 0.01,
+		spreadTarget: 3.0
 	};
 	exchanges: Exchange[];
 	onArb: EventImp<SpreadExecution> = new EventImp<SpreadExecution>();
@@ -95,11 +94,6 @@ export class Graph {
 		this.assetMap = new Map<string, Asset>();
 		this.arbMap = new Map<string, Arb>();
 		this.exchanges = [new GdaxExchange(this), new BinanceExchange(this), new PoloniexExchange(this)];
-		// const arbFinder = () => {
-		// 	this.findArbs();
-		// 	setTimeout(arbFinder, 5000);
-		// };
-		// arbFinder();
 	}
 
 	exchangeReady(exchange: Exchange) {
@@ -114,17 +108,29 @@ export class Graph {
 	}
 
 	getArb(arbType: ArbType, originMarket: Market, destinationMarket: Market): Arb | undefined {
-		if ((arbType as ArbType) === ArbType.Direct) {
-			return new DirectArb(originMarket, destinationMarket, this);
-		} else if ((arbType as ArbType) === ArbType.OriginConversion) {
+		if ((arbType as ArbType) === ArbType.MakerDirect) {
+			return new MakerDirectArb(originMarket, destinationMarket, this);
+		} else if ((arbType as ArbType) === ArbType.TakerDirect) {
+			return new TakerDirectArb(originMarket, destinationMarket, this);
+		} else if ((arbType as ArbType) === ArbType.MakerOriginConversion) {
 			const conversionMarket = Graph.getOriginMarketConversion(originMarket, destinationMarket);
 			if (conversionMarket) {
-				return new OriginConversion(originMarket, destinationMarket, conversionMarket, this);
+				return new MakerOriginConversion(originMarket, destinationMarket, conversionMarket, this);
 			}
-		} else if ((arbType as ArbType) === ArbType.DestinationConversion) {
+		} else if ((arbType as ArbType) === ArbType.TakerOriginConversion) {
+			const conversionMarket = Graph.getOriginMarketConversion(originMarket, destinationMarket);
+			if (conversionMarket) {
+				return new TakerOriginConversion(originMarket, destinationMarket, conversionMarket, this);
+			}
+		} else if ((arbType as ArbType) === ArbType.MakerDestinationConversion) {
 			const conversionMarket = Graph.getDestinationMarketConversion(originMarket, destinationMarket);
 			if (conversionMarket) {
-				return new DestinationConversion(originMarket, destinationMarket, conversionMarket, this);
+				return new MakerDestinationConversion(originMarket, destinationMarket, conversionMarket, this);
+			}
+		} else if ((arbType as ArbType) === ArbType.TakerDestinationConversion) {
+			const conversionMarket = Graph.getDestinationMarketConversion(originMarket, destinationMarket);
+			if (conversionMarket) {
+				return new TakerDestinationConversion(originMarket, destinationMarket, conversionMarket, this);
 			}
 		}
 		return undefined;

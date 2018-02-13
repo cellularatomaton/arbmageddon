@@ -26,7 +26,15 @@ export class Logger {
 				new winston.transports.File({
 					filename: "debug.log",
 					json: false,
-					maxsize: Math.pow(10, 8)
+					maxsize: Math.pow(10, 8),
+					maxFiles: 1,
+					formatter: (logdata: any) => {
+						const ts = new Date();
+						const msg = logdata.message ? logdata.message : "";
+						const obj =
+							logdata.meta && Object.keys(logdata.meta).length ? "\n\t" + JSON.stringify(logdata.meta, null, 2) : "";
+						return `${ts} ${msg} ${obj}`;
+					}
 				})
 			]
 		});

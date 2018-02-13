@@ -187,12 +187,12 @@
 	<div id="app-dash" class="app-container flex-col elbow-room">
 		<div>
 			<div class="flex-row flex-stretch elbow-room">
-				<execution-component v-if="selectedSpread && selectedSpread.type === 1" side="buy" class="buy-convert-op flex-grow" title="Buy Convert"
-				 :operation="selectedSpread.convert"></execution-component>
+				<execution-component v-if="selectedSpread && originConversions.includes(selectedSpread.type)" side="buy" class="buy-convert-op flex-grow"
+				 title="Buy Convert" :operation="selectedSpread.convert"></execution-component>
 				<execution-component v-if="selectedSpread" side="buy" class="buy-op flex-grow" title="Buy" :operation="selectedSpread ? selectedSpread.buy : null"></execution-component>
 				<execution-component v-if="selectedSpread" side="sell" class="sell-op flex-grow" title="Sell" :operation="selectedSpread ? selectedSpread.sell: null"></execution-component>
-				<execution-component v-if="selectedSpread && selectedSpread.type === 2" side="sell" class="sell-convert-op flex-grow" title="Sell Convert"
-				 :operation="selectedSpread.convert"></execution-component>
+				<execution-component v-if="selectedSpread && destinationConversions.includes(selectedSpread.type)" side="sell" class="sell-convert-op flex-grow"
+				 title="Sell Convert" :operation="selectedSpread.convert"></execution-component>
 			</div>
 		</div>
 		<div>
@@ -231,20 +231,9 @@
 					</div>
 				</div>
 				<div class="flex-col flex-start">
-					<span>Pricing:</span>
-					<div>
-						<input type="radio" id="taker" value="1" v-model="initiationType">
-						<label for="taker">Taker</label>
-					</div>
-					<div>
-						<input type="radio" id="maker" value="0" v-model="initiationType">
-						<label for="maker">Maker</label>
-					</div>
-				</div>
-				<div class="flex-col flex-start">
 					<div>
 						<span>Basis Size (BTC): </span>
-						<input v-model="basisSize" type="number" min="0" max="10" step="0.1">
+						<input v-model="basisSize" type="number" min="0.001" max="10" step="0.001">
 					</div>
 					<div>
 						<span>Spread Target (%): </span>
@@ -269,12 +258,12 @@
 						<tbody>
 							<tr v-for="spread in getFilteredArbs(arbList)" v-on:click="setMulticharts(spread)" v-bind:class="{ selected: spread.selected }">
 								<td>{{ spread.id }}</td>
-								<td>{{ spread.spread.toFixed(4) }}</td>
-								<td>{{ spread.hubSpread.toFixed(4) }}</td>
+								<td>{{ spread.spread.toFixed(8) }}</td>
+								<td>{{ spread.hubSpread.toFixed(8) }}</td>
 								<td>{{ (spread.spreadPercent * 100).toFixed(2) }}</td>
 								<td>{{ spread.spreadsPerMinute }}</td>
-								<td>{{ spread.hubPerMinute.toFixed(4) }}</td>
-								<td>{{ spread.basisPerMinute.toFixed(4) }}</td>
+								<td>{{ spread.hubPerMinute.toFixed(8) }}</td>
+								<td>{{ spread.basisPerMinute.toFixed(8) }}</td>
 							</tr>
 						</tbody>
 					</table>
@@ -286,6 +275,9 @@
 		</div>
 	</div>
 	<script>
+		const directArbs = [0, 1];
+		const originConversions = [2, 3];
+		const destinationConversions = [4, 5];
 		let exchMap = {};
 		const arbMap = {};
 		let updateCount = 0;
@@ -298,13 +290,13 @@
 			if (spread) {
 				const buy = getCoinigySymbol(spread.buy);
 				const sell = getCoinigySymbol(spread.sell);
-				if (spread.type === 0) { // Buy Spread
+				if (directArbs.includes(spread.type)) { // Buy Spread
 					return `?chart=${buy}&chart=${sell}&chart=${sell}-${buy}`;
 				} else { // Conversion
 					const convert = getCoinigySymbol(spread.convert);
-					if (spread.type === 1) { // Origin Conversion
+					if (originConversions.includes(spread.type)) { // Origin Conversion
 						return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}-${buy}*${convert}`;
-					} else if (spread.type === 2) { // Destination Conversion
+					} else if (destinationConversions.includes(spread.type)) { // Destination Conversion
 						return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}*${convert}-${buy}`;
 					} else {
 						return null;
@@ -316,11 +308,6 @@
 			template: '#operation-template',
 			props: ['title', 'side', 'operation']
 		});
-		const props = {
-			basisSize: 0.05,
-			spreadTarget: 0.5,
-			initiationType: 0
-		};
 		const appDash = new Vue({
 			el: '#app-dash',
 			data: {
@@ -334,29 +321,27 @@
 				showDirect: true,
 				showConversion: true,
 				symbolFilter: 'SYM',
-				basisSize: props.basisSize,
-				spreadTarget: props.spreadTarget,
-				initiationType: props.initiationType,
-				graphProperties: props
+				basisSize: 0,
+				spreadTarget: 0
 			},
 			watch: {
 				basisSize: (newBasis, oldBasis) => {
 					const basis = parseFloat(newBasis);
 					if (!Number.isNaN(basis)) {
-						appDash.graphProperties.basisSize = basis;
+						appDash.basisSize = basis;
 						appDash.updateGraphProperties();
 					}
 				},
 				spreadTarget: (newTarget, oldTarget) => {
 					const target = parseFloat(newTarget);
 					if (!Number.isNaN(target)) {
-						appDash.graphProperties.spreadTarget = target;
+						appDash.spreadTarget = target;
 						appDash.updateGraphProperties();
 					}
 				},
 				initiationType: (newType, oldType) => {
 					const type = parseInt(newType);
-					appDash.graphProperties.initiationType = type;
+					appDash.initiationType = type;
 					appDash.updateGraphProperties();
 				}
 			},
@@ -367,8 +352,17 @@
 						from: 'gui',
 						action: 'set',
 						type: 'params',
-						data: appDash.graphProperties
+						data: {
+							basisSize: appDash.basisSize,
+							spreadTarget: appDash.spreadTarget,
+							initiationType: appDash.initiationType
+						}
 					}));
+				},
+				setGraphProperties: (props) => {
+					appDash.basisSize = props.basisSize;
+					appDash.spreadTarget = props.spreadTarget;
+					appDash.initiationType = props.initiationType;
 				},
 				getExchanges: () => {
 					return new Promise((resolve, reject) => {
@@ -391,9 +385,9 @@
 							const isCrossExchange = spread.buy.exchange !== spread.sell.exchange;
 							const crossExchangePasses = appDash.showCrossExchange && isCrossExchange;
 							const sameExchangePasses = appDash.showSameExchange && !isCrossExchange;
-							const isDirect = spread.type === 0;
+							const isDirect = directArbs.includes(spread.type);
 							const directPasses = appDash.showDirect && isDirect;
-							const isConversion = spread.type !== 0;
+							const isConversion = !isDirect;
 							const conversionPasses = appDash.showConversion && isConversion;
 							return (crossExchangePasses || sameExchangePasses) && (directPasses || conversionPasses);
 						}).slice(0, 25);
@@ -436,14 +430,14 @@
 					setTimeout(appDash.sortLoop, 1000);
 				},
 				updateArb: (update) => {
-					console.dir(update);
+					// console.dir(update);
 					if (update.spread) {
 						update.hubPerMinute = update.spreadsPerMinute * update.hubSpread;
 						update.basisPerMinute = update.spreadsPerMinute * update.spread;
 						const arb = arbMap[update.id];
-						console.dir(arb);
+						// console.dir(arb);
 						if (arb) {
-							const target = appDash.graphProperties.spreadTarget;
+							const target = appDash.spreadTarget;
 							if (arb.spread < target && target < update.spread) {
 								arb.spreadEnteredAt = Date.now();
 							}
@@ -493,7 +487,9 @@
 								if (msg.type === 'arb' && msg.action === 'update') {
 									appDash.updateArb(msg.data);
 								} else if (msg.type === 'params' && msg.action === 'set') {
-									appDash.graphProperties = msg.data;
+									// appDash.graphProperties = msg.data;
+									appDash.setGraphProperties(msg.data);
+									console.log('Set graph params.');
 								}
 							}
 						};

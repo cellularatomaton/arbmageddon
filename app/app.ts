@@ -1,11 +1,6 @@
 import { Asset } from "../src/assets";
 import { Hub, Market, Graph } from "../src/markets";
-import {
-	Exchange,
-	GdaxExchange,
-	BinanceExchange,
-	PoloniexExchange
-} from "../src/exchanges";
+import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from "../src/exchanges";
 import { SpreadExecution } from "../src/strategies";
 import { NextFunction, Request, Response, Router } from "express";
 import { GraphParameters } from "../src/markets/graph";
@@ -83,16 +78,13 @@ graphModel.arb.on((inst?: SpreadExecution) => {
 });
 
 wss.on("connection", (ws: any) => {
-	ws.on("message", (message: any) => {
+	ws.on("message", (payload: any) => {
+		const message = JSON.parse(payload);
 		Logger.log({
-			level: "silly",
+			level: "info",
 			message: `Websocket message received: ${JSON.stringify(message)}`
 		});
-		if (
-			message.from === "gui" &&
-			message.to === "graph" &&
-			message.type === "params"
-		) {
+		if (message.from === "gui" && message.to === "graph" && message.type === "params") {
 			if (message.action === "set") {
 				Logger.log({
 					level: "info",
@@ -100,15 +92,17 @@ wss.on("connection", (ws: any) => {
 				});
 				graphModel.updateParams(message.data as GraphParameters);
 			} else if (message.action === "get") {
-				wss.send(
-					JSON.stringify({
-						from: "graph",
-						to: "gui",
-						type: "params",
-						action: "set",
-						data: graphModel.parameters
-					})
-				);
+				Logger.log({
+					level: "info",
+					message: `Sending graph params: ${JSON.stringify(graphModel.parameters)}`
+				});
+				wss.broadcast({
+					from: "graph",
+					to: "gui",
+					type: "params",
+					action: "set",
+					data: graphModel.parameters
+				});
 			}
 		}
 	});

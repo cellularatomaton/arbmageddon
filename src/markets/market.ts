@@ -31,10 +31,7 @@ export class Market {
 		return `${this.hub.getId()}_${this.asset.symbol}`;
 	}
 
-	getBuyVwap(initiationType?: InitiationType): number {
-		if (!initiationType) {
-			initiationType = this.graph.parameters.initiationType;
-		}
+	getBuyVwap(initiationType: InitiationType): number {
 		if ((initiationType as InitiationType) === InitiationType.Maker) {
 			return this.vwapSellStats.getVwap();
 		} else {
@@ -42,10 +39,7 @@ export class Market {
 		}
 	}
 
-	getSellVwap(initiationType?: InitiationType): number {
-		if (!initiationType) {
-			initiationType = this.graph.parameters.initiationType;
-		}
+	getSellVwap(initiationType: InitiationType): number {
 		if ((initiationType as InitiationType) === InitiationType.Maker) {
 			return this.vwapBuyStats.getVwap();
 		} else {
@@ -53,27 +47,27 @@ export class Market {
 		}
 	}
 
-	getBuyDuration(initiationType?: InitiationType): number {
-		if (!initiationType) {
-			initiationType = this.graph.parameters.initiationType;
-		}
-		if ((initiationType as InitiationType) === InitiationType.Maker) {
-			return this.vwapSellStats.getDuration();
-		} else {
-			return this.vwapBuyStats.getDuration();
-		}
-	}
+	// getBuyDuration(initiationType?: InitiationType): number {
+	// 	if (!initiationType) {
+	// 		initiationType = this.graph.parameters.initiationType;
+	// 	}
+	// 	if ((initiationType as InitiationType) === InitiationType.Maker) {
+	// 		return this.vwapSellStats.getDuration();
+	// 	} else {
+	// 		return this.vwapBuyStats.getDuration();
+	// 	}
+	// }
 
-	getSellDuration(initiationType?: InitiationType): number {
-		if (!initiationType) {
-			initiationType = this.graph.parameters.initiationType;
-		}
-		if ((initiationType as InitiationType) === InitiationType.Maker) {
-			return this.vwapBuyStats.getDuration();
-		} else {
-			return this.vwapSellStats.getDuration();
-		}
-	}
+	// getSellDuration(initiationType?: InitiationType): number {
+	// 	if (!initiationType) {
+	// 		initiationType = this.graph.parameters.initiationType;
+	// 	}
+	// 	if ((initiationType as InitiationType) === InitiationType.Maker) {
+	// 		return this.vwapBuyStats.getDuration();
+	// 	} else {
+	// 		return this.vwapSellStats.getDuration();
+	// 	}
+	// }
 
 	updateTicker(ticker: Ticker) {
 		Logger.log({

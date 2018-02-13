@@ -1,12 +1,12 @@
 import { Arb, FillHandler } from "./arb";
-import { ArbType, InitiationType, TradeType } from "../utils/enums";
+import { ArbType, TradeType, InitiationType } from "../utils/enums";
 import { SpreadExecution, ExecutionOperation } from "./arbitrage";
 import { Graph } from "../markets/graph";
 import { Market } from "../markets/market";
 import { Ticker } from "../markets/ticker";
 import { Logger } from "../utils/logger";
 
-export class OriginConversion extends Arb {
+export abstract class OriginConversion extends Arb {
 	constructor(
 		public originMarket: Market,
 		public destinationMarket: Market,
@@ -35,13 +35,12 @@ export class OriginConversion extends Arb {
 	}
 
 	updateSpreads(spread: SpreadExecution): void {
-		if (spread.convert) {
+		if (spread.convert && spread.convert.filled && spread.buy.filled && spread.sell.filled) {
 			spread.entryBasisSize = spread.convert.basisSize;
 			spread.entryHubSize = spread.convert.hubSize;
-		}
-		if (spread.buy.size <= spread.sell.size * spread.sell.price) {
 			spread.exitBasisSize = spread.sell.basisSize;
 			spread.exitHubSize = spread.sell.hubSize;
+			spread.filled = true;
 		}
 	}
 
@@ -57,22 +56,22 @@ export class OriginConversion extends Arb {
 		return spread.sell.end ? spread.sell.end.getTime() : Number.NaN;
 	}
 
-	getNewSpread(ticker: Ticker, size: number, basisSize: number): SpreadExecution {
+	getNewSpread(ticker: Ticker): SpreadExecution {
 		return {
 			id: this.getId(),
 			spread: Number.NaN,
 			hubSpread: Number.NaN,
 			spreadPercent: Number.NaN,
 			spreadsPerMinute: 0,
-			type: ArbType.OriginConversion,
+			type: ArbType.MakerOriginConversion,
 			convert: this.getOperation(
 				this.conversionMarket.hub.exchange.name,
 				this.conversionMarket.hub.asset.symbol,
 				this.conversionMarket.asset.symbol,
 				ticker.price,
-				size,
-				size * (ticker.price || Number.NaN),
-				basisSize,
+				0,
+				0,
+				0,
 				ticker.time
 			),
 			buy: this.getOperation(
@@ -84,185 +83,110 @@ export class OriginConversion extends Arb {
 				this.destinationMarket.hub.exchange.name,
 				this.destinationMarket.hub.asset.symbol,
 				this.destinationMarket.asset.symbol
-			)
+			),
+			filled: false
 		};
 	}
 
-	handleOriginTickers(ticker: Ticker, initiationType: InitiationType) {
-		const legFullyFilled = this.getLegConvertFilledHandler();
-		const buyMarketTickerSize: number = ticker.size || Number.NaN;
+	handleConversionTickers(ticker: Ticker, initiationType: InitiationType, legFilled: FillHandler) {
+		const market = this.conversionMarket;
+		const size: number = ticker.size || Number.NaN;
 		const price: number = ticker.price || Number.NaN;
-		const buyHubTickerSize = buyMarketTickerSize * price;
-		let buyHubRemainderTickerSize: number = buyHubTickerSize;
-		let finished: boolean = false;
-		while (!finished) {
-			let spread;
-			if ((initiationType as InitiationType) === InitiationType.Maker) {
-				spread = this.makerSpreads[0];
-			} else {
-				spread = this.takerSpreads[0];
+		const basisRemainder = this.graph.parameters.basisSize - this.workingBasisPosition;
+		if (0 < basisRemainder) {
+			const basisTickerSize = market.asset.getBasisSize(size, price, initiationType, market);
+			const basisTradableSize = Math.min(basisTickerSize, basisRemainder);
+			if (Number.isNaN(basisTradableSize)) {
+				return;
 			}
-			if (spread && spread.convert) {
-				const convertBasisSize = spread.convert.basisSize;
-				const convertMarketSize = spread.convert.size;
-				const buyBasisCurrentSize = spread.buy.basisSize;
-				const buyHubCurrentSize = spread.buy.hubSize;
-				const buyMarketCurrentSize = spread.buy.size;
-				const buyHubTradableSize = convertMarketSize - buyHubCurrentSize;
-				const buyHubTradableTickerSize = Math.min(buyHubTradableSize, buyHubRemainderTickerSize);
-				buyHubRemainderTickerSize -= buyHubTradableTickerSize;
-				const buyHubNewSize = buyHubCurrentSize + buyHubTradableTickerSize;
-				const buyBasisNewSize = this.originMarket.hub.asset.getBasisSize(buyHubNewSize, price, this.originMarket);
-				// Log it:
-				const convertLegName = `${spread.convert.exchange}:${spread.convert.market}`;
-				const buyLegName = `${spread.buy.exchange}:${spread.buy.market}`;
+			const marketTradableSize = market.asset.getMarketSize(initiationType, market, basisTradableSize);
+			if (Number.isNaN(marketTradableSize)) {
+				return;
+			}
+			if (!this.spread) {
+				this.spread = this.getNewSpread(ticker);
+			}
+			if (this.spread.convert) {
+				this.spread.convert.size += marketTradableSize;
+				this.spread.convert.basisSize += basisTradableSize;
+				this.spread.convert.hubSize += marketTradableSize * price;
+				this.workingBasisPosition += basisTradableSize;
+				this.spread.convert.filled = this.graph.parameters.basisSize <= this.workingBasisPosition;
 				Logger.log({
 					level: "debug",
-					message: `${this.getId()}
-	Swing from ${convertLegName} to ${buyLegName},
-	Price = ${price},
-	Convert Market Size = ${convertMarketSize},
-	Convert Basis Size = ${convertBasisSize},
-	Buy Hub Ticker Size = ${buyHubTickerSize},
-	Buy Market Ticker Size  = ${buyMarketTickerSize},
-	Buy Hub Tradable Ticker Size = ${buyHubTradableTickerSize},
-	Buy Hub Remainder Ticker Size = ${buyHubRemainderTickerSize},
-	Buy Market Current Size  = ${buyMarketCurrentSize},
-	Buy Hub New Size  = ${buyHubNewSize},
-	Buy Basis Current Size = ${buyBasisCurrentSize},
-	Buy Basis New Size = ${buyBasisNewSize},`
+					message: `Leg In [${this.getId()}]`,
+					data: this.spread
 				});
-				if (0 < buyHubTradableTickerSize && !Number.isNaN(buyHubNewSize) && !Number.isNaN(buyBasisNewSize)) {
-					// Process it:
-					spread.buy.price = this.getVwapPrice(spread.buy, price, buyHubNewSize);
-					spread.buy.hubSize = buyHubNewSize;
-					spread.buy.size = buyHubNewSize / price;
-					spread.buy.basisSize = buyBasisNewSize;
-					if (0 < buyHubRemainderTickerSize) {
-						// Leg fully filled:
-						legFullyFilled(spread);
-						// Continue looping to check other queued arbs.
-					} else {
-						// Leg only partially filled:
-						finished = true;
-					}
-				} else {
-					finished = true;
+				if (this.spread.convert.filled) {
+					legFilled(this.spread);
 				}
-			} else {
-				finished = true;
+			}
+		}
+	}
+
+	handleOriginTickers(ticker: Ticker, initiationType: InitiationType, legFilled: FillHandler) {
+		const buyMarketTickerSize: number = ticker.size || Number.NaN;
+		const price: number = ticker.price || Number.NaN;
+		const spread = this.spread;
+		if (spread && spread.convert) {
+			const buyHubTickerSize = buyMarketTickerSize * price;
+			const buyHubTradableSize = spread.convert.size - spread.buy.hubSize;
+			const buyHubTradableTickerSize = Math.min(buyHubTradableSize, buyHubTickerSize);
+			const buyHubNewSize = spread.buy.hubSize + buyHubTradableTickerSize;
+			const buyBasisNewSize = this.originMarket.hub.asset.getBasisSize(
+				buyHubNewSize,
+				price,
+				initiationType,
+				this.originMarket
+			);
+			if (0 < buyHubTradableTickerSize && !Number.isNaN(buyHubNewSize) && !Number.isNaN(buyBasisNewSize)) {
+				spread.buy.price = this.getVwapPrice(spread.buy, price, buyHubNewSize);
+				spread.buy.hubSize = buyHubNewSize;
+				spread.buy.size = buyHubNewSize / price;
+				spread.buy.basisSize = buyBasisNewSize;
+				spread.buy.filled = spread.convert.size <= buyHubNewSize;
+				Logger.log({
+					level: "debug",
+					message: `Swing [${this.getId()}]`,
+					data: this.spread
+				});
+				if (spread.buy.filled) {
+					legFilled(spread);
+				}
 			}
 		}
 	}
 
 	handleDestinationTickers(ticker: Ticker, initiationType: InitiationType, legFilled: FillHandler) {
-		Logger.log({
-			level: "silly",
-			message: `Handling destination ticker for ${this.getId()}`
-		});
 		const sellMarketTickerSize: number = ticker.size || Number.NaN;
 		const price: number = ticker.price || Number.NaN;
-		const sellHubTickerSize = sellMarketTickerSize * price;
-		let sellHubRemainderTickerSize: number = sellHubTickerSize;
-		let finished: boolean = false;
-		while (!finished) {
-			let spread;
-			if ((initiationType as InitiationType) === InitiationType.Maker) {
-				spread = this.makerSpreads[0];
-			} else {
-				spread = this.takerSpreads[0];
-			}
-			if (spread) {
+		const spread = this.spread;
+		if (spread) {
+			const sellHubTickerSize = sellMarketTickerSize * price;
+			const sellHubTradableSize = spread.buy.size * price - spread.sell.hubSize;
+			const sellHubTradableTickerSize = Math.min(sellHubTradableSize, sellHubTickerSize);
+			const sellHubNewSize = spread.sell.hubSize + sellHubTradableTickerSize;
+			const sellBasisNewSize = this.destinationMarket.hub.asset.getBasisSize(
+				sellHubNewSize,
+				price,
+				initiationType,
+				this.destinationMarket
+			);
+			if (0 < sellHubTradableTickerSize && !Number.isNaN(sellHubNewSize) && !Number.isNaN(sellBasisNewSize)) {
+				spread.sell.price = this.getVwapPrice(spread.sell, price, sellHubNewSize);
+				spread.sell.hubSize = sellHubNewSize;
+				spread.sell.size = sellHubNewSize / price;
+				spread.sell.basisSize = sellBasisNewSize;
+				spread.sell.filled = spread.buy.size <= spread.sell.size;
 				Logger.log({
 					level: "debug",
-					message: `Found spread for destination ticker. ${this.getId()}`,
-					data: ticker
+					message: `Leg Out [${this.getId()}]`,
+					data: this.spread
 				});
-				const buyBasisSize = spread.buy.basisSize;
-				const buyMarketSize = spread.buy.size;
-				const sellBasisSize = spread.sell.basisSize;
-				const sellHubCurrentSize = spread.sell.hubSize;
-				const sellHubSwingSize = buyMarketSize * price;
-				const sellHubTradableSize = sellHubSwingSize - sellHubCurrentSize;
-				const sellHubTradableTickerSize = Math.min(sellHubTradableSize, sellHubRemainderTickerSize);
-				sellHubRemainderTickerSize -= sellHubTradableTickerSize;
-				const sellHubNewSize = sellHubCurrentSize + sellHubTradableTickerSize;
-				const sellBasisNewSize = this.destinationMarket.hub.asset.getBasisSize(
-					sellHubNewSize,
-					price,
-					this.destinationMarket
-				);
-				// Log it:
-				const buyLegName = `${spread.buy.exchange}:${spread.buy.market}`;
-				const sellLegName = `${spread.sell.exchange}:${spread.sell.hub}`;
-				Logger.log({
-					level: "debug",
-					message: `${this.getId()}
-	Swing from ${buyLegName} to ${sellLegName},
-	Ticker Price = ${price},
-	Buy Market Size = ${buyMarketSize},
-	Buy Basis Size = ${buyBasisSize},
-	Sell Market Ticker Size  = ${sellMarketTickerSize},
-	Sell Hub Ticker Size = ${sellHubTickerSize},
-	Sell Hub Tradable Ticker Size = ${sellHubTradableTickerSize},
-	Sell Hub Remainder Ticker Size = ${sellHubRemainderTickerSize},
-	Sell Hub Current Size  = ${sellHubCurrentSize},
-	Sell Hub New Size  = ${sellHubNewSize},
-	Sell Basis Current Size = ${sellBasisSize},
-	Sell Basis New Size = ${sellBasisNewSize},`
-				});
-				// Process it:
-				if (0 < sellHubTradableTickerSize && !Number.isNaN(sellHubNewSize) && !Number.isNaN(sellBasisNewSize)) {
-					spread.sell.price = this.getVwapPrice(spread.sell, price, sellHubNewSize);
-					spread.sell.hubSize = sellHubNewSize;
-					spread.sell.size = sellHubNewSize / price;
-					spread.sell.basisSize = sellBasisNewSize;
-					if (0 < sellHubRemainderTickerSize) {
-						// Leg fully filled:
-						legFilled(spread);
-						// Continue looping to check other queued arbs.
-					} else {
-						// Leg only partially filled:
-						finished = true;
-					}
-				} else {
-					Logger.log({
-						level: "debug",
-						message: `Cannot process destination ticker. ${this.getId()}
-	Sell Hub Tradable Ticker Size = ${sellHubTradableTickerSize},
-	Sell Hub New Size = ${sellHubNewSize},
-	Sell Basis New Size = ${sellBasisNewSize}`
-					});
-					finished = true;
+				if (spread.sell.filled) {
+					legFilled(spread);
 				}
-			} else {
-				finished = true;
 			}
 		}
-	}
-
-	subscribeToEvents(graph: Graph): void {
-		// Maker Spreads
-		this.conversionMarket.sell.on((ticker: Ticker) => {
-			this.legIn(ticker, InitiationType.Maker, this.conversionMarket);
-		});
-		this.originMarket.sell.on((ticker: Ticker) => {
-			this.handleOriginTickers(ticker, InitiationType.Maker);
-		});
-		this.destinationMarket.buy.on((ticker: Ticker) => {
-			const legFilled = this.getLegOutFilledHandler(InitiationType.Maker);
-			this.handleDestinationTickers(ticker, InitiationType.Maker, legFilled);
-		});
-		// Taker Spreads
-		this.conversionMarket.buy.on((ticker: Ticker) => {
-			this.legIn(ticker, InitiationType.Taker, this.conversionMarket);
-		});
-		this.originMarket.buy.on((ticker: Ticker) => {
-			this.handleOriginTickers(ticker, InitiationType.Taker);
-		});
-		this.destinationMarket.sell.on((ticker: Ticker) => {
-			const legFilled = this.getLegOutFilledHandler(InitiationType.Taker);
-			this.handleDestinationTickers(ticker, InitiationType.Taker, legFilled);
-		});
 	}
 }

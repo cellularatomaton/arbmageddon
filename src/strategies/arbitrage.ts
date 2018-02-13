@@ -11,6 +11,7 @@ export interface ExecutionOperation {
 	hubSize: number;
 	basisSize: number;
 	duration: number;
+	filled: boolean;
 }
 
 export interface SpreadExecution {
@@ -29,4 +30,5 @@ export interface SpreadExecution {
 	exitBasisSize?: number;
 	entryHubSize?: number;
 	exitHubSize?: number;
+	filled: boolean;
 }

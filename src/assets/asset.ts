@@ -1,7 +1,7 @@
 import { Hub, Market } from "../markets";
 import { Logger } from "../utils/logger";
 import "colors";
-import { TradeType } from "../utils/enums";
+import { TradeType, InitiationType } from "../utils/enums";
 import { Graph } from "../markets/graph";
 
 export class Asset {
@@ -21,7 +21,7 @@ export class Asset {
 
 	constructor(public symbol: string) {}
 
-	getMarketSize(market: Market, basisSize?: number): number {
+	getMarketSize(initiationType: InitiationType, market: Market, basisSize?: number): number {
 		const graph = market.graph;
 		if (!basisSize) {
 			basisSize = graph.parameters.basisSize;
@@ -31,7 +31,7 @@ export class Asset {
 			const hubAsset = market.hub.asset;
 			const alreadyPricedInBasis = hubAsset.symbol === basisAsset.symbol;
 			const isBasis = market.asset.symbol === basisAsset.symbol;
-			const price = market.getBuyVwap();
+			const price = market.getBuyVwap(initiationType);
 			if (isBasis) {
 				const size = basisSize;
 				Logger.log({
@@ -57,30 +57,36 @@ export class Asset {
 				// Look through hub markets for conversion:
 				const conversionMarket = Graph.getConversion(market.hub.exchange, basisAsset.symbol, hubAsset.symbol);
 				if (conversionMarket) {
-					const conversionPrice = conversionMarket.getBuyVwap();
-					const size = basisSize / conversionPrice / price;
+					let size: number = Number.NaN;
+					const conversionPrice: number = conversionMarket.getBuyVwap(initiationType);
+					const conversionSymbol: string = conversionMarket.hub.asset.symbol;
+					const isHub = hubAsset.symbol === this.symbol;
+					if (isHub) {
+						// Convert to hub:
+						size = basisSize / conversionPrice;
+					} else {
+						// Convert to hub, then market
+						size = basisSize / conversionPrice / price;
+					}
 					const s = market.asset.symbol;
 					const hs = market.hub.asset.symbol;
-					const chs = conversionMarket.asset.symbol;
+					const chs = conversionSymbol;
 					Logger.log({
 						level: "silly",
 						message: `Market Size [Convertible From Basis] ${chs}->${hs}->${s}:
-	Basis Size=${basisSize},
-	Conversion Price=${conversionPrice},
-	Price=${price},
-	Market Size=${size},`
+		Basis Size=${basisSize},
+		Conversion Price=${conversionPrice},
+		Price=${price},
+		Market Size=${size},`
 					});
 					return size;
-				} else {
-					return Number.NaN;
 				}
 			}
-		} else {
-			return Number.NaN;
 		}
+		return Number.NaN;
 	}
 
-	getBasisSize(size: number, price: number, market: Market): number {
+	getBasisSize(size: number, price: number, initiationType: InitiationType, market: Market): number {
 		const graph = market.hub.graph;
 		const basisAsset = graph.basisAsset;
 		if (basisAsset) {
@@ -89,7 +95,7 @@ export class Asset {
 			const isBasis = this.symbol === basisAsset.symbol;
 			if (isBasis) {
 				Logger.log({
-					level: "debug",
+					level: "silly",
 					message: `Basis Size [Is Basis]  ${this.symbol}:
 	Basis Size = ${size}`
 				});
@@ -99,7 +105,7 @@ export class Asset {
 				const s = market.asset.symbol;
 				const hs = market.hub.asset.symbol;
 				Logger.log({
-					level: "debug",
+					level: "silly",
 					message: `Basis Size [Priced In Basis] ${hs} -> ${s}:
 	Basis Size = ${basisSize},
 	Price = ${price},
@@ -108,57 +114,58 @@ export class Asset {
 				return basisSize;
 			} else {
 				// Look through hub markets for conversion:
-				let basisSize: number = Number.NaN;
-				let conversionMarket: Market | undefined;
-				let conversionPrice: number = Number.NaN;
-				conversionMarket = Graph.getConversion(market.hub.exchange, basisAsset.symbol, hubAsset.symbol);
+				const conversionMarket: Market | undefined = Graph.getConversion(
+					market.hub.exchange,
+					basisAsset.symbol,
+					hubAsset.symbol
+				);
 				if (conversionMarket) {
-					conversionPrice = conversionMarket.getBuyVwap();
-					// if (hubAsset.symbol === this.symbol) {
-
-					// } else {
-
-					// }
-					basisSize = size * price * conversionPrice;
-
+					let basisSize: number = Number.NaN;
+					const conversionPrice = conversionMarket.getBuyVwap(initiationType);
+					const conversionHubSymbol: string = conversionMarket.hub.asset.symbol;
+					const isHub = hubAsset.symbol === this.symbol;
+					if (isHub) {
+						// Convert to basis:
+						basisSize = size * conversionPrice;
+					} else {
+						// Convert to hub, then basis:
+						basisSize = size * price * conversionPrice;
+					}
 					const s = market.asset.symbol;
 					const hs = market.hub.asset.symbol;
-					const chs = conversionMarket.hub.asset.symbol;
+					const chs = conversionHubSymbol;
 					Logger.log({
-						level: "debug",
+						level: "silly",
 						message: `Basis Size [Converted To Basis] ${s}->${hs}->${chs}:
-	Basis Size=${basisSize},
-	Conversion Price=${conversionPrice},
-	Price=${price},
-	Market Size=${size},`
+		Basis Size=${basisSize},
+		Conversion Price=${conversionPrice},
+		Price=${price},
+		Market Size=${size},`
 					});
 					return basisSize;
-				} else {
-					return Number.NaN;
 				}
 			}
-		} else {
-			return Number.NaN;
 		}
+		return Number.NaN;
 	}
 
 	public log() {
 		Logger.log({
-			level: "debug",
+			level: "silly",
 			message: `Asset: ${this.symbol}`
 		});
 		Logger.log({
-			level: "debug",
+			level: "silly",
 			message: `Hub count: ${this.hubs.length}`
 		});
 		const exchanges = this.hubs.map(h => h.exchange.id).join(",");
 
 		Logger.log({
-			level: "debug",
+			level: "silly",
 			message: `Exchanges: ${exchanges}`
 		});
 		Logger.log({
-			level: "debug",
+			level: "silly",
 			message: `Market Count: ${this.markets.length}`
 		});
 	}

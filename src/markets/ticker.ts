@@ -1,7 +1,7 @@
 import { Graph, Market } from "../markets";
 import { IEvent, EventImp } from "../utils";
 import { Logger } from "../utils/logger";
-import { TradeType } from "../utils/enums";
+import { TradeType, InitiationType } from "../utils/enums";
 
 export interface Ticker {
 	exchangeSymbol: string;
@@ -42,12 +42,16 @@ export class VolumeStatistics {
 
 	getVwap() {
 		Logger.log({
-			level: "debug",
+			level: "silly",
 			message: `Get Vwap [${this.market.getId()}]
 	Numerator: ${this.vwapNumerator},
 	Denominator: ${this.vwapDenominator}`
 		});
-		return this.vwapNumerator / this.vwapDenominator;
+		if (this.vwapDenominator !== 0) {
+			return this.vwapNumerator / this.vwapDenominator;
+		} else {
+			return this.lastPrice;
+		}
 	}
 
 	getDuration() {
@@ -79,7 +83,7 @@ export class VolumeStatistics {
 	}
 
 	handleTicker(ticker: Ticker) {
-		const windowSize = this.market.asset.getMarketSize(this.market);
+		const windowSize = this.market.asset.getMarketSize(InitiationType.Taker, this.market);
 		if (!Number.isNaN(this.vwapDenominator) && !Number.isNaN(windowSize)) {
 			let rolling = true;
 			while (rolling) {

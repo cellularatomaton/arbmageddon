@@ -47,12 +47,12 @@ export class Exchange {
 
 	log() {
 		Logger.log({
-			level: "debug",
+			level: "info",
 			message: `Exchange: ${this.id}`
 		});
 		this.hubs.forEach((hub: Hub, symbol: string) => {
 			Logger.log({
-				level: "debug",
+				level: "info",
 				message: `Hub: ${symbol}`
 			});
 			const marketList: string[] = [];
@@ -60,7 +60,7 @@ export class Exchange {
 				marketList.push(marketSymbol);
 			});
 			Logger.log({
-				level: "debug",
+				level: "info",
 				message: `Markets: ${marketList.join(",")}`
 			});
 		});
