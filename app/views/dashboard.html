@@ -58,6 +58,7 @@
 		}
 
 		.arb-list {
+			width: 650px;
 			overflow-y: auto;
 		}
 
@@ -137,6 +138,10 @@
 			margin: 2px;
 			padding: 2px;
 		}
+
+		.overflow-y {
+			overflow-y: auto;
+		}
 	</style>
 	<script type="text/x-template" id="operation-template">
 		<div class="flex-col elbow-room ">
@@ -184,8 +189,75 @@
 </head>
 
 <body>
-	<div id="app-dash" class="app-container flex-col elbow-room">
-		<div>
+	<div id="app-dash" class="app-container flex-row elbow-room">
+		<!-- <div> -->
+		<div class="flex-col">
+			<div>
+				<div class="flex-row">
+					<div class="flex-col flex-grow">
+						<span>Arb Types:</span>
+						<div>
+							<input type="checkbox" id="direct-checkbox" value="false" v-model="showDirect">
+							<label for="direct-checkbox">Direct</label>
+						</div>
+						<div>
+							<input type="checkbox" id="conversion-checkbox" value="true" v-model="showConversion">
+							<label for="conversion-checkbox">Conversion</label>
+						</div>
+					</div>
+					<div class="flex-col flex-grow">
+						<span>On Chain:</span>
+						<div>
+							<input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="showCrossExchange">
+							<label for="cross-exchange-checkbox">Cross Exchange</label>
+						</div>
+						<div>
+							<input type="checkbox" id="same-exchange-checkbox" value="true" v-model="showSameExchange">
+							<label for="same-exchange-checkbox">Same Exchange</label>
+						</div>
+					</div>
+					<div class="flex-col flex-grow">
+						<div>
+							<span>Basis Size (BTC): </span>
+							<input v-model="basisSize" type="number" min="0.001" max="10" step="0.001">
+						</div>
+						<div>
+							<span>Spread Target (%): </span>
+							<input v-model="spreadTarget" type="number" min="2" max="20" step="0.5">
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="flex-grow overflow-y">
+				<div class="flex-row">
+					<div class="flex-col elbow-room">
+						<div class="flex-grow arb-list">
+							<table class="full-width">
+								<thead>
+									<th>Arb</th>
+									<th>Spread</th>
+									<th>%</th>
+									<th>SPM</th>
+									<th>BPM</th>
+								</thead>
+								<tbody>
+									<tr v-for="spread in getFilteredArbs(arbList)" v-on:click="setMulticharts(spread)" v-bind:class="{ selected: spread.selected }">
+										<td>{{ spread.id }}</td>
+										<td>{{ spread.spread.toFixed(8) }}</td>
+										<td>{{ (spread.spreadPercent * 100).toFixed(2) }}</td>
+										<td>{{ spread.spreadsPerMinute }}</td>
+										<td>{{ spread.basisPerMinute.toFixed(8) }}</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- </div> -->
+		<div class="flex-grow flex-col">
+			<!-- <div class="flex-col flex-stretch"> -->
 			<div class="flex-row flex-stretch elbow-room">
 				<execution-component v-if="selectedSpread && originConversions.includes(selectedSpread.type)" side="buy" class="buy-convert-op flex-grow"
 				 title="Buy Convert" :operation="selectedSpread.convert"></execution-component>
@@ -194,8 +266,6 @@
 				<execution-component v-if="selectedSpread && destinationConversions.includes(selectedSpread.type)" side="sell" class="sell-convert-op flex-grow"
 				 title="Sell Convert" :operation="selectedSpread.convert"></execution-component>
 			</div>
-		</div>
-		<div>
 			<div v-if="selectedSpread" class="spread elbow-room flex-row flex-justify">
 				<div>
 					<strong>Arb: {{ selectedSpread.id }}</strong>
@@ -207,71 +277,11 @@
 					<strong>Basis Per Minute: {{ (selectedSpread.spreadsPerMinute * selectedSpread.spread).toFixed(4) }}</strong>
 				</div>
 			</div>
-			<div class="flex-row flex-justify">
-				<div class="flex-col flex-start">
-					<span>Arb Types:</span>
-					<div>
-						<input type="checkbox" id="direct-checkbox" value="false" v-model="showDirect">
-						<label for="direct-checkbox">Direct</label>
-					</div>
-					<div>
-						<input type="checkbox" id="conversion-checkbox" value="true" v-model="showConversion">
-						<label for="conversion-checkbox">Conversion</label>
-					</div>
-				</div>
-				<div class="flex-col flex-start">
-					<span>On Chain:</span>
-					<div>
-						<input type="checkbox" id="cross-exchange-checkbox" value="false" v-model="showCrossExchange">
-						<label for="cross-exchange-checkbox">Cross Exchange</label>
-					</div>
-					<div>
-						<input type="checkbox" id="same-exchange-checkbox" value="true" v-model="showSameExchange">
-						<label for="same-exchange-checkbox">Same Exchange</label>
-					</div>
-				</div>
-				<div class="flex-col flex-start">
-					<div>
-						<span>Basis Size (BTC): </span>
-						<input v-model="basisSize" type="number" min="0.001" max="10" step="0.001">
-					</div>
-					<div>
-						<span>Spread Target (%): </span>
-						<input v-model="spreadTarget" type="number" min="2" max="20" step="0.5">
-					</div>
-				</div>
-			</div>
-		</div>
-		<div class="flex-row flex-grow">
-			<div class="flex-col elbow-room">
-				<div class="flex-grow arb-list">
-					<table>
-						<thead>
-							<th>Arb</th>
-							<th>Basis</th>
-							<th>Hub</th>
-							<th>%</th>
-							<th>SPM</th>
-							<th>HPM</th>
-							<th>BPM</th>
-						</thead>
-						<tbody>
-							<tr v-for="spread in getFilteredArbs(arbList)" v-on:click="setMulticharts(spread)" v-bind:class="{ selected: spread.selected }">
-								<td>{{ spread.id }}</td>
-								<td>{{ spread.spread.toFixed(8) }}</td>
-								<td>{{ spread.hubSpread.toFixed(8) }}</td>
-								<td>{{ (spread.spreadPercent * 100).toFixed(2) }}</td>
-								<td>{{ spread.spreadsPerMinute }}</td>
-								<td>{{ spread.hubPerMinute.toFixed(8) }}</td>
-								<td>{{ spread.basisPerMinute.toFixed(8) }}</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-			</div>
-			<div class="flex-grow">
-				<iframe :src="multichartsUrl" height="100%" width="100%"></iframe>
-			</div>
+			<!-- <div class="flex-grow">
+				<iframe :src="multichartsUrl" width="100%" height="100%"></iframe>
+			</div> -->
+			<iframe :src="multichartsUrl" class="flex-grow"></iframe>
+			<!-- </div> -->
 		</div>
 	</div>
 	<script>
@@ -390,7 +400,7 @@
 							const isConversion = !isDirect;
 							const conversionPasses = appDash.showConversion && isConversion;
 							return (crossExchangePasses || sameExchangePasses) && (directPasses || conversionPasses);
-						}).slice(0, 25);
+						}).slice(0, 30);
 					} else {
 						return [];
 					}
