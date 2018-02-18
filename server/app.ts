@@ -8,8 +8,6 @@ import { Logger } from "../common/utils/logger";
 
 const express = require("express");
 const path = require("path");
-// const favicon = require("serve-favicon");
-// const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const usersRoute = require("./routes/users");
@@ -21,16 +19,7 @@ const app = express();
 
 const graphModel = new Graph();
 const dataPath = path.join(path.dirname(__dirname), "node_modules/vis/dist");
-// const goHome = (req: Request, res: Response) => {
-// 	res.redirect("/dashboard");
-// };
-// view engine setup
-// app.set("views", __dirname + "/views");
-// app.engine(".html", require("ejs").renderFile);
 
-// uncomment after placing your favicon in /public
-// app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
-// app.use(morgan("dev"));
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -38,19 +27,11 @@ app.use(cookieParser());
 app.use(express.static(dataPath));
 app.use(express.static(path.join(__dirname, "public")));
 
-// app.get("/dashboard", (req: Request, res: Response) => {
-// 	res.render("dashboard.html");
-// });
-
-// app.get("/dash", goHome);
-// app.get("/", goHome);
 app.use("/users", usersRoute);
 app.use("/graph", graphRoute(graphModel));
 app.use("/arbs", arbRoute(graphModel));
 
-// Websocket:
 const wss = new WebSocket.Server({ port: 8080 });
-// Broadcast to all.
 wss.broadcast = (event: any) => {
 	wss.clients.forEach((client: any) => {
 		if (client.readyState === WebSocket.OPEN) {
