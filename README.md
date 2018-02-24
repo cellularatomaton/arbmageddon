@@ -1,24 +1,34 @@
 # ArbMageddon:
+
 Cryptocurrency arbitrage toolset based on node.
 
 ## Layout:
+
 The top level projects in Arbmageddon are:
+
 * common: All of the models, strategies, exchange integrations, pricing logic, etc.
 * server: An express server which hosts an instance of the graph object from common. IO to graph via websocket or http.
 * spa: User interface.
 
 ## Getting Started:
-You must have a working NodeJs installation with the NPM toolset installed.  Next, install typescript:
+
+You must have a working NodeJs installation with the NPM toolset installed. Next, install typescript:
 
 `npm install -g typescript`
 
+And then clone the repository.
+
+## Setup Common:
+
+```
+cd /path/to/arbmageddon/common
+npm install
+```
+
 ## Run server:
-Clone the repository and:
 
 ```
 cd /path/to/arbmageddon/server
-
-# install dependencies
 npm install
 ```
 
@@ -26,11 +36,12 @@ Now you should be ready to run the server:
 
 `DEBUG=app:* npm start`
 
-That launches the back end server which connects to the various exchanges and builds the asset graph.  In order to launch the GUI, point your browser to:
-
-`localhost:3000/dash`
+That launches the back end server which connects to the various exchanges and builds the asset graph.
 
 ## Run spa:
+
+In order to launch the GUI:
+
 ```
 cd /path/to/arbmageddon/spa
 
