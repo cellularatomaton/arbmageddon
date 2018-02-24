@@ -1,54 +1,37 @@
-import { Asset } from "../src/assets";
-import { Hub, Market, Graph } from "../src/markets";
-import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from "../src/exchanges";
-import { SpreadExecution } from "../src/strategies";
+import { Asset } from "../common/assets";
+import { Hub, Market, Graph } from "../common/markets";
+import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from "../common/exchanges";
+import { SpreadExecution } from "../common/strategies";
 import { NextFunction, Request, Response, Router } from "express";
-import { GraphParameters } from "../src/markets/graph";
-import { Logger } from "../src/utils/logger";
+import { GraphParameters } from "../common/markets/graph";
+import { Logger } from "../common/utils/logger";
 
 const express = require("express");
 const path = require("path");
-const favicon = require("serve-favicon");
-// const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const usersRoute = require("./routes/users");
 const graphRoute = require("./routes/graph");
 const arbRoute = require("./routes/arb");
 const WebSocket = require("ws");
-
+const cors = require("cors");
 const app = express();
+
 const graphModel = new Graph();
 const dataPath = path.join(path.dirname(__dirname), "node_modules/vis/dist");
-const goHome = (req: Request, res: Response) => {
-	res.redirect("/dashboard");
-};
-// view engine setup
-app.set("views", __dirname + "/views");
-app.engine(".html", require("ejs").renderFile);
 
-// uncomment after placing your favicon in /public
-// app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
-// app.use(morgan("dev"));
+app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(dataPath));
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/dashboard", (req: Request, res: Response) => {
-	res.render("dashboard.html");
-});
-
-app.get("/dash", goHome);
-app.get("/", goHome);
 app.use("/users", usersRoute);
 app.use("/graph", graphRoute(graphModel));
 app.use("/arbs", arbRoute(graphModel));
 
-// Websocket:
 const wss = new WebSocket.Server({ port: 8080 });
-// Broadcast to all.
 wss.broadcast = (event: any) => {
 	wss.clients.forEach((client: any) => {
 		if (client.readyState === WebSocket.OPEN) {

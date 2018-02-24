@@ -87,6 +87,7 @@ export class Graph {
 	};
 	exchanges: Exchange[];
 	onArb: EventImp<SpreadExecution> = new EventImp<SpreadExecution>();
+
 	get arb(): IEvent<SpreadExecution> {
 		return this.onArb.expose();
 	}
