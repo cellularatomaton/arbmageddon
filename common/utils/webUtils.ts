@@ -15,7 +15,7 @@ export class Http {
 			} else if (!/^application\/json/.test(contentType)) {
 				error = new Error(
 					"Invalid content-type.\n" +
-						`Expected application/json but received ${contentType}`
+					`Expected application/json but received ${contentType}`
 				);
 			}
 			if (error) {

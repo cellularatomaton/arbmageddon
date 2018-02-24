@@ -1,7 +1,7 @@
 import { Graph } from "../../common/markets";
 import { Exchange } from "../../common/exchanges";
 import { GraphParameters } from "../../common/markets/graph";
-import express = require("express");
+import * as express from "express";
 
 const router = express.Router();
 
