@@ -58,7 +58,7 @@ export class Market {
 			level: "silly",
 			message: `Adding ticker: ${JSON.stringify(ticker)}`
 		});
-		if ((ticker.side as TradeType) === TradeType.BUY) {
+		if ((ticker.side as TradeType) === TradeType.Buy) {
 			this.onBuy.trigger(ticker);
 			this.vwapBuyStats.handleTicker(ticker);
 			Logger.log({

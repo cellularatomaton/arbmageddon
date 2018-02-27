@@ -31,7 +31,7 @@ app.use("/users", usersRoute);
 app.use("/graph", graphRoute(graphModel));
 app.use("/arbs", arbRoute(graphModel));
 
-const wss = new WebSocket.Server({ port: 8080 });
+const wss = new WebSocket.Server({ port: 8081 });
 wss.broadcast = (event: any) => {
 	wss.clients.forEach((client: any) => {
 		if (client.readyState === WebSocket.OPEN) {

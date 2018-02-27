@@ -59,7 +59,7 @@ export default Vue.extend({
 	},
 	data() {
 		return {
-			ws: new WebSocket("ws://localhost:8080/"),
+			ws: new WebSocket("ws://localhost:8081/"),
 			directArbs: [ArbType.MakerDirect, ArbType.TakerDirect],
 			originConversions: [ArbType.MakerOriginConversion, ArbType.TakerOriginConversion],
 			destinationConversions: [ArbType.MakerDestinationConversion, ArbType.TakerDestinationConversion],
