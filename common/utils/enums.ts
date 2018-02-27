@@ -16,3 +16,10 @@ export enum ArbType {
 	MakerDestinationConversion,
 	TakerDestinationConversion
 }
+
+export enum TimeUnit {
+	MILLISECOND,
+	SECOND,
+	MINUTE,
+	HOUR
+}

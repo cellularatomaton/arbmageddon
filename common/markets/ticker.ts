@@ -15,13 +15,6 @@ export interface Ticker {
 	size?: number;
 }
 
-export enum TimeUnit {
-	MILLISECOND,
-	SECOND,
-	MINUTE,
-	HOUR
-}
-
 export interface Vwap {
 	vwap: number;
 	duration: number;

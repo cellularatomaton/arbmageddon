@@ -2,9 +2,10 @@ import { Exchange } from "./exchange";
 import { Hub, Market, Graph, Ticker } from "../markets";
 import { Asset } from "../assets";
 import { Logger } from "../utils/logger";
-import { TradeType } from "../utils/enums";
+import { TradeType, SubscriptionType } from "../utils/enums";
 
-import Gdax = require("gdax");
+import * as Gdax from "gdax";
+import { Book } from "../markets/book";
 
 const PRODS = ["eth-btc", "ltc-btc"];
 const URI = "wss://ws-feed.gdax.com/";
@@ -15,16 +16,48 @@ const OPTS = {
 	heartbeat: false,
 	channels: CHANNELS
 };
-const products = [];
+// const products = [];
+
+export interface GdaxMessage {
+	type: string;
+	product_id: string;
+}
+
+export type GdaxSnapshotLevel = [number, number];
+export type GdaxUpdateLevel = [string, number, number];
+
+export interface GdaxBookSnapshot extends GdaxMessage {
+	bids: GdaxSnapshotLevel[];
+	asks: GdaxSnapshotLevel[];
+}
+
+export interface GdaxBookUpdate extends GdaxMessage {
+	changes: GdaxUpdateLevel[];
+}
 
 export class GdaxExchange extends Exchange {
 	products: any[];
+	ws: any;
+	books: Map<string, Book>;
 	constructor(graph: Graph) {
 		super("GDX", "COINBASE", graph);
+		this.products = [];
+		this.books = new Map<string, Book>();
 		this.updateProducts().then(() => {
 			this.setupWebsocket();
 			graph.exchangeReady(this);
 		});
+	}
+
+	subscribe(market: string, type: SubscriptionType): void {
+		if ((type as SubscriptionType) === SubscriptionType.Book) {
+			this.subscribeLevel2(market);
+		}
+	}
+	unsubscribe(market: string, type: SubscriptionType): void {
+		if ((type as SubscriptionType) === SubscriptionType.Book) {
+			this.unsubscribeLevel2(market);
+		}
 	}
 
 	updateProducts(): Promise<void> {
@@ -64,7 +97,7 @@ export class GdaxExchange extends Exchange {
 			bestAsk: Number(data.best_ask),
 			bestBid: Number(data.best_bid),
 			price: Number(data.price),
-			side: data.side === "buy" ? TradeType.BUY : TradeType.SELL,
+			side: data.side === "buy" ? TradeType.Buy : TradeType.Sell,
 			time: new Date(data.time),
 			size: Number(data.last_size)
 		});
@@ -75,20 +108,24 @@ export class GdaxExchange extends Exchange {
 			level: "info",
 			message: "Init GDAX websocket"
 		});
-		const ws = new Gdax.WebsocketClient(PRODS, URI, AUTH, OPTS);
+		this.ws = new Gdax.WebsocketClient(PRODS, URI, AUTH, OPTS);
 		const exchange = this;
-		ws.on("open", () => {
+		this.ws.on("open", () => {
 			Logger.log({
 				level: "info",
 				message: "GDAX websocket opened."
 			});
 		});
-		ws.on("message", (data: any) => {
+		this.ws.on("message", (data: any) => {
 			if (data.type === "ticker" && data.last_size) {
 				exchange.handleTicker(exchange, data);
+			} else if (data.type === "snapshot") {
+				// Create new book
+			} else if (data.type === "l2update") {
+				// Update existing book
 			}
 		});
-		ws.on("error", (err: any) => {
+		this.ws.on("error", (err: any) => {
 			Logger.log({
 				level: "error",
 				message: "GDAX Websocket error",
@@ -96,13 +133,40 @@ export class GdaxExchange extends Exchange {
 			});
 		});
 
-		ws.on("close", () => {
+		this.ws.on("close", () => {
 			Logger.log({
 				level: "warn",
 				message: "GDAX Websocket closed."
 			});
 		});
 	}
+
+	subscribeLevel2(ticker: string) {
+		this.ws.subscribe({
+			channels: [
+				{
+					name: "level2",
+					product_ids: [ticker]
+				}
+			]
+		});
+	}
+
+	unsubscribeLevel2(ticker: string) {
+		this.ws.unsubscribe({
+			channels: [
+				{
+					name: "level2",
+					product_ids: [ticker]
+				}
+			]
+		});
+	}
+
+	// getBookFromSnapshot(snapshot: GdaxBookSnapshot): Book {
+	// }
+
+	// updateBook(update: GdaxBookUpdate): void {}
 
 	// handleBook(
 	//     hubSymbol: string,

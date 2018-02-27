@@ -4,18 +4,26 @@ import { Asset } from "../assets";
 import { Http } from "../utils";
 import { symlink } from "fs";
 import { Logger } from "../utils/logger";
-import { TradeType } from "../utils/enums";
+import { TradeType, SubscriptionType } from "../utils/enums";
 
 export class PoloniexExchange extends Exchange {
 	symbolList: string[];
 	idToSymbolMap: Map<number, HubMarketPair>;
 	constructor(graph: Graph) {
 		super("PLX", "POLONIEX", graph);
+		this.symbolList = [];
 		this.idToSymbolMap = new Map<number, HubMarketPair>();
 		this.updateProducts().then(() => {
 			this.setupWebsocket();
 			graph.exchangeReady(this);
 		});
+	}
+
+	subscribe(market: string, type: SubscriptionType): void {
+		throw new Error("Method not implemented.");
+	}
+	unsubscribe(market: string, type: SubscriptionType): void {
+		throw new Error("Method not implemented.");
 	}
 
 	updateProducts(): Promise<void> {
@@ -102,7 +110,7 @@ export class PoloniexExchange extends Exchange {
 						});
 					} else if (type === "o") {
 						// Order:
-						const side: TradeType = m[1] ? TradeType.BUY : TradeType.SELL;
+						const side: TradeType = m[1] ? TradeType.Buy : TradeType.Sell;
 						const price: number = Number(m[2]);
 						const quantity: number = Number(m[3]);
 					} else if (type === "t") {
@@ -114,7 +122,7 @@ export class PoloniexExchange extends Exchange {
 								exchangeSymbol: exchange.id,
 								hubSymbol: pair.hubSymbol,
 								marketSymbol: pair.marketSymbol,
-								side: m[2] ? TradeType.BUY : TradeType.SELL,
+								side: m[2] ? TradeType.Buy : TradeType.Sell,
 								price: Number(m[3]),
 								time: new Date(m[5] * 1000),
 								size: Number(m[4])

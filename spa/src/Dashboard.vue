@@ -114,8 +114,6 @@ export default Vue.extend({
 			const dash = this;
 			dash.ws.send(
 				JSON.stringify({
-					to: "graph",
-					from: "gui",
 					action: "set",
 					type: "params",
 					data: {
@@ -256,13 +254,11 @@ export default Vue.extend({
 
 				dash.ws.onmessage = function(message) {
 					const msg = JSON.parse(message.data);
-					if (msg.to === "gui" && msg.from === "graph") {
-						if (msg.type === "arb" && msg.action === "update") {
-							dash.updateArb(msg.data);
-						} else if (msg.type === "params" && msg.action === "set") {
-							dash.setGraphProperties(msg.data);
-							console.log("Set graph params.");
-						}
+					if (msg.type === "arb" && msg.action === "update") {
+						dash.updateArb(msg.data);
+					} else if (msg.type === "params" && msg.action === "set") {
+						dash.setGraphProperties(msg.data);
+						console.log("Set graph params.");
 					}
 				};
 
@@ -270,8 +266,6 @@ export default Vue.extend({
 					console.log("App Websocket opened.");
 					dash.ws.send(
 						JSON.stringify({
-							to: "graph",
-							from: "gui",
 							type: "params",
 							action: "get"
 						})

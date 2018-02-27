@@ -94,7 +94,7 @@ export class Graph {
 	constructor() {
 		this.assetMap = new Map<string, Asset>();
 		this.arbMap = new Map<string, Arb>();
-		this.exchanges = [new GdaxExchange(this), new BinanceExchange(this), new PoloniexExchange(this)];
+		this.exchanges = [new GdaxExchange(this), /*new BinanceExchange(this),*/ new PoloniexExchange(this)];
 	}
 
 	exchangeReady(exchange: Exchange) {

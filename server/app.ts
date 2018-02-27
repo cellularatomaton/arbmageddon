@@ -51,8 +51,6 @@ graphModel.arb.on((inst?: SpreadExecution) => {
 			message: `Broadcasting...`
 		});
 		wss.broadcast({
-			from: "graph",
-			to: "gui",
 			action: "update",
 			type: "arb",
 			data: inst
@@ -67,7 +65,7 @@ wss.on("connection", (ws: any) => {
 			level: "info",
 			message: `Websocket message received: ${JSON.stringify(message)}`
 		});
-		if (message.from === "gui" && message.to === "graph" && message.type === "params") {
+		if (message.type === "params") {
 			if (message.action === "set") {
 				Logger.log({
 					level: "info",
@@ -80,12 +78,16 @@ wss.on("connection", (ws: any) => {
 					message: `Sending graph params: ${JSON.stringify(graphModel.parameters)}`
 				});
 				wss.broadcast({
-					from: "graph",
-					to: "gui",
 					type: "params",
 					action: "set",
 					data: graphModel.parameters
 				});
+			}
+		} else if (message.type === "book") {
+			if (message.action === "subscribe") {
+				// Subscribe to books
+			} else if (message.action === "unsubscribe") {
+				// Unsubscribe
 			}
 		}
 	});
