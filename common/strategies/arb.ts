@@ -110,6 +110,7 @@ export abstract class Arb {
 				this.updateSpreads(spread);
 				if (spread.filled && spread.entryBasisSize) {
 					this.workingBasisPosition -= spread.entryBasisSize;
+					spread.end = new Date();
 					this.statisticsWindow.push(spread);
 					this.pruneWindow(this.statisticsWindow);
 					spread.spreadsPerMinute = this.statisticsWindow.length;
@@ -152,9 +153,15 @@ export abstract class Arb {
 		while (rolling) {
 			const spread = window[0];
 			if (spread) {
-				const then = this.getSpreadEnd(spread);
+				// const then = this.getSpreadEnd(spread);
+				const then = spread.end ? spread.end.getTime() : Number.NaN;
 				const now = Date.now();
 				const stale = then < now - windowLength;
+				Logger.log({
+					level: "silly",
+					message: `Shift Spread? [${this.getId()}]`,
+					data: { then, now, stale }
+				});
 				if (stale) {
 					window.shift();
 				} else {
