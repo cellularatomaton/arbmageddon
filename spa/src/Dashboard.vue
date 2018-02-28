@@ -75,7 +75,8 @@ export default Vue.extend({
 			showConversion: true,
 			symbolFilter: "SYM",
 			basisSize: 0,
-			spreadTarget: 0
+			spreadTarget: 0,
+			sortArbsAscending: false
 		};
 	},
 	mounted() {
@@ -158,10 +159,13 @@ export default Vue.extend({
 						const conversionPasses = dash.showConversion && isConversion;
 						return (crossExchangePasses || sameExchangePasses) && (directPasses || conversionPasses);
 					})
-					.slice(0, 30);
+					.slice(0, 50);
 			} else {
 				return [];
 			}
+		},
+		toggleArbSortDirection() {
+			this.sortArbsAscending = !this.sortArbsAscending;
 		},
 		getCoinigySymbol(op: Operation) {
 			return `${op.exchange}:${op.market}${op.hub}`;
@@ -200,8 +204,13 @@ export default Vue.extend({
 			}
 		},
 		sortLoop() {
-			this.arbList.sort(function(a: SpreadExecution, b: SpreadExecution) {
-				return b.basisPerMinute - a.basisPerMinute;
+			const dash = this;
+			dash.arbList.sort(function(a: SpreadExecution, b: SpreadExecution) {
+				if (dash.sortArbsAscending) {
+					return a.basisPerMinute - b.basisPerMinute;
+				} else {
+					return b.basisPerMinute - a.basisPerMinute;
+				}
 			});
 			setTimeout(this.sortLoop, 1000);
 		},
