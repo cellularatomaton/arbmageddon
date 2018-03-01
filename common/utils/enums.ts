@@ -1,6 +1,6 @@
 export enum TradeType {
-	BUY,
-	SELL
+	Buy,
+	Sell
 }
 
 export enum InitiationType {
@@ -15,4 +15,17 @@ export enum ArbType {
 	TakerOriginConversion,
 	MakerDestinationConversion,
 	TakerDestinationConversion
+}
+
+export enum TimeUnit {
+	Millisecond,
+	Second,
+	Minute,
+	Hour
+}
+
+export enum SubscriptionType {
+	Book,
+	Ticker,
+	Position
 }

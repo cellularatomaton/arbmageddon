@@ -1,17 +1,21 @@
 import { Hub, Market, Graph, Ticker } from "../markets";
 import { Asset } from "../assets";
 import { Logger } from "../utils/logger";
+import { SubscriptionType } from "../utils/enums";
 
 export interface HubMarketPair {
 	hubSymbol: string;
 	marketSymbol: string;
 }
 
-export class Exchange {
+export abstract class Exchange {
 	hubs: Map<string, Hub>;
 	constructor(public id: string, public name: string, public graph: Graph) {
 		this.hubs = new Map<string, Hub>();
 	}
+
+	abstract subscribe(market: string, type: SubscriptionType): void;
+	abstract unsubscribe(market: string, type: SubscriptionType): void;
 
 	getId() {
 		return this.id;

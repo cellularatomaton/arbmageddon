@@ -1,10 +1,11 @@
 import { Hub } from "./hub";
 import { Graph, Ticker } from "../markets";
-import { TimeUnit, VolumeStatistics } from "./ticker";
-import { InitiationType, TradeType } from "../utils/enums";
+import { VolumeStatistics } from "./ticker";
+import { TimeUnit, InitiationType, TradeType } from "../utils/enums";
 import { EventImp, IEvent } from "../utils/event";
 import { Logger } from "../utils/logger";
 import { Asset } from "../assets/asset";
+import { Book } from "./book";
 
 export class Market {
 	asset: Asset;
@@ -19,6 +20,11 @@ export class Market {
 	onSell: EventImp<Ticker> = new EventImp<Ticker>();
 	get sell(): IEvent<Ticker> {
 		return this.onSell.expose();
+	}
+
+	onBook: EventImp<Book> = new EventImp<Book>();
+	get book(): IEvent<Book> {
+		return this.onBook.expose();
 	}
 
 	constructor(assetSymbol: string, public hub: Hub, public graph: Graph) {
@@ -47,34 +53,12 @@ export class Market {
 		}
 	}
 
-	// getBuyDuration(initiationType?: InitiationType): number {
-	// 	if (!initiationType) {
-	// 		initiationType = this.graph.parameters.initiationType;
-	// 	}
-	// 	if ((initiationType as InitiationType) === InitiationType.Maker) {
-	// 		return this.vwapSellStats.getDuration();
-	// 	} else {
-	// 		return this.vwapBuyStats.getDuration();
-	// 	}
-	// }
-
-	// getSellDuration(initiationType?: InitiationType): number {
-	// 	if (!initiationType) {
-	// 		initiationType = this.graph.parameters.initiationType;
-	// 	}
-	// 	if ((initiationType as InitiationType) === InitiationType.Maker) {
-	// 		return this.vwapBuyStats.getDuration();
-	// 	} else {
-	// 		return this.vwapSellStats.getDuration();
-	// 	}
-	// }
-
 	updateTicker(ticker: Ticker) {
 		Logger.log({
 			level: "silly",
 			message: `Adding ticker: ${JSON.stringify(ticker)}`
 		});
-		if ((ticker.side as TradeType) === TradeType.BUY) {
+		if ((ticker.side as TradeType) === TradeType.Buy) {
 			this.onBuy.trigger(ticker);
 			this.vwapBuyStats.handleTicker(ticker);
 			Logger.log({
@@ -89,5 +73,17 @@ export class Market {
 				message: `Sell vwap: ${this.vwapSellStats.getVwap()}`
 			});
 		}
+	}
+
+	subscribeBook() {
+		// Subscribe to book
+	}
+
+	unsubscribeBook() {
+		// Unsubscribe from book
+	}
+
+	updateBook(book: Book) {
+		// Handle exchange book updates.
 	}
 }

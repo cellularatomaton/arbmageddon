@@ -2,7 +2,7 @@ import { Exchange } from "./exchange";
 import { Hub, Market, Graph } from "../markets";
 import { Asset } from "../assets";
 import { Logger } from "../utils/logger";
-import { TradeType } from "../utils/enums";
+import { TradeType, SubscriptionType } from "../utils/enums";
 
 const _ = require("lodash");
 const binance = require("node-binance-api");
@@ -24,10 +24,18 @@ export class BinanceExchange extends Exchange {
 	symbolList: string[];
 	constructor(graph: Graph) {
 		super("BIN", "BINANCE", graph);
+		this.symbolList = [];
 		this.updateExchangeInfo().then(() => {
 			this.setupWebsockets(this.symbolList);
 			graph.exchangeReady(this);
 		});
+	}
+
+	subscribe(market: string, type: SubscriptionType): void {
+		throw new Error("Method not implemented.");
+	}
+	unsubscribe(market: string, type: SubscriptionType): void {
+		throw new Error("Method not implemented.");
 	}
 
 	updateExchangeInfo(): Promise<void> {
@@ -91,7 +99,7 @@ export class BinanceExchange extends Exchange {
 					hubSymbol: parsedSymbols[0],
 					marketSymbol: parsedSymbols[1],
 					price: Number(trades.p),
-					side: trades.m ? TradeType.SELL : TradeType.BUY,
+					side: trades.m ? TradeType.Sell : TradeType.Buy,
 					time: new Date(trades.T),
 					size: Number(trades.q)
 				});

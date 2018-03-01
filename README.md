@@ -27,12 +27,14 @@ npm install
 
 ## Run server:
 
+The Arbmageddon back end runs on an Express server and hosts http and ws endpoints. In order to run the server:
+
 ```
 cd /path/to/arbmageddon/server
 npm install
 ```
 
-Now you should be ready to run the server:
+Now you should be ready:
 
 `DEBUG=app:* npm start`
 
