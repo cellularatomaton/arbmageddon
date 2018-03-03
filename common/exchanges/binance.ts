@@ -8,14 +8,8 @@ const _ = require("lodash");
 const binance = require("node-binance-api");
 const hubSymbols = new Set(["BTC", "ETH", "BNB", "USDT"]);
 
-binance.websockets.trades = (symbols: string[], callback: (trades: any) => void) => {
-	for (const symbol of symbols) {
-		binance.websockets.subscribe(symbol.toLowerCase() + "@aggTrade", callback, true);
-	}
-};
-
 binance.options({
-	reconnect: false,
+	reconnect: true,
 	test: true,
 	recvWindow: 60000
 });
@@ -41,7 +35,7 @@ export class BinanceExchange extends Exchange {
 	updateExchangeInfo(): Promise<void> {
 		const exchange = this;
 		return new Promise((resolve, reject) => {
-			binance.exchangeInfo((info: any) => {
+			binance.exchangeInfo((error: any,info: any) => {
 				const markets = info.symbols;
 				markets.forEach((market: any) => {
 					const hubSymbol = market.quoteAsset;
