@@ -1,37 +1,37 @@
 {
-	"name": "arbmageddon",
-	"version": "1.0.0",
-	"description": "Graph based arbitrage system.",
-	"dependencies": {
-		"@types/lodash": "^4.14.92",
-		"@types/node": "^8.5.1",
-		"debug": "~2.6.9",
-		"gdax": "github:coinbase/gdax-node",
-		"lodash": "^4.17.4",
-		"node-binance-api": "^0.2.11",
-		"winston": "^2.4.0",
-		"ws": "^2.3.1"
-	},
-	"devDependencies": {
-		"@types/ws": "^4.0.0",
-		"typescript": "^2.6.2"
-	},
-	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1",
-		"start": "ts-node ./bin/www"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/cellularatomaton/crypto-tools.git"
-	},
-	"author": "",
-	"license": "ISC",
-	"bugs": {
-		"url": "https://github.com/cellularatomaton/crypto-tools/issues"
-	},
-	"homepage": "https://github.com/cellularatomaton/crypto-tools#readme",
-	"prettier": {
-		"printWidth": 120,
-		"useTabs": true
-	}
+  "name": "arbmageddon",
+  "version": "1.0.0",
+  "description": "Graph based arbitrage system.",
+  "dependencies": {
+    "@types/lodash": "^4.14.92",
+    "@types/node": "^8.5.1",
+    "debug": "~2.6.9",
+    "gdax": "github:coinbase/gdax-node",
+    "lodash": "^4.17.4",
+    "node-binance-api": "^0.4.22",
+    "winston": "^2.4.0",
+    "ws": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^4.0.0",
+    "typescript": "^2.6.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "ts-node ./bin/www"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cellularatomaton/crypto-tools.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cellularatomaton/crypto-tools/issues"
+  },
+  "homepage": "https://github.com/cellularatomaton/crypto-tools#readme",
+  "prettier": {
+    "printWidth": 120,
+    "useTabs": true
+  }
 }
