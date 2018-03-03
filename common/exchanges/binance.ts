@@ -9,7 +9,7 @@ const binance = require("node-binance-api");
 const hubSymbols = new Set(["BTC", "ETH", "BNB", "USDT"]);
 
 binance.options({
-	reconnect: false,
+	reconnect: true,
 	test: true,
 	recvWindow: 60000
 });
@@ -35,7 +35,7 @@ export class BinanceExchange extends Exchange {
 	updateExchangeInfo(): Promise<void> {
 		const exchange = this;
 		return new Promise((resolve, reject) => {
-			binance.exchangeInfo((error,info: any) => {
+			binance.exchangeInfo((error: any,info: any) => {
 				const markets = info.symbols;
 				markets.forEach((market: any) => {
 					const hubSymbol = market.quoteAsset;
