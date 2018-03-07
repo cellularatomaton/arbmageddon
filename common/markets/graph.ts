@@ -4,7 +4,7 @@ import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from "../ex
 import { SpreadExecution } from "../strategies";
 import { IEvent, EventImp } from "../utils";
 import { Arb } from "../strategies/arb";
-import { ArbType, InitiationType } from "../utils/enums";
+import { ArbType, InitiationType, SubscriptionType } from "../utils/enums";
 import * as _ from "lodash";
 import { Logger } from "../utils/logger";
 import { MakerDirectArb } from "../strategies/makerDirectArb";
@@ -13,12 +13,22 @@ import { MakerDestinationConversion } from "../strategies/makerDestinationConver
 import { TakerDirectArb } from "../strategies/takerDirectArb";
 import { TakerOriginConversion } from "../strategies/takerOriginConversion";
 import { TakerDestinationConversion } from "../strategies/takerDestinationConversion";
+import { Book } from "./book";
 
 export interface GraphParameters {
 	basisAssetSymbol: string;
 	basisSize: number;
 	spreadTarget: number;
 }
+
+export interface SubscriptionData {
+	exchange: string;
+	hub: string;
+	market: string;
+	type: SubscriptionType;
+}
+
+export type BookHandler = (book: Book) => void;
 
 export class Graph {
 	public static getSupportedArbTypes(originMarket: Market, destinationMarket: Market): ArbType[] {
@@ -79,6 +89,7 @@ export class Graph {
 
 	assetMap: Map<string, Asset>;
 	arbMap: Map<string, Arb>;
+	bookSubscriptionMap: Map<string, BookHandler>;
 	basisAsset: Asset | undefined;
 	parameters: GraphParameters = {
 		basisAssetSymbol: "BTC",
@@ -86,15 +97,27 @@ export class Graph {
 		spreadTarget: 3.0
 	};
 	exchanges: Exchange[];
-	onArb: EventImp<SpreadExecution> = new EventImp<SpreadExecution>();
+	exchangeMap: Map<string, Exchange>;
 
+	onArb: EventImp<SpreadExecution> = new EventImp<SpreadExecution>();
 	get arb(): IEvent<SpreadExecution> {
 		return this.onArb.expose();
 	}
+
+	onBook: EventImp<Book> = new EventImp<Book>();
+	get book(): IEvent<Book> {
+		return this.onBook.expose();
+	}
+
 	constructor() {
 		this.assetMap = new Map<string, Asset>();
 		this.arbMap = new Map<string, Arb>();
+		this.bookSubscriptionMap = new Map<string, BookHandler>();
+		this.exchangeMap = new Map<string, Exchange>();
 		this.exchanges = [new GdaxExchange(this), new BinanceExchange(this), new PoloniexExchange(this)];
+		this.exchanges.forEach((exchange: Exchange) => {
+			this.exchangeMap.set(exchange.id, exchange);
+		});
 	}
 
 	exchangeReady(exchange: Exchange) {
@@ -181,5 +204,60 @@ export class Graph {
 				});
 			});
 		});
+	}
+
+	subscribe(data: SubscriptionData) {
+		if ((data.type as SubscriptionType) === SubscriptionType.Book) {
+			this.subscribeToBook(data);
+		} else if ((data.type as SubscriptionType) === SubscriptionType.Ticker) {
+			// ToDo
+		} else if ((data.type as SubscriptionType) === SubscriptionType.Position) {
+			// ToDo
+		}
+	}
+
+	unsubscribe(data: SubscriptionData) {
+		if ((data.type as SubscriptionType) === SubscriptionType.Book) {
+			this.unsubscribeFromBook(data);
+		} else if ((data.type as SubscriptionType) === SubscriptionType.Ticker) {
+			// ToDo
+		} else if ((data.type as SubscriptionType) === SubscriptionType.Position) {
+			// ToDo
+		}
+	}
+
+	subscribeToBook(data: SubscriptionData) {
+		const graph = this;
+		const exchange = this.exchangeMap.get(data.exchange);
+		if (exchange) {
+			const market: Market = exchange.mapMarket(data.hub, data.market);
+			if (market) {
+				// GUI book updates can be throttled to every 250ms.
+				const handler: BookHandler = _.throttle(
+					(book: Book) => {
+						this.onBook.trigger(book);
+					},
+					250,
+					{ leading: true }
+				);
+				market.book.on(handler);
+				this.bookSubscriptionMap.set(market.getId(), handler);
+			}
+		}
+	}
+
+	unsubscribeFromBook(data: SubscriptionData) {
+		const graph = this;
+		const exchange = this.exchangeMap.get(data.exchange);
+		if (exchange) {
+			const market: Market = exchange.mapMarket(data.hub, data.market);
+			if (market) {
+				const handler = this.bookSubscriptionMap.get(market.getId());
+				if (handler) {
+					market.book.off(handler);
+				}
+				this.bookSubscriptionMap.delete(market.getId());
+			}
+		}
 	}
 }

@@ -43,13 +43,6 @@ export class PoloniexExchange extends Exchange {
 		});
 	}
 
-	subscribe(market: string, type: SubscriptionType): void {
-		throw new Error("Method not implemented.");
-	}
-	unsubscribe(market: string, type: SubscriptionType): void {
-		throw new Error("Method not implemented.");
-	}
-
 	updateProducts(): Promise<void> {
 		const exchange = this;
 
@@ -151,6 +144,7 @@ export class PoloniexExchange extends Exchange {
 		});
 		const book: Book = new Book(this.id, symbols[0], symbols[1]);
 		this.books.set(productId, book);
+		this.updateBook(book);
 	}
 
 	handleBookUpdate(productId: number, update: PoloBookUpdate) {
@@ -160,6 +154,7 @@ export class PoloniexExchange extends Exchange {
 		const book: Book | undefined = this.books.get(productId);
 		if (book) {
 			book.updateLevel(side, price, size);
+			this.updateBook(book);
 		}
 	}
 

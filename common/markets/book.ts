@@ -1,43 +1,72 @@
 import { TradeType } from "../utils/enums";
-export interface BookOrder {
-	price: number;
-	size: number;
-}
+import _ = require("lodash");
 
-export type BookOrderSorter = (a: BookOrder, b: BookOrder) => number;
-export function bookOrderSorter(a: BookOrder, b: BookOrder): number {
+export type BookOrderSorter = (a: BookLevel, b: BookLevel) => number;
+export function bookOrderSorter(a: BookLevel, b: BookLevel): number {
 	// Ascending
 	return a.price - b.price;
 }
 
 export interface BookLevel {
 	price: number;
-	ask: BookOrder;
-	bid: BookOrder;
+	size: number;
+}
+
+export interface BookSnapshot {
+	bidLevels: BookLevel[];
+	askLevels: BookLevel[];
 }
 
 export class Book {
 	lastUpdated: Date;
-	levels: Map<number, BookLevel>;
+	bidLevels: Map<number, BookLevel>;
+	askLevels: Map<number, BookLevel>;
 
 	constructor(public exchangeSymbol: string, public hubSymbol: string, public marketSymbol: string) {
 		this.lastUpdated = new Date();
-		this.levels = new Map<number, BookLevel>();
-	}
-
-	addLevel(level: BookLevel) {
-		this.levels.set(level.price, level);
+		this.bidLevels = new Map<number, BookLevel>();
+		this.askLevels = new Map<number, BookLevel>();
 	}
 
 	updateLevel(type: TradeType, price: number, size: number) {
-		const level = this.levels.get(price);
+		const levels = (type as TradeType) === TradeType.Buy ? this.bidLevels : this.askLevels;
+		let level = levels.get(price);
 		if (!level) {
 			// Create new level
-		}
-		if ((type as TradeType) === TradeType.Buy) {
-			// Update bid
+			level = { price, size };
+			levels.set(price, level);
 		} else {
-			// Update ask
+			level.size = size;
 		}
+	}
+
+	getGroupedLevels(precision: number, bookLevels: BookLevel[]): BookLevel[] {
+		const groupedLevels: any = _.groupBy(bookLevels, (level: BookLevel) => {
+			_.round(level.price, precision);
+		});
+		const mappedValues: any = _.mapValues(groupedLevels, (levels: BookLevel[], price: number): BookLevel => {
+			return _.reduce(
+				levels,
+				(agg: BookLevel, current: BookLevel) => {
+					agg.size += current.size;
+					return agg;
+				},
+				{ price, size: 0 }
+			);
+		});
+		const values: BookLevel[] = _.values(mappedValues);
+		return values;
+	}
+
+	// Grab the top [take] levels after aggregating to [precision].
+	getAggregateBook(precision: number, take: number): BookSnapshot {
+		const groupedBidLevels = this.getGroupedLevels(precision, Array.from(this.bidLevels.values()));
+		const sortedBidLevels = _.sortBy(groupedBidLevels, (level: BookLevel) => -level.price); // Descending Bids
+		const groupedAskLevels = this.getGroupedLevels(precision, Array.from(this.askLevels.values()));
+		const sortedAskLevels = _.sortBy(groupedAskLevels, (level: BookLevel) => level.price); // Ascending Asks
+		return {
+			bidLevels: sortedBidLevels.slice(0, take),
+			askLevels: sortedAskLevels.slice(0, take)
+		};
 	}
 }

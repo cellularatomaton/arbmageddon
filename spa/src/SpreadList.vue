@@ -49,14 +49,14 @@
 				<th>Spread</th>
 				<th>%</th>
 				<th>SPM</th>
-				<th class="clickable" 
+				<th class="clickable"
 					v-on:click="dash.toggleArbSortDirection()">BPM</th>
 			</thead>
 			<tbody>
 				<tr v-for="spread in dash.getFilteredArbs(dash.arbList)"
+					:key="spread.id"
 					class="clickable"
-					:key="spread.id" 
-					v-on:click="dash.setMulticharts(spread)" 
+					v-on:click="dash.selectSpread(spread)" 
 					v-bind:class="{ selected: spread.selected }">
 					<td class="spread-id">{{ spread.id }}</td>
 					<td>{{ spread.spread.toFixed(8) }}</td>

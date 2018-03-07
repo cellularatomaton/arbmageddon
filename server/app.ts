@@ -3,8 +3,9 @@ import { Hub, Market, Graph } from "../common/markets";
 import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from "../common/exchanges";
 import { SpreadExecution } from "../common/strategies";
 import { NextFunction, Request, Response, Router } from "express";
-import { GraphParameters } from "../common/markets/graph";
+import { GraphParameters, WebsocketMessage, SubscriptionData } from "../common/markets/graph";
 import { Logger } from "../common/utils/logger";
+import { Book, BookSnapshot } from "../common/markets/book";
 
 const express = require("express");
 const path = require("path");
@@ -40,12 +41,12 @@ wss.broadcast = (event: any) => {
 	});
 };
 
-graphModel.arb.on((inst?: SpreadExecution) => {
+graphModel.arb.on((spread?: SpreadExecution) => {
 	Logger.log({
 		level: "silly",
-		message: `Graph Triggered Instructions: ${JSON.stringify(inst)}`
+		message: `Graph Triggered Instructions: ${JSON.stringify(spread)}`
 	});
-	if (inst) {
+	if (spread) {
 		Logger.log({
 			level: "silly",
 			message: `Broadcasting...`
@@ -53,14 +54,22 @@ graphModel.arb.on((inst?: SpreadExecution) => {
 		wss.broadcast({
 			action: "update",
 			type: "arb",
-			data: inst
+			data: spread
 		});
 	}
 });
 
+graphModel.book.on((book: Book) => {
+	wss.broadcast({
+		action: "update",
+		type: "book",
+		data: book.getAggregateBook(8, 25)
+	} as WebsocketMessage<BookSnapshot>);
+});
+
 wss.on("connection", (ws: any) => {
-	ws.on("message", (payload: any) => {
-		const message = JSON.parse(payload);
+	ws.on("message", (payload: string) => {
+		const message: WebsocketMessage<any> = JSON.parse(payload);
 		Logger.log({
 			level: "info",
 			message: `Websocket message received: ${JSON.stringify(message)}`
@@ -81,13 +90,13 @@ wss.on("connection", (ws: any) => {
 					type: "params",
 					action: "set",
 					data: graphModel.parameters
-				});
+				} as WebsocketMessage<GraphParameters>);
 			}
 		} else if (message.type === "book") {
 			if (message.action === "subscribe") {
-				// Subscribe to books
+				graphModel.subscribeToBook(message.data as SubscriptionData);
 			} else if (message.action === "unsubscribe") {
-				// Unsubscribe
+				graphModel.unsubscribeFromBook(message.data as SubscriptionData);
 			}
 		}
 	});

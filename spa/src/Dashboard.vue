@@ -46,7 +46,35 @@ import SelectedSpread from "./SelectedSpread.vue";
 import SpreadList from "./SpreadList.vue";
 import { ArbType } from "../../common/utils/enums";
 import { SpreadExecution, ExecutionOperation as Operation } from "../../common/strategies/arbitrage";
-import { Graph, GraphParameters as GraphProps } from "../../common/markets/graph";
+import { Graph, GraphParameters as GraphProps, WebsocketMessage } from "../../common/markets/graph";
+import { BookSnapshot } from "../../common/markets/book";
+
+export interface SpreadListItem extends SpreadExecution {
+	selected: boolean;
+	basisPerMinute?: number;
+}
+
+export interface DashboardModel {
+	ws: Websocket;
+	directArbs: ArbType[];
+	originConversions: ArbType[];
+	destinationConversions: ArbType[];
+	exchMap: Map<string, string> | undefined;
+	arbMap: Map<string, SpreadListItem>;
+	arbList: SpreadListItem[];
+	selectedSpread: SpreadListItem;
+	originConversionBook: BookSnapshot;
+	originBook: BookSnapshot;
+	destinationBook: BookSnapshot;
+	destinationConversionBook: BookSnapshot;
+	showCrossExchange: boolean;
+	showSameExchange: boolean;
+	showDirect: boolean;
+	showConversion: boolean;
+	sortArbsAscending: boolean;
+	basisSize: number;
+	spreadTarget: number;
+}
 
 export default Vue.extend({
 	name: "dashboard",
@@ -57,23 +85,24 @@ export default Vue.extend({
 		"spread-list": SpreadList,
 		"selected-spread": SelectedSpread
 	},
-	data() {
+	data(): DashboardModel {
 		return {
 			ws: new WebSocket("ws://localhost:8081/"),
 			directArbs: [ArbType.MakerDirect, ArbType.TakerDirect],
 			originConversions: [ArbType.MakerOriginConversion, ArbType.TakerOriginConversion],
 			destinationConversions: [ArbType.MakerDestinationConversion, ArbType.TakerDestinationConversion],
-			exchMap: {},
-			arbMap: {},
+			exchMap: undefined,
+			arbMap: new Map<string, SpreadListItem>(),
 			arbList: [],
 			selectedSpread: undefined,
-			multichartsUrl:
-				"https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC",
+			originConversionBook: undefined,
+			originBook: undefined,
+			destinationBook: undefined,
+			destinationConversionBook: undefined,
 			showCrossExchange: false,
 			showSameExchange: true,
 			showDirect: true,
 			showConversion: true,
-			symbolFilter: "SYM",
 			basisSize: 0,
 			spreadTarget: 0,
 			sortArbsAscending: false
@@ -82,10 +111,11 @@ export default Vue.extend({
 	mounted() {
 		const dash = this;
 		dash
-			.getExchanges()
-			.then(() => {
-				return dash.setupWebsocket();
-			})
+			// .getExchanges()
+			// .then(() => {
+			// 	return dash.setupWebsocket();
+			// })
+			dash.setupWebsocket()
 			.then(() => {
 				dash.sortLoop();
 			});
@@ -121,35 +151,35 @@ export default Vue.extend({
 						basisSize: dash.basisSize,
 						spreadTarget: dash.spreadTarget
 					}
-				})
+				} as WebsocketMessage<GraphProps>)
 			);
 		},
 		setGraphProperties(props: GraphProps) {
 			this.basisSize = props.basisSize;
 			this.spreadTarget = props.spreadTarget;
 		},
-		getExchanges() {
-			const dash = this;
-			return new Promise(function(resolve, reject) {
-				axios.get("http://localhost:3000/graph/exchanges").then(
-					function(response: any) {
-						dash.exchMap = response.data.reduce((map: any, exch: any) => {
-							map[exch.id] = exch.name;
-							return map;
-						}, {});
-						resolve();
-					},
-					(response: any) => {
-						reject();
-					}
-				);
-			});
-		},
+		// getExchanges() {
+		// 	const dash = this;
+		// 	return new Promise(function(resolve, reject) {
+		// 		axios.get("http://localhost:3000/graph/exchanges").then(
+		// 			function(response: any) {
+		// 				dash.exchMap = response.data.reduce((map: Map<string, string>, exch: any) => {
+		// 					map.set(exch.id, exch.name);
+		// 					return map;
+		// 				}, new Map<string, string>());
+		// 				resolve();
+		// 			},
+		// 			(response: any) => {
+		// 				reject();
+		// 			}
+		// 		);
+		// 	});
+		// },
 		getFilteredArbs() {
 			const dash = this;
 			if (dash) {
 				return dash.arbList
-					.filter((spread: SpreadExecution) => {
+					.filter((spread: SpreadListItem) => {
 						const isCrossExchange = spread.buy.exchange !== spread.sell.exchange;
 						const crossExchangePasses = dash.showCrossExchange && isCrossExchange;
 						const sameExchangePasses = dash.showSameExchange && !isCrossExchange;
@@ -167,45 +197,101 @@ export default Vue.extend({
 		toggleArbSortDirection() {
 			this.sortArbsAscending = !this.sortArbsAscending;
 		},
-		getCoinigySymbol(op: Operation) {
-			return `${op.exchange}:${op.market}${op.hub}`;
-		},
-		getMccQueryString(spread: SpreadExecution) {
-			if (spread) {
-				const buy = this.getCoinigySymbol(spread.buy);
-				const sell = this.getCoinigySymbol(spread.sell);
-				if (this.directArbs.includes(spread.type)) {
-					// Buy Spread
-					return `?chart=${buy}&chart=${sell}&chart=${sell}-${buy}`;
-				} else if (spread.convert) {
-					// Conversion
-					const convert = this.getCoinigySymbol(spread.convert);
-					if (this.originConversions.includes(spread.type)) {
-						// Origin Conversion
-						return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}-${buy}*${convert}`;
-					} else if (this.destinationConversions.includes(spread.type)) {
-						// Destination Conversion
-						return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}*${convert}-${buy}`;
-					}
-				}
-			}
-			return null;
-		},
-		setMulticharts(spread: SpreadExecution) {
+		// getCoinigySymbol(op: Operation) {
+		// 	return `${op.exchange}:${op.market}${op.hub}`;
+		// },
+		// getMccQueryString(spread: SpreadListItem) {
+		// 	if (spread) {
+		// 		const buy = this.getCoinigySymbol(spread.buy);
+		// 		const sell = this.getCoinigySymbol(spread.sell);
+		// 		if (this.directArbs.includes(spread.type)) {
+		// 			// Buy Spread
+		// 			return `?chart=${buy}&chart=${sell}&chart=${sell}-${buy}`;
+		// 		} else if (spread.convert) {
+		// 			// Conversion
+		// 			const convert = this.getCoinigySymbol(spread.convert);
+		// 			if (this.originConversions.includes(spread.type)) {
+		// 				// Origin Conversion
+		// 				return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}-${buy}*${convert}`;
+		// 			} else if (this.destinationConversions.includes(spread.type)) {
+		// 				// Destination Conversion
+		// 				return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}*${convert}-${buy}`;
+		// 			}
+		// 		}
+		// 	}
+		// 	return null;
+		// },
+		// setMulticharts(spread: SpreadListItem) {
+		// 	const dash = this;
+		// 	if (spread) {
+		// 		const queryString = this.getMccQueryString(spread);
+		// 		this.multichartsUrl = `https://www.multicoincharts.com/${queryString}`;
+		// 		spread.selected = true;
+		// 		if (this.selectedSpread && this.selectedSpread.selected) {
+		// 			this.selectedSpread.selected = false;
+		// 		}
+		// 		this.selectedSpread = spread;
+		// 	}
+		// },
+		selectSpread(spread: SpreadListItem) {
 			const dash = this;
+			if(this.selectedSpread){
+				this.unsubscribeFromBooks(this.selectedSpread);
+			}
 			if (spread) {
-				const queryString = this.getMccQueryString(spread);
-				this.multichartsUrl = `https://www.multicoincharts.com/${queryString}`;
 				spread.selected = true;
 				if (this.selectedSpread && this.selectedSpread.selected) {
 					this.selectedSpread.selected = false;
 				}
 				this.selectedSpread = spread;
+				this.subscribeToBooks(this.selectedSpread);
 			}
+		},
+		subscribeToBooks(spread: SpreadListItem) {
+			this.subscribe(this.getSubscriptionData(spread.buy, SubscriptionType.Book));
+			this.subscribe(this.getSubscriptionData(spread.sell, SubscriptionType.Book));
+			if(spread.convert) {
+				this.subscribe(this.getSubscriptionData(spread.convert, SubscriptionType.Book));
+			}
+		},
+		unsubscribeFromBooks(spread: SpreadListItem) {
+			this.subscribe(this.getSubscriptionData(spread.buy, SubscriptionType.Book));
+			this.subscribe(this.getSubscriptionData(spread.sell, SubscriptionType.Book));
+			if(spread.convert) {
+				this.subscribe(this.getSubscriptionData(spread.convert, SubscriptionType.Book));
+			}
+		},
+		subscribe(data: SubscriptionData){
+			const dash = this;
+			dash.ws.send(
+				JSON.stringify({
+					action: "subscribe",
+					type: "book",
+					data
+				} as WebsocketMessage<SubscriptionData>)
+			);
+		},
+		unsubscribe(data: SubscriptionData){
+			const dash = this;
+			dash.ws.send(
+				JSON.stringify({
+					action: "unsubscribe",
+					type: "book",
+					data
+				} as WebsocketMessage<SubscriptionData>)
+			);
+		},
+		getSubscriptionData(operation: ExecutionOperation, type: SubscriptionType): SubscriptionData {
+			return {
+				exchange: operation.exchange,
+				hub: operation.hub,
+				market: operation.market,
+				type
+			};
 		},
 		sortLoop() {
 			const dash = this;
-			dash.arbList.sort(function(a: SpreadExecution, b: SpreadExecution) {
+			dash.arbList.sort(function(a: SpreadListItem, b: SpreadListItem) {
 				if (dash.sortArbsAscending) {
 					return a.basisPerMinute - b.basisPerMinute;
 				} else {
@@ -214,11 +300,11 @@ export default Vue.extend({
 			});
 			setTimeout(this.sortLoop, 1000);
 		},
-		updateArb(update: SpreadExecution) {
+		updateArb(update: SpreadListItem) {
 			// console.dir(update);
 			if (update && update.spread && update.id) {
 				update.basisPerMinute = (update.spreadsPerMinute || Number.NaN) * update.spread;
-				const arb = this.arbMap[update.id];
+				const arb: SpreadListItem = this.arbMap.get(update.id);
 				// console.dir(arb);
 				if (arb) {
 					const target = this.spreadTarget;
@@ -242,12 +328,12 @@ export default Vue.extend({
 						arb.convert.basisSize = update.convert.basisSize;
 					}
 				} else {
-					this.arbMap[update.id] = update;
+					this.arbMap.set(update.id, update);
 					this.arbList.push(update);
 				}
 				// console.dir(arb);
 				if (!this.selectedSpread) {
-					this.setMulticharts(this.arbList[0]);
+					// this.setMulticharts(this.arbList[0]);
 				}
 			} else {
 				// Only update selected spread:
@@ -313,6 +399,11 @@ export default Vue.extend({
 .flex-col {
 	display: flex;
 	flex-direction: column;
+}
+
+.flex-col-reverse {
+	display: flex;
+	flex-direction: column-reverse;
 }
 
 .flex-grow {
