@@ -3,6 +3,28 @@ import { Hub, Market, Graph } from "../markets";
 import { Asset } from "../assets";
 import { Logger } from "../utils/logger";
 import { TradeType, SubscriptionType } from "../utils/enums";
+import { Book } from "../markets/book";
+import * as _ from "lodash";
+
+// BinaMessage: [ product_id, sequence_number, messages ]
+export type BinaMessage = [number, number, any[]];
+
+// BinaSnapshot: [ sequence_number, BinaBookSnapshotData ]
+export interface BinaBookSnapshotData {
+	currencyPair: string;
+	orderBook: [Map<string, string>, Map<string, string>]; // [asks, bids]
+}
+export type BinaSnapshot = [number, BinaBookSnapshotData];
+
+// BinaBookUpdate: [ message_type, order_type, price, size ]
+// message_type: "o"
+// order_type: 0=ask, 1=bid
+export type BinaBookUpdate = [string, number, string, string];
+
+// BinaTicker: [ message_type, trade_id, side, price, time, size ]
+// message_type: "t"
+// side: 0=sell, 1=buy
+export type BinaTicker = [string, string, number, string, string, number];
 
 const _ = require("lodash");
 const binance = require("node-binance-api");
@@ -16,9 +38,11 @@ binance.options({
 
 export class BinanceExchange extends Exchange {
 	symbolList: string[];
+	books: Map<string, Book>;
 	constructor(graph: Graph) {
 		super("BIN", "BINANCE", graph);
 		this.symbolList = [];
+		this.books = new Map<string, Book>();
 		this.updateExchangeInfo().then(() => {
 			this.setupWebsockets(this.symbolList);
 			graph.exchangeReady(this);
@@ -35,7 +59,7 @@ export class BinanceExchange extends Exchange {
 	updateExchangeInfo(): Promise<void> {
 		const exchange = this;
 		return new Promise((resolve, reject) => {
-			binance.exchangeInfo((error: any,info: any) => {
+			binance.exchangeInfo((error: any, info: any) => {
 				const markets = info.symbols;
 				markets.forEach((market: any) => {
 					const hubSymbol = market.quoteAsset;
@@ -108,6 +132,63 @@ export class BinanceExchange extends Exchange {
 					1000,
 					{ leading: true }
 				);
+			});
+			// Call for snapshots
+			symbols.forEach((symbol: any) => {
+				const parsedSymbols = exchange.parseSymbols(symbol);
+				const book: Book = new Book(this.id, parsedSymbols[0], parsedSymbols[1]);
+				this.books.set(symbol, book);
+				binance.depth(symbol, (error, depth, sym) => {
+					const askDepth = _.toPairs(depth.asks);
+					const bidDepth = _.toPairs(depth.bids);
+					_.forEach(askDepth, function(level, key) {
+						book.updateLevel(0, level[0], level[1]);
+						Logger.log({
+							level: "silly",
+							message: symbol + " ASKS forEach Price " + level[0] + " Qty " + level[1]
+						});
+						//						console.log(symbol + " ASKS forEach Price " + level[0] + " Qty " + level[1]);
+					});
+					_.forEach(bidDepth, function(level, key) {
+						Logger.log({
+							level: "silly",
+							message: symbol + " BIDS forEach Price " + level[0] + " Qty " + level[1]
+						});
+						book.updateLevel(1, level[0], level[1]);
+						//						console.log(symbol + " BIDS forEach Price " + level[0] + " Qty " + level[1]);
+					});
+				});
+			});
+
+			// Joining for book updates
+			binance.websockets.depth(symbols, depth => {
+				let { e: eventType, E: eventTime, s: symbol, u: updateId, b: bidDepth, a: askDepth } = depth;
+				const book: Book | undefined = this.books.get(symbol);
+				//				console.log(symbol + " ASKS Updates ", askDepth);
+				//				console.log(symbol + " BIDS Updates ", bidDepth);
+				if (book) {
+					askDepth.forEach((level: any) => {
+						book.updateLevel(0, level[0], level[1]);
+						Logger.log({
+							level: "silly",
+							message: symbol + " Ask Incremental Book Update - Price: " + level[0] + " Qty: " + level[1]
+						});
+						//						console.log(symbol + " Ask Incremental Book Update - Price: " + level[0] + " Qty: " + level[1]);
+					});
+
+					bidDepth.forEach((level: any) => {
+						book.updateLevel(1, level[0], level[1]);
+						Logger.log({
+							level: "silly",
+							message: symbol + " Bid Incremental Book Update - Price: " + level[0] + " Qty: " + level[1]
+						});
+						//						console.log(symbol + " Bid Incremental Book Update - Price: " + level[0] + " Qty: " + level[1]);
+					});
+
+					book.levels.forEach((level: any) => {
+						console.log(symbol + " Book - Price: " + level[0] + " Qty: " + level[1]);
+					});
+				}
 			});
 		} catch (err) {
 			Logger.log({
