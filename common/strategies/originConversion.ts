@@ -65,7 +65,7 @@ export abstract class OriginConversion extends Arb {
 			spreadsPerMinute: 0,
 			type: ArbType.MakerOriginConversion,
 			convert: this.getOperation(
-				this.conversionMarket.hub.exchange.name,
+				this.conversionMarket.hub.exchange.id,
 				this.conversionMarket.hub.asset.symbol,
 				this.conversionMarket.asset.symbol,
 				ticker.price,
@@ -75,12 +75,12 @@ export abstract class OriginConversion extends Arb {
 				ticker.time
 			),
 			buy: this.getOperation(
-				this.originMarket.hub.exchange.name,
+				this.originMarket.hub.exchange.id,
 				this.originMarket.hub.asset.symbol,
 				this.originMarket.asset.symbol
 			),
 			sell: this.getOperation(
-				this.destinationMarket.hub.exchange.name,
+				this.destinationMarket.hub.exchange.id,
 				this.destinationMarket.hub.asset.symbol,
 				this.destinationMarket.asset.symbol
 			),

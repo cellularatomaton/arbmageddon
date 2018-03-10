@@ -56,7 +56,8 @@ export class Market {
 	updateTicker(ticker: Ticker) {
 		Logger.log({
 			level: "silly",
-			message: `Adding ticker: ${JSON.stringify(ticker)}`
+			message: `Update ticker: ${this.getId()}`,
+			data: ticker
 		});
 		if ((ticker.side as TradeType) === TradeType.Buy) {
 			this.onBuy.trigger(ticker);
@@ -75,15 +76,16 @@ export class Market {
 		}
 	}
 
-	subscribeBook() {
-		// Subscribe to book
-	}
+	// subscribeBook() {
+	// 	// Subscribe to book
+	// }
 
-	unsubscribeBook() {
-		// Unsubscribe from book
-	}
+	// unsubscribeBook() {
+	// 	// Unsubscribe from book
+	// }
 
 	updateBook(book: Book) {
 		// Handle exchange book updates.
+		this.onBook.trigger(book);
 	}
 }

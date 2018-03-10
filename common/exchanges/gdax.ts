@@ -139,7 +139,7 @@ export class GdaxExchange extends Exchange {
 
 	subscribeBookFeeds() {
 		this.products.forEach((prod: GdaxProduct) => {
-			this.subscribeLevel2(`${prod.quote_currency}-${prod.quote_currency}`);
+			this.subscribeLevel2(`${prod.base_currency}-${prod.quote_currency}`);
 		});
 	}
 

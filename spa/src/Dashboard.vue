@@ -2,36 +2,65 @@
 	<div class="app-container flex-row elbow-room">
 		<spread-list :dash="this"></spread-list>
 		<div class="flex-grow flex-col">
-			<div class="flex-row flex-stretch elbow-room">
-				<execution-operation
-					v-if="selectedSpread && originConversions.includes(selectedSpread.type)" 
-					side="buy" class="buy-convert-op flex-grow"
-				 	title="Buy Convert"
-					:operation="selectedSpread.convert"></execution-operation>
-				<execution-operation
-					v-if="selectedSpread"
-					side="buy"
-					class="buy-op flex-grow"
-					title="Buy"
-					:operation="selectedSpread ? selectedSpread.buy : null"></execution-operation>
-				<execution-operation 
-					v-if="selectedSpread"
-					side="sell"
-					class="sell-op flex-grow"
-					title="Sell"
-					:operation="selectedSpread ? selectedSpread.sell: null"></execution-operation>
-				<execution-operation
-					v-if="selectedSpread && destinationConversions.includes(selectedSpread.type)"
-					side="sell"
-					class="sell-convert-op flex-grow"
-					title="Sell Convert"
-					:operation="selectedSpread.convert"></execution-operation>
-			</div>
-			<selected-spread
+			<div>
+				<selected-spread
 				:basis-size="basisSize"
 				:spread-target="spreadTarget"
 				:selected-spread="selectedSpread"></selected-spread>
-			<multi-chart :multicharts-url="multichartsUrl"></multi-chart>
+			</div>
+			<div class="flex-row flex-stretch elbow-room">
+				<div v-if="selectedSpread && originConversions.includes(selectedSpread.type)"
+					class="flex-col">
+					<div>
+						<execution-operation
+							side="buy" class="buy-convert-op"
+							title="Buy Convert"
+							:operation="selectedSpread.convert"></execution-operation>
+					</div>
+					<div class="flex-grow overflow-y">
+						<book-depth :book="conversionBook"></book-depth>
+					</div>
+				</div>
+				<div v-if="selectedSpread"
+					class="flex-col">
+					<div>
+						<execution-operation
+							side="buy"
+							class="buy-op"
+							title="Buy"
+							:operation="selectedSpread ? selectedSpread.buy : null"></execution-operation>
+					</div>
+					<div class="flex-grow overflow-y">
+						<book-depth :book="originBook"></book-depth>
+					</div>
+				</div>
+				<div v-if="selectedSpread"
+					class="flex-col">
+					<div>
+						<execution-operation 
+							side="sell"
+							class="sell-op"
+							title="Sell"
+							:operation="selectedSpread ? selectedSpread.sell: null"></execution-operation>	
+					</div>
+					<div class="flex-grow overflow-y">
+						<book-depth :book="destinationBook"></book-depth>
+					</div>
+				</div>
+				<div v-if="selectedSpread && destinationConversions.includes(selectedSpread.type)"
+					class="flex-col">
+					<div>
+						<execution-operation
+							side="sell"
+							class="sell-convert-op"
+							title="Sell Convert"
+							:operation="selectedSpread.convert"></execution-operation>
+					</div>
+					<div class="flex-grow overflow-y">
+						<book-depth :book="conversionBook"></book-depth>
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 </template>
@@ -44,7 +73,8 @@ import GraphParameters from "./GraphParameters.vue";
 import MultiChart from "./MultiChart.vue";
 import SelectedSpread from "./SelectedSpread.vue";
 import SpreadList from "./SpreadList.vue";
-import { ArbType } from "../../common/utils/enums";
+import BookDepth from "./BookDepth";
+import { ArbType, SubscriptionType } from "../../common/utils/enums";
 import { SpreadExecution, ExecutionOperation as Operation } from "../../common/strategies/arbitrage";
 import { Graph, GraphParameters as GraphProps, WebsocketMessage } from "../../common/markets/graph";
 import { BookSnapshot } from "../../common/markets/book";
@@ -62,11 +92,10 @@ export interface DashboardModel {
 	exchMap: Map<string, string> | undefined;
 	arbMap: Map<string, SpreadListItem>;
 	arbList: SpreadListItem[];
-	selectedSpread: SpreadListItem;
-	originConversionBook: BookSnapshot;
-	originBook: BookSnapshot;
-	destinationBook: BookSnapshot;
-	destinationConversionBook: BookSnapshot;
+	selectedSpread: SpreadListItem | undefined;
+	originBook: BookSnapshot | undefined;
+	destinationBook: BookSnapshot | undefined;
+	conversionBook: BookSnapshot | undefined;
 	showCrossExchange: boolean;
 	showSameExchange: boolean;
 	showDirect: boolean;
@@ -83,9 +112,10 @@ export default Vue.extend({
 		"graph-parameters": GraphParameters,
 		"multi-chart": MultiChart,
 		"spread-list": SpreadList,
-		"selected-spread": SelectedSpread
+		"selected-spread": SelectedSpread,
+		"book-depth": BookDepth
 	},
-	data(): DashboardModel {
+	data() {
 		return {
 			ws: new WebSocket("ws://localhost:8081/"),
 			directArbs: [ArbType.MakerDirect, ArbType.TakerDirect],
@@ -95,10 +125,9 @@ export default Vue.extend({
 			arbMap: new Map<string, SpreadListItem>(),
 			arbList: [],
 			selectedSpread: undefined,
-			originConversionBook: undefined,
 			originBook: undefined,
 			destinationBook: undefined,
-			destinationConversionBook: undefined,
+			conversionBook: undefined,
 			showCrossExchange: false,
 			showSameExchange: true,
 			showDirect: true,
@@ -106,19 +135,18 @@ export default Vue.extend({
 			basisSize: 0,
 			spreadTarget: 0,
 			sortArbsAscending: false
-		};
+		} as DashboardModel;
 	},
 	mounted() {
 		const dash = this;
-		dash
-			// .getExchanges()
-			// .then(() => {
-			// 	return dash.setupWebsocket();
-			// })
-			dash.setupWebsocket()
-			.then(() => {
-				dash.sortLoop();
-			});
+		dash;
+		// .getExchanges()
+		// .then(() => {
+		// 	return dash.setupWebsocket();
+		// })
+		dash.setupWebsocket().then(() => {
+			dash.sortLoop();
+		});
 	},
 	watch: {
 		basisSize(newBasis, oldBasis) {
@@ -235,7 +263,7 @@ export default Vue.extend({
 		// },
 		selectSpread(spread: SpreadListItem) {
 			const dash = this;
-			if(this.selectedSpread){
+			if (this.selectedSpread) {
 				this.unsubscribeFromBooks(this.selectedSpread);
 			}
 			if (spread) {
@@ -250,18 +278,18 @@ export default Vue.extend({
 		subscribeToBooks(spread: SpreadListItem) {
 			this.subscribe(this.getSubscriptionData(spread.buy, SubscriptionType.Book));
 			this.subscribe(this.getSubscriptionData(spread.sell, SubscriptionType.Book));
-			if(spread.convert) {
+			if (spread.convert) {
 				this.subscribe(this.getSubscriptionData(spread.convert, SubscriptionType.Book));
 			}
 		},
 		unsubscribeFromBooks(spread: SpreadListItem) {
-			this.subscribe(this.getSubscriptionData(spread.buy, SubscriptionType.Book));
-			this.subscribe(this.getSubscriptionData(spread.sell, SubscriptionType.Book));
-			if(spread.convert) {
-				this.subscribe(this.getSubscriptionData(spread.convert, SubscriptionType.Book));
+			this.unsubscribe(this.getSubscriptionData(spread.buy, SubscriptionType.Book));
+			this.unsubscribe(this.getSubscriptionData(spread.sell, SubscriptionType.Book));
+			if (spread.convert) {
+				this.unsubscribe(this.getSubscriptionData(spread.convert, SubscriptionType.Book));
 			}
 		},
-		subscribe(data: SubscriptionData){
+		subscribe(data: SubscriptionData) {
 			const dash = this;
 			dash.ws.send(
 				JSON.stringify({
@@ -271,7 +299,7 @@ export default Vue.extend({
 				} as WebsocketMessage<SubscriptionData>)
 			);
 		},
-		unsubscribe(data: SubscriptionData){
+		unsubscribe(data: SubscriptionData) {
 			const dash = this;
 			dash.ws.send(
 				JSON.stringify({
@@ -288,6 +316,28 @@ export default Vue.extend({
 				market: operation.market,
 				type
 			};
+		},
+		getMarketId(obj: any) {
+			return `${obj.exchange}.${obj.hub}.${obj.market}`;
+		},
+		updateBook(book: BookSnapshot) {
+			if (this.selectedSpread) {
+				const bookId = this.getMarketId(book);
+				const originOpId = this.getMarketId(this.selectedSpread.buy);
+				if (originOpId === bookId) {
+					this.originBook = book;
+				} else {
+					const destinationOpId = this.getMarketId(this.selectedSpread.sell);
+					if (destinationOpId === bookId) {
+						this.destinationBook = book;
+					} else {
+						const convertOpId = this.getMarketId(this.selectedSpread.convert);
+						if (convertOpId === bookId) {
+							this.conversionBook = book;
+						}
+					}
+				}
+			}
 		},
 		sortLoop() {
 			const dash = this;
@@ -334,6 +384,7 @@ export default Vue.extend({
 				// console.dir(arb);
 				if (!this.selectedSpread) {
 					// this.setMulticharts(this.arbList[0]);
+					this.selectSpread(this.arbList[0]);
 				}
 			} else {
 				// Only update selected spread:
@@ -354,6 +405,8 @@ export default Vue.extend({
 					} else if (msg.type === "params" && msg.action === "set") {
 						dash.setGraphProperties(msg.data);
 						console.log("Set graph params.");
+					} else if (msg.type === "book" && msg.action === "update") {
+						dash.updateBook(msg.data);
 					}
 				};
 

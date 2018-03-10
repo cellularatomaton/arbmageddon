@@ -30,22 +30,26 @@ export type PoloTicker = [string, string, number, string, string, number];
 
 export class PoloniexExchange extends Exchange {
 	symbolList: string[];
+	// subscriptionConfirms: Map<number, boolean>;
 	idToSymbolMap: Map<number, HubMarketPair>;
 	books: Map<number, Book>;
 	constructor(graph: Graph) {
 		super("PLX", "POLONIEX", graph);
 		this.symbolList = [];
+		// this.subscriptionConfirms = new Map<number, boolean>();
 		this.idToSymbolMap = new Map<number, HubMarketPair>();
 		this.books = new Map<number, Book>();
-		this.updateProducts().then(() => {
-			this.setupWebsocket();
-			graph.exchangeReady(this);
-		});
+		this.updateProducts()
+			.then(() => {
+				return this.setupWebsocket();
+			})
+			.then(() => {
+				graph.exchangeReady(this);
+			});
 	}
 
 	updateProducts(): Promise<void> {
 		const exchange = this;
-
 		return new Promise((resolve, reject) => {
 			Http.get(`https://poloniex.com/public?command=returnTicker`, (tickers: any) => {
 				Logger.log({
@@ -59,8 +63,12 @@ export class PoloniexExchange extends Exchange {
 					const symbols = key.split("_");
 					const hubSymbol = symbols[0];
 					const marketSymbol = symbols[1];
-
 					exchange.mapMarket(hubSymbol, marketSymbol);
+					this.idToSymbolMap.set(ticker.id, {
+						hubSymbol,
+						marketSymbol
+					});
+					// this.subscriptionConfirms.set(ticker.id, false);
 					this.symbolList.push(key);
 				});
 				this.graph.mapBasis();
@@ -71,83 +79,104 @@ export class PoloniexExchange extends Exchange {
 
 	setupWebsocket() {
 		const polo = this;
-		Logger.log({
-			level: "info",
-			message: "Init POLO Websocket"
-		});
-		const WebSocket = require("ws");
-		const ws = new WebSocket("wss://api2.poloniex.com/");
-
-		ws.on("open", function open() {
+		return new Promise((resolve, reject) => {
 			Logger.log({
 				level: "info",
-				message: "POLO Websocket opened"
+				message: "Init POLO Websocket"
 			});
-			polo.symbolList.forEach((symbol: string) => {
-				const msg = {
-					command: "subscribe",
-					channel: symbol
-				};
-				ws.send(JSON.stringify(msg));
-			});
-		});
+			const WebSocket = require("ws");
+			const ws = new WebSocket("wss://api2.poloniex.com/");
 
-		ws.on("error", (err: any) => {
-			Logger.log({
-				level: "error",
-				message: "POLO Websocket error",
-				data: err
-			});
-		});
-
-		ws.on("close", () => {
-			Logger.log({
-				level: "warn",
-				message: "POLO Websocket closed."
-			});
-		});
-
-		ws.on("message", function incoming(msg: string) {
-			const data = JSON.parse(msg);
-			if (data.length === 3) {
-				const poloMessage = data as PoloMessage;
-				const productId = poloMessage[0];
-				// const sequence = poloMessage[1];
-				const messages = poloMessage[2];
-				messages.forEach((m: any[]) => {
-					const type = m[0];
-					if (type === "i") {
-						// Initialize:  Symbol mapping and initial book.
-						const snap = m as PoloSnapshot;
-						polo.handleBookSnapshot(productId, snap);
-					} else if (type === "o") {
-						// Book Update:
-						const bookUpdate = m as PoloBookUpdate;
-						polo.handleBookUpdate(productId, bookUpdate);
-					} else if (type === "t") {
-						// Ticker:
-						const ticker = m as PoloTicker;
-						polo.handleTicker(productId, ticker);
-					}
+			ws.on("open", function open() {
+				Logger.log({
+					level: "info",
+					message: "POLO Websocket opened"
 				});
-			}
+				polo.symbolList.forEach((symbol: string) => {
+					const msg = {
+						command: "subscribe",
+						channel: symbol
+					};
+					ws.send(JSON.stringify(msg));
+				});
+				resolve();
+			});
+
+			ws.on("error", (err: any) => {
+				Logger.log({
+					level: "error",
+					message: "POLO Websocket error",
+					data: err
+				});
+			});
+
+			ws.on("close", () => {
+				Logger.log({
+					level: "warn",
+					message: "POLO Websocket closed."
+				});
+			});
+
+			ws.on("message", function incoming(msg: string) {
+				const data = JSON.parse(msg);
+				if (data.length === 3) {
+					const poloMessage = data as PoloMessage;
+					const productId = poloMessage[0];
+					// polo.subscriptionConfirms.set(productId, true);
+					// const confirmedCount = Array.from(polo.subscriptionConfirms.values()).filter(b => b).length;
+					// const unconfirmedCount = Array.from(polo.subscriptionConfirms.values()).filter(b => !b).length;
+					// Logger.log({
+					// 	level: "info",
+					// 	message: `POLO subscription: confirmed=${confirmedCount}, uncomfirmed=${unconfirmedCount}`
+					// });
+					// const sequence = poloMessage[1];
+					const messages = poloMessage[2];
+					messages.forEach((m: any[]) => {
+						const type = m[0];
+						if (type === "i") {
+							// Initialize:  Symbol mapping and initial book.
+							const snap = m as PoloSnapshot;
+							polo.handleBookSnapshot(productId, snap);
+						} else if (type === "o") {
+							// Book Update:
+							const bookUpdate = m as PoloBookUpdate;
+							polo.handleBookUpdate(productId, bookUpdate);
+						} else if (type === "t") {
+							// Ticker:
+							const ticker = m as PoloTicker;
+							polo.handleTicker(productId, ticker);
+						}
+					});
+				}
+			});
 		});
 	}
 
 	handleBookSnapshot(productId: number, snapshot: PoloSnapshot) {
 		const initial: any = snapshot[1];
 		const symbol: string = initial.currencyPair;
-		const symbols = symbol.split("_");
-		this.idToSymbolMap.set(productId, {
-			hubSymbol: symbols[0],
-			marketSymbol: symbols[1]
+		Logger.log({
+			level: "silly",
+			message: `POLO Book Snapshot ${productId}:${symbol}`
 		});
-		const book: Book = new Book(this.id, symbols[0], symbols[1]);
-		this.books.set(productId, book);
-		this.updateBook(book);
+		// const symbols = symbol.split("_");
+		// this.idToSymbolMap.set(productId, {
+		// 	hubSymbol: symbols[0],
+		// 	marketSymbol: symbols[1]
+		// });
+		const pair: HubMarketPair | undefined = this.idToSymbolMap.get(productId);
+		if (pair) {
+			const book: Book = new Book(this.id, pair.hubSymbol, pair.marketSymbol);
+			this.books.set(productId, book);
+			this.updateBook(book);
+		}
 	}
 
 	handleBookUpdate(productId: number, update: PoloBookUpdate) {
+		Logger.log({
+			level: "silly",
+			message: `POLO Book Update ${productId}`
+		});
 		const side: TradeType = update[1] ? TradeType.Buy : TradeType.Sell;
 		const price: number = Number(update[2]);
 		const size: number = Number(update[3]);
@@ -161,6 +190,11 @@ export class PoloniexExchange extends Exchange {
 	handleTicker(productId: number, ticker: PoloTicker) {
 		const pair: HubMarketPair | undefined = this.idToSymbolMap.get(productId);
 		if (pair) {
+			Logger.log({
+				level: "silly",
+				message: `POLO Ticker ${productId}: Hub=${pair.hubSymbol} Market=${pair.marketSymbol}`,
+				data: ticker
+			});
 			const tradeId: number = Number(ticker[1]);
 			this.updateTicker({
 				exchangeSymbol: this.id,

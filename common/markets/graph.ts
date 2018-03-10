@@ -28,6 +28,12 @@ export interface SubscriptionData {
 	type: SubscriptionType;
 }
 
+export interface WebsocketMessage<T> {
+	type: string;
+	action: string;
+	data: T;
+}
+
 export type BookHandler = (book: Book) => void;
 
 export class Graph {
@@ -98,6 +104,7 @@ export class Graph {
 	};
 	exchanges: Exchange[];
 	exchangeMap: Map<string, Exchange>;
+	exchangeReadyCount: number;
 
 	onArb: EventImp<SpreadExecution> = new EventImp<SpreadExecution>();
 	get arb(): IEvent<SpreadExecution> {
@@ -113,22 +120,26 @@ export class Graph {
 		this.assetMap = new Map<string, Asset>();
 		this.arbMap = new Map<string, Arb>();
 		this.bookSubscriptionMap = new Map<string, BookHandler>();
+		this.exchangeReadyCount = 0;
 		this.exchangeMap = new Map<string, Exchange>();
-		this.exchanges = [new GdaxExchange(this), new BinanceExchange(this), new PoloniexExchange(this)];
+		this.exchanges = [new PoloniexExchange(this), new GdaxExchange(this) /*,new BinanceExchange(this)*/];
 		this.exchanges.forEach((exchange: Exchange) => {
 			this.exchangeMap.set(exchange.id, exchange);
 		});
 	}
 
 	exchangeReady(exchange: Exchange) {
-		this.findArbs();
-		Logger.log({
-			level: "info",
-			message: `Exchange Ready [${exchange.name}]
-	Exchange Count: ${this.exchanges.length},
-	Asset Count: ${this.assetMap.size},
-	Arb Count: ${this.arbMap.size}`
-		});
+		this.exchangeReadyCount++;
+		if (this.exchangeReadyCount === this.exchanges.length) {
+			this.findArbs();
+			Logger.log({
+				level: "info",
+				message: `Exchange Ready [${exchange.id}]
+		Exchange Count: ${this.exchanges.length},
+		Asset Count: ${this.assetMap.size},
+		Arb Count: ${this.arbMap.size}`
+			});
+		}
 	}
 
 	getArb(arbType: ArbType, originMarket: Market, destinationMarket: Market): Arb | undefined {
@@ -184,7 +195,7 @@ export class Graph {
 								const id = arb.getId();
 								if (!this.arbMap.has(id)) {
 									Logger.log({
-										level: "debug",
+										level: "info",
 										message: `Mapping Arb: ${id}`
 									});
 									arb.updated.on((spread: SpreadExecution) => {

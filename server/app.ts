@@ -60,6 +60,10 @@ graphModel.arb.on((spread?: SpreadExecution) => {
 });
 
 graphModel.book.on((book: Book) => {
+	Logger.log({
+		level: "silly",
+		message: `Book update broadcast ${book.exchangeSymbol}.${book.hubSymbol}.${book.marketSymbol}`
+	});
 	wss.broadcast({
 		action: "update",
 		type: "book",

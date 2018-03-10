@@ -48,7 +48,7 @@ export abstract class DirectArb extends Arb {
 			spreadsPerMinute: 0,
 			type: ArbType.MakerDirect,
 			buy: this.getOperation(
-				this.originMarket.hub.exchange.name,
+				this.originMarket.hub.exchange.id,
 				this.originMarket.hub.asset.symbol,
 				this.originMarket.asset.symbol,
 				ticker.price,
@@ -58,7 +58,7 @@ export abstract class DirectArb extends Arb {
 				ticker.time
 			),
 			sell: this.getOperation(
-				this.destinationMarket.hub.exchange.name,
+				this.destinationMarket.hub.exchange.id,
 				this.destinationMarket.hub.asset.symbol,
 				this.destinationMarket.asset.symbol
 			),

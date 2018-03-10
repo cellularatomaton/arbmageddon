@@ -22,12 +22,12 @@ export abstract class Exchange {
 		return this.id;
 	}
 
-	mapMarket(hubSymbol: string, marketSymbol: string): any {
+	mapMarket(hubSymbol: string, marketSymbol: string): Market {
 		// if (hubSymbol === marketSymbol) {
 		// 	log.warn(`Bad mapping ${marketSymbol}/${hubSymbol}`);
 		// }
 		const hub = this.getHub(hubSymbol);
-		const market = hub.getMarket(marketSymbol);
+		const market = hub.mapMarket(marketSymbol);
 		return market;
 	}
 
