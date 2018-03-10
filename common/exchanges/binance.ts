@@ -25,17 +25,10 @@ export class BinanceExchange extends Exchange {
 		});
 	}
 
-	subscribe(market: string, type: SubscriptionType): void {
-		throw new Error("Method not implemented.");
-	}
-	unsubscribe(market: string, type: SubscriptionType): void {
-		throw new Error("Method not implemented.");
-	}
-
 	updateExchangeInfo(): Promise<void> {
 		const exchange = this;
 		return new Promise((resolve, reject) => {
-			binance.exchangeInfo((error: any,info: any) => {
+			binance.exchangeInfo((error: any, info: any) => {
 				const markets = info.symbols;
 				markets.forEach((market: any) => {
 					const hubSymbol = market.quoteAsset;

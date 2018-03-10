@@ -1,43 +1,97 @@
 import { TradeType } from "../utils/enums";
-export interface BookOrder {
-	price: number;
-	size: number;
-}
+import { Logger } from "../utils/logger";
+import * as _ from "lodash";
 
-export type BookOrderSorter = (a: BookOrder, b: BookOrder) => number;
-export function bookOrderSorter(a: BookOrder, b: BookOrder): number {
+export type BookOrderSorter = (a: BookLevel, b: BookLevel) => number;
+export function bookOrderSorter(a: BookLevel, b: BookLevel): number {
 	// Ascending
 	return a.price - b.price;
 }
 
 export interface BookLevel {
 	price: number;
-	ask: BookOrder;
-	bid: BookOrder;
+	size: number;
+}
+
+export interface BookSnapshot {
+	exchange: string;
+	hub: string;
+	market: string;
+	bidLevels: BookLevel[];
+	askLevels: BookLevel[];
 }
 
 export class Book {
 	lastUpdated: Date;
-	levels: Map<number, BookLevel>;
+	bidLevels: Map<number, BookLevel>;
+	askLevels: Map<number, BookLevel>;
 
 	constructor(public exchangeSymbol: string, public hubSymbol: string, public marketSymbol: string) {
 		this.lastUpdated = new Date();
-		this.levels = new Map<number, BookLevel>();
-	}
-
-	addLevel(level: BookLevel) {
-		this.levels.set(level.price, level);
+		this.bidLevels = new Map<number, BookLevel>();
+		this.askLevels = new Map<number, BookLevel>();
 	}
 
 	updateLevel(type: TradeType, price: number, size: number) {
-		const level = this.levels.get(price);
-		if (!level) {
-			// Create new level
+		if (0 < size) {
+			const levels = (type as TradeType) === TradeType.Buy ? this.bidLevels : this.askLevels;
+			let level: BookLevel | undefined = levels.get(price);
+			if (!level) {
+				// Create new level
+				level = { price, size } as BookLevel;
+				levels.set(price, level);
+			} else {
+				level.size = size;
+			}
 		}
-		if ((type as TradeType) === TradeType.Buy) {
-			// Update bid
-		} else {
-			// Update ask
-		}
+	}
+
+	getGroupedLevels(precision: number, bookLevels: BookLevel[]): BookLevel[] {
+		const groupedLevels: any = _.groupBy(bookLevels, (level: BookLevel) => {
+			return _.round(level.price, precision);
+		});
+		const mappedValues: any = _.mapValues(groupedLevels, (levels: BookLevel[], price: number): BookLevel => {
+			return _.reduce(
+				levels,
+				(agg: BookLevel, current: BookLevel) => {
+					agg.size += current.size;
+					return agg;
+				},
+				{ price, size: 0 }
+			);
+		});
+		const values: BookLevel[] = _.values(mappedValues);
+		return values;
+	}
+
+	// Grab the top [take] levels after aggregating to [precision].
+	getAggregateBook(precision: number, take: number): BookSnapshot {
+		Logger.log({
+			level: "silly",
+			message: `Ask levels: ${this.exchangeSymbol}.${this.hubSymbol}.${this.marketSymbol}`,
+			data: this.askLevels
+		});
+		Logger.log({
+			level: "silly",
+			message: `Bid levels: ${this.exchangeSymbol}.${this.hubSymbol}.${this.marketSymbol}`,
+			data: this.bidLevels
+		});
+		const groupedBidLevels = this.getGroupedLevels(precision, Array.from(this.bidLevels.values()));
+		const sortedBidLevels = _.sortBy(groupedBidLevels, (level: BookLevel) => -level.price); // Descending Bids
+		const groupedAskLevels = this.getGroupedLevels(precision, Array.from(this.askLevels.values()));
+		const sortedAskLevels = _.sortBy(groupedAskLevels, (level: BookLevel) => level.price); // Ascending Asks
+		const snapshot: BookSnapshot = {
+			exchange: this.exchangeSymbol,
+			hub: this.hubSymbol,
+			market: this.marketSymbol,
+			bidLevels: sortedBidLevels.slice(0, take),
+			askLevels: sortedAskLevels.slice(0, take)
+		};
+		Logger.log({
+			level: "silly",
+			message: `Snapshot: ${this.exchangeSymbol}.${this.hubSymbol}.${this.marketSymbol}`,
+			data: snapshot
+		});
+		return snapshot;
 	}
 }

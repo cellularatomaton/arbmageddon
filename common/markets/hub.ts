@@ -15,7 +15,7 @@ export class Hub {
 		return `${this.exchange.getId()}_${this.asset.symbol}`;
 	}
 
-	getMarket(symbol: string): Market {
+	mapMarket(symbol: string): Market {
 		if (symbol === this.asset.symbol) {
 			Logger.log({
 				level: "warn",
@@ -30,5 +30,10 @@ export class Hub {
 			this.markets.set(symbol, market);
 			return market;
 		}
+	}
+
+	getMarket(symbol: string): Market | undefined {
+		const market = this.markets.get(symbol);
+		return market;
 	}
 }

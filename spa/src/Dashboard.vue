@@ -2,36 +2,65 @@
 	<div class="app-container flex-row elbow-room">
 		<spread-list :dash="this"></spread-list>
 		<div class="flex-grow flex-col">
-			<div class="flex-row flex-stretch elbow-room">
-				<execution-operation
-					v-if="selectedSpread && originConversions.includes(selectedSpread.type)" 
-					side="buy" class="buy-convert-op flex-grow"
-				 	title="Buy Convert"
-					:operation="selectedSpread.convert"></execution-operation>
-				<execution-operation
-					v-if="selectedSpread"
-					side="buy"
-					class="buy-op flex-grow"
-					title="Buy"
-					:operation="selectedSpread ? selectedSpread.buy : null"></execution-operation>
-				<execution-operation 
-					v-if="selectedSpread"
-					side="sell"
-					class="sell-op flex-grow"
-					title="Sell"
-					:operation="selectedSpread ? selectedSpread.sell: null"></execution-operation>
-				<execution-operation
-					v-if="selectedSpread && destinationConversions.includes(selectedSpread.type)"
-					side="sell"
-					class="sell-convert-op flex-grow"
-					title="Sell Convert"
-					:operation="selectedSpread.convert"></execution-operation>
-			</div>
-			<selected-spread
+			<div>
+				<selected-spread
 				:basis-size="basisSize"
 				:spread-target="spreadTarget"
 				:selected-spread="selectedSpread"></selected-spread>
-			<multi-chart :multicharts-url="multichartsUrl"></multi-chart>
+			</div>
+			<div class="flex-row flex-stretch elbow-room">
+				<div v-if="selectedSpread && originConversions.includes(selectedSpread.type)"
+					class="flex-col">
+					<div>
+						<execution-operation
+							side="buy" class="buy-convert-op"
+							title="Buy Convert"
+							:operation="selectedSpread.convert"></execution-operation>
+					</div>
+					<div class="flex-grow overflow-y">
+						<book-depth :book="conversionBook"></book-depth>
+					</div>
+				</div>
+				<div v-if="selectedSpread"
+					class="flex-col">
+					<div>
+						<execution-operation
+							side="buy"
+							class="buy-op"
+							title="Buy"
+							:operation="selectedSpread ? selectedSpread.buy : null"></execution-operation>
+					</div>
+					<div class="flex-grow overflow-y">
+						<book-depth :book="originBook"></book-depth>
+					</div>
+				</div>
+				<div v-if="selectedSpread"
+					class="flex-col">
+					<div>
+						<execution-operation 
+							side="sell"
+							class="sell-op"
+							title="Sell"
+							:operation="selectedSpread ? selectedSpread.sell: null"></execution-operation>	
+					</div>
+					<div class="flex-grow overflow-y">
+						<book-depth :book="destinationBook"></book-depth>
+					</div>
+				</div>
+				<div v-if="selectedSpread && destinationConversions.includes(selectedSpread.type)"
+					class="flex-col">
+					<div>
+						<execution-operation
+							side="sell"
+							class="sell-convert-op"
+							title="Sell Convert"
+							:operation="selectedSpread.convert"></execution-operation>
+					</div>
+					<div class="flex-grow overflow-y">
+						<book-depth :book="conversionBook"></book-depth>
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 </template>
@@ -44,9 +73,37 @@ import GraphParameters from "./GraphParameters.vue";
 import MultiChart from "./MultiChart.vue";
 import SelectedSpread from "./SelectedSpread.vue";
 import SpreadList from "./SpreadList.vue";
-import { ArbType } from "../../common/utils/enums";
+import BookDepth from "./BookDepth";
+import { ArbType, SubscriptionType } from "../../common/utils/enums";
 import { SpreadExecution, ExecutionOperation as Operation } from "../../common/strategies/arbitrage";
-import { Graph, GraphParameters as GraphProps } from "../../common/markets/graph";
+import { Graph, GraphParameters as GraphProps, WebsocketMessage } from "../../common/markets/graph";
+import { BookSnapshot } from "../../common/markets/book";
+
+export interface SpreadListItem extends SpreadExecution {
+	selected: boolean;
+	basisPerMinute?: number;
+}
+
+export interface DashboardModel {
+	ws: Websocket;
+	directArbs: ArbType[];
+	originConversions: ArbType[];
+	destinationConversions: ArbType[];
+	exchMap: Map<string, string> | undefined;
+	arbMap: Map<string, SpreadListItem>;
+	arbList: SpreadListItem[];
+	selectedSpread: SpreadListItem | undefined;
+	originBook: BookSnapshot | undefined;
+	destinationBook: BookSnapshot | undefined;
+	conversionBook: BookSnapshot | undefined;
+	showCrossExchange: boolean;
+	showSameExchange: boolean;
+	showDirect: boolean;
+	showConversion: boolean;
+	sortArbsAscending: boolean;
+	basisSize: number;
+	spreadTarget: number;
+}
 
 export default Vue.extend({
 	name: "dashboard",
@@ -55,7 +112,8 @@ export default Vue.extend({
 		"graph-parameters": GraphParameters,
 		"multi-chart": MultiChart,
 		"spread-list": SpreadList,
-		"selected-spread": SelectedSpread
+		"selected-spread": SelectedSpread,
+		"book-depth": BookDepth
 	},
 	data() {
 		return {
@@ -63,32 +121,32 @@ export default Vue.extend({
 			directArbs: [ArbType.MakerDirect, ArbType.TakerDirect],
 			originConversions: [ArbType.MakerOriginConversion, ArbType.TakerOriginConversion],
 			destinationConversions: [ArbType.MakerDestinationConversion, ArbType.TakerDestinationConversion],
-			exchMap: {},
-			arbMap: {},
+			exchMap: undefined,
+			arbMap: new Map<string, SpreadListItem>(),
 			arbList: [],
 			selectedSpread: undefined,
-			multichartsUrl:
-				"https://www.multicoincharts.com/?chart=ETHBTC&chart=XRPETH&chart=XRPBTC&chart=XRPBTC/XRPETH-ETHBTC",
+			originBook: undefined,
+			destinationBook: undefined,
+			conversionBook: undefined,
 			showCrossExchange: false,
 			showSameExchange: true,
 			showDirect: true,
 			showConversion: true,
-			symbolFilter: "SYM",
 			basisSize: 0,
 			spreadTarget: 0,
 			sortArbsAscending: false
-		};
+		} as DashboardModel;
 	},
 	mounted() {
 		const dash = this;
-		dash
-			.getExchanges()
-			.then(() => {
-				return dash.setupWebsocket();
-			})
-			.then(() => {
-				dash.sortLoop();
-			});
+		dash;
+		// .getExchanges()
+		// .then(() => {
+		// 	return dash.setupWebsocket();
+		// })
+		dash.setupWebsocket().then(() => {
+			dash.sortLoop();
+		});
 	},
 	watch: {
 		basisSize(newBasis, oldBasis) {
@@ -121,35 +179,35 @@ export default Vue.extend({
 						basisSize: dash.basisSize,
 						spreadTarget: dash.spreadTarget
 					}
-				})
+				} as WebsocketMessage<GraphProps>)
 			);
 		},
 		setGraphProperties(props: GraphProps) {
 			this.basisSize = props.basisSize;
 			this.spreadTarget = props.spreadTarget;
 		},
-		getExchanges() {
-			const dash = this;
-			return new Promise(function(resolve, reject) {
-				axios.get("http://localhost:3000/graph/exchanges").then(
-					function(response: any) {
-						dash.exchMap = response.data.reduce((map: any, exch: any) => {
-							map[exch.id] = exch.name;
-							return map;
-						}, {});
-						resolve();
-					},
-					(response: any) => {
-						reject();
-					}
-				);
-			});
-		},
+		// getExchanges() {
+		// 	const dash = this;
+		// 	return new Promise(function(resolve, reject) {
+		// 		axios.get("http://localhost:3000/graph/exchanges").then(
+		// 			function(response: any) {
+		// 				dash.exchMap = response.data.reduce((map: Map<string, string>, exch: any) => {
+		// 					map.set(exch.id, exch.name);
+		// 					return map;
+		// 				}, new Map<string, string>());
+		// 				resolve();
+		// 			},
+		// 			(response: any) => {
+		// 				reject();
+		// 			}
+		// 		);
+		// 	});
+		// },
 		getFilteredArbs() {
 			const dash = this;
 			if (dash) {
 				return dash.arbList
-					.filter((spread: SpreadExecution) => {
+					.filter((spread: SpreadListItem) => {
 						const isCrossExchange = spread.buy.exchange !== spread.sell.exchange;
 						const crossExchangePasses = dash.showCrossExchange && isCrossExchange;
 						const sameExchangePasses = dash.showSameExchange && !isCrossExchange;
@@ -167,45 +225,123 @@ export default Vue.extend({
 		toggleArbSortDirection() {
 			this.sortArbsAscending = !this.sortArbsAscending;
 		},
-		getCoinigySymbol(op: Operation) {
-			return `${op.exchange}:${op.market}${op.hub}`;
-		},
-		getMccQueryString(spread: SpreadExecution) {
-			if (spread) {
-				const buy = this.getCoinigySymbol(spread.buy);
-				const sell = this.getCoinigySymbol(spread.sell);
-				if (this.directArbs.includes(spread.type)) {
-					// Buy Spread
-					return `?chart=${buy}&chart=${sell}&chart=${sell}-${buy}`;
-				} else if (spread.convert) {
-					// Conversion
-					const convert = this.getCoinigySymbol(spread.convert);
-					if (this.originConversions.includes(spread.type)) {
-						// Origin Conversion
-						return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}-${buy}*${convert}`;
-					} else if (this.destinationConversions.includes(spread.type)) {
-						// Destination Conversion
-						return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}*${convert}-${buy}`;
-					}
-				}
-			}
-			return null;
-		},
-		setMulticharts(spread: SpreadExecution) {
+		// getCoinigySymbol(op: Operation) {
+		// 	return `${op.exchange}:${op.market}${op.hub}`;
+		// },
+		// getMccQueryString(spread: SpreadListItem) {
+		// 	if (spread) {
+		// 		const buy = this.getCoinigySymbol(spread.buy);
+		// 		const sell = this.getCoinigySymbol(spread.sell);
+		// 		if (this.directArbs.includes(spread.type)) {
+		// 			// Buy Spread
+		// 			return `?chart=${buy}&chart=${sell}&chart=${sell}-${buy}`;
+		// 		} else if (spread.convert) {
+		// 			// Conversion
+		// 			const convert = this.getCoinigySymbol(spread.convert);
+		// 			if (this.originConversions.includes(spread.type)) {
+		// 				// Origin Conversion
+		// 				return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}-${buy}*${convert}`;
+		// 			} else if (this.destinationConversions.includes(spread.type)) {
+		// 				// Destination Conversion
+		// 				return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}*${convert}-${buy}`;
+		// 			}
+		// 		}
+		// 	}
+		// 	return null;
+		// },
+		// setMulticharts(spread: SpreadListItem) {
+		// 	const dash = this;
+		// 	if (spread) {
+		// 		const queryString = this.getMccQueryString(spread);
+		// 		this.multichartsUrl = `https://www.multicoincharts.com/${queryString}`;
+		// 		spread.selected = true;
+		// 		if (this.selectedSpread && this.selectedSpread.selected) {
+		// 			this.selectedSpread.selected = false;
+		// 		}
+		// 		this.selectedSpread = spread;
+		// 	}
+		// },
+		selectSpread(spread: SpreadListItem) {
 			const dash = this;
+			if (this.selectedSpread) {
+				this.unsubscribeFromBooks(this.selectedSpread);
+			}
 			if (spread) {
-				const queryString = this.getMccQueryString(spread);
-				this.multichartsUrl = `https://www.multicoincharts.com/${queryString}`;
 				spread.selected = true;
 				if (this.selectedSpread && this.selectedSpread.selected) {
 					this.selectedSpread.selected = false;
 				}
 				this.selectedSpread = spread;
+				this.subscribeToBooks(this.selectedSpread);
+			}
+		},
+		subscribeToBooks(spread: SpreadListItem) {
+			this.subscribe(this.getSubscriptionData(spread.buy, SubscriptionType.Book));
+			this.subscribe(this.getSubscriptionData(spread.sell, SubscriptionType.Book));
+			if (spread.convert) {
+				this.subscribe(this.getSubscriptionData(spread.convert, SubscriptionType.Book));
+			}
+		},
+		unsubscribeFromBooks(spread: SpreadListItem) {
+			this.unsubscribe(this.getSubscriptionData(spread.buy, SubscriptionType.Book));
+			this.unsubscribe(this.getSubscriptionData(spread.sell, SubscriptionType.Book));
+			if (spread.convert) {
+				this.unsubscribe(this.getSubscriptionData(spread.convert, SubscriptionType.Book));
+			}
+		},
+		subscribe(data: SubscriptionData) {
+			const dash = this;
+			dash.ws.send(
+				JSON.stringify({
+					action: "subscribe",
+					type: "book",
+					data
+				} as WebsocketMessage<SubscriptionData>)
+			);
+		},
+		unsubscribe(data: SubscriptionData) {
+			const dash = this;
+			dash.ws.send(
+				JSON.stringify({
+					action: "unsubscribe",
+					type: "book",
+					data
+				} as WebsocketMessage<SubscriptionData>)
+			);
+		},
+		getSubscriptionData(operation: ExecutionOperation, type: SubscriptionType): SubscriptionData {
+			return {
+				exchange: operation.exchange,
+				hub: operation.hub,
+				market: operation.market,
+				type
+			};
+		},
+		getMarketId(obj: any) {
+			return `${obj.exchange}.${obj.hub}.${obj.market}`;
+		},
+		updateBook(book: BookSnapshot) {
+			if (this.selectedSpread) {
+				const bookId = this.getMarketId(book);
+				const originOpId = this.getMarketId(this.selectedSpread.buy);
+				if (originOpId === bookId) {
+					this.originBook = book;
+				} else {
+					const destinationOpId = this.getMarketId(this.selectedSpread.sell);
+					if (destinationOpId === bookId) {
+						this.destinationBook = book;
+					} else {
+						const convertOpId = this.getMarketId(this.selectedSpread.convert);
+						if (convertOpId === bookId) {
+							this.conversionBook = book;
+						}
+					}
+				}
 			}
 		},
 		sortLoop() {
 			const dash = this;
-			dash.arbList.sort(function(a: SpreadExecution, b: SpreadExecution) {
+			dash.arbList.sort(function(a: SpreadListItem, b: SpreadListItem) {
 				if (dash.sortArbsAscending) {
 					return a.basisPerMinute - b.basisPerMinute;
 				} else {
@@ -214,11 +350,11 @@ export default Vue.extend({
 			});
 			setTimeout(this.sortLoop, 1000);
 		},
-		updateArb(update: SpreadExecution) {
+		updateArb(update: SpreadListItem) {
 			// console.dir(update);
 			if (update && update.spread && update.id) {
 				update.basisPerMinute = (update.spreadsPerMinute || Number.NaN) * update.spread;
-				const arb = this.arbMap[update.id];
+				const arb: SpreadListItem = this.arbMap.get(update.id);
 				// console.dir(arb);
 				if (arb) {
 					const target = this.spreadTarget;
@@ -242,12 +378,13 @@ export default Vue.extend({
 						arb.convert.basisSize = update.convert.basisSize;
 					}
 				} else {
-					this.arbMap[update.id] = update;
+					this.arbMap.set(update.id, update);
 					this.arbList.push(update);
 				}
 				// console.dir(arb);
 				if (!this.selectedSpread) {
-					this.setMulticharts(this.arbList[0]);
+					// this.setMulticharts(this.arbList[0]);
+					this.selectSpread(this.arbList[0]);
 				}
 			} else {
 				// Only update selected spread:
@@ -268,6 +405,8 @@ export default Vue.extend({
 					} else if (msg.type === "params" && msg.action === "set") {
 						dash.setGraphProperties(msg.data);
 						console.log("Set graph params.");
+					} else if (msg.type === "book" && msg.action === "update") {
+						dash.updateBook(msg.data);
 					}
 				};
 
@@ -313,6 +452,11 @@ export default Vue.extend({
 .flex-col {
 	display: flex;
 	flex-direction: column;
+}
+
+.flex-col-reverse {
+	display: flex;
+	flex-direction: column-reverse;
 }
 
 .flex-grow {

@@ -1,50 +1,47 @@
 <template>
 	<div class="flex-col elbow-room ">
-		<div class="center-contents">
+		<div>
 			<strong v-if="side === 'buy'">{{ title }}: [{{ operation.exchange }}] {{ operation.market }} / {{ operation.hub }}</strong>
 			<strong v-else>{{ title }}: [{{ operation.exchange }}] {{ operation.market }} / {{ operation.hub }}</strong>
 		</div>
-		<div class="flex-grow flex-row flex-wrap flex-stretch">
-			<div class="flex-grow">
-				<span>VWAP</span>
-				<span>{{ operation.price.toFixed(8) }}</span>
+		<div>
+			<div class="flex-row">
+				<div>VWAP</div>
+				<div>{{ operation.price.toFixed(8) }}</div>
 			</div>
 		</div>
-		<div class="flex-grow flex-row flex-wrap flex-stretch">
-			<div class="flex-grow">
-				<span>Market Size: </span>
-				<span>{{ operation.size.toFixed(8) }}</span>
-			</div>
-			<div class="flex-grow">
-				<span>Hub Size: </span>
-				<span>{{ operation.hubSize.toFixed(8) }}</span>
-			</div>
-			<div class="flex-grow">
-				<span>Basis Size: </span>
-				<span>{{ operation.basisSize.toFixed(8) }}</span>
-			</div>
-		</div>
-		<div class="flex-grow flex-row flex-wrap flex-stretch">
-			<div class="flex-grow">
-				<span>Hub Position</span>
-				<span>{{ operation.position }}</span>
-			</div>
-			<div class="flex-grow">
-				<span>Market Position</span>
-				<span>{{ operation.position }}</span>
-			</div>
-			<div class="flex-grow">
-				<span>Basis Position</span>
-				<span>{{ operation.position }}</span>
+		<div>
+			<div class="flex-row flex-wrap">
+				<div>
+					<div>Market Size: {{ operation.size.toFixed(8) }}</div>
+				</div>
+				<div>
+					<div>Hub Size: {{ operation.hubSize.toFixed(8) }}</div>
+				</div>
+				<div>
+					<div>Basis Size: {{ operation.basisSize.toFixed(8) }}</div>
+				</div>
 			</div>
 		</div>
-		<button>Execute!</button>
+		<div>
+			<div class="flex-row flex-wrap">
+				<div>
+					<div>Hub Position: {{ operation.position }}</div>
+				</div>
+				<div>
+					<div>Market Position: {{ operation.position }}</div>
+				</div>
+				<div>
+					<div>Basis Position: {{ operation.position }}</div>
+				</div>
+			</div>
+		</div>
 	</div>
 </template>
 
 <script>
 export default {
-  props: ["title", "side", "operation"]
+	props: ["title", "side", "operation"]
 };
 </script>
 
