@@ -13,12 +13,20 @@ export interface BookLevel {
 	size: number;
 }
 
+export interface BookStats {
+	maxAsk: number;
+	maxBid: number;
+	totalAsks: number;
+	totalBids: number;
+}
+
 export interface BookSnapshot {
 	exchange: string;
 	hub: string;
 	market: string;
 	bidLevels: BookLevel[];
 	askLevels: BookLevel[];
+	stats: BookStats;
 }
 
 export class Book {
@@ -80,12 +88,28 @@ export class Book {
 		const sortedBidLevels = _.sortBy(groupedBidLevels, (level: BookLevel) => -level.price); // Descending Bids
 		const groupedAskLevels = this.getGroupedLevels(precision, Array.from(this.askLevels.values()));
 		const sortedAskLevels = _.sortBy(groupedAskLevels, (level: BookLevel) => level.price); // Ascending Asks
+		const topBidLevels = sortedBidLevels.slice(0, take);
+		const topAskLevels = sortedAskLevels.slice(0, take);
+		const askStats = topBidLevels.reduce(
+			(agg: BookStats, level: BookLevel) => {
+				agg.maxBid = Math.max(agg.maxBid, level.size);
+				agg.totalBids += level.size;
+				return agg;
+			},
+			{ maxAsk: 0, maxBid: 0, totalAsks: 0, totalBids: 0 }
+		);
+		const combinedStats = topAskLevels.reduce((agg: BookStats, level: BookLevel) => {
+			agg.maxAsk = Math.max(agg.maxAsk, level.size);
+			agg.totalAsks += level.size;
+			return agg;
+		}, askStats);
 		const snapshot: BookSnapshot = {
 			exchange: this.exchangeSymbol,
 			hub: this.hubSymbol,
 			market: this.marketSymbol,
-			bidLevels: sortedBidLevels.slice(0, take),
-			askLevels: sortedAskLevels.slice(0, take)
+			bidLevels: topBidLevels,
+			askLevels: topAskLevels,
+			stats: combinedStats
 		};
 		Logger.log({
 			level: "silly",

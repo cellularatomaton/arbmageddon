@@ -77,7 +77,8 @@ import BookDepth from "./BookDepth";
 import { ArbType, SubscriptionType } from "../../common/utils/enums";
 import { SpreadExecution, ExecutionOperation as Operation } from "../../common/strategies/arbitrage";
 import { Graph, GraphParameters as GraphProps, WebsocketMessage } from "../../common/markets/graph";
-import { BookSnapshot } from "../../common/markets/book";
+import { BookSnapshot, BookStats } from "../../common/markets/book";
+import { unescape } from "querystring";
 
 export interface SpreadListItem extends SpreadExecution {
 	selected: boolean;
@@ -225,42 +226,6 @@ export default Vue.extend({
 		toggleArbSortDirection() {
 			this.sortArbsAscending = !this.sortArbsAscending;
 		},
-		// getCoinigySymbol(op: Operation) {
-		// 	return `${op.exchange}:${op.market}${op.hub}`;
-		// },
-		// getMccQueryString(spread: SpreadListItem) {
-		// 	if (spread) {
-		// 		const buy = this.getCoinigySymbol(spread.buy);
-		// 		const sell = this.getCoinigySymbol(spread.sell);
-		// 		if (this.directArbs.includes(spread.type)) {
-		// 			// Buy Spread
-		// 			return `?chart=${buy}&chart=${sell}&chart=${sell}-${buy}`;
-		// 		} else if (spread.convert) {
-		// 			// Conversion
-		// 			const convert = this.getCoinigySymbol(spread.convert);
-		// 			if (this.originConversions.includes(spread.type)) {
-		// 				// Origin Conversion
-		// 				return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}-${buy}*${convert}`;
-		// 			} else if (this.destinationConversions.includes(spread.type)) {
-		// 				// Destination Conversion
-		// 				return `?chart=${buy}&chart=${sell}&chart=${convert}&chart=${sell}*${convert}-${buy}`;
-		// 			}
-		// 		}
-		// 	}
-		// 	return null;
-		// },
-		// setMulticharts(spread: SpreadListItem) {
-		// 	const dash = this;
-		// 	if (spread) {
-		// 		const queryString = this.getMccQueryString(spread);
-		// 		this.multichartsUrl = `https://www.multicoincharts.com/${queryString}`;
-		// 		spread.selected = true;
-		// 		if (this.selectedSpread && this.selectedSpread.selected) {
-		// 			this.selectedSpread.selected = false;
-		// 		}
-		// 		this.selectedSpread = spread;
-		// 	}
-		// },
 		selectSpread(spread: SpreadListItem) {
 			const dash = this;
 			if (this.selectedSpread) {
@@ -288,6 +253,9 @@ export default Vue.extend({
 			if (spread.convert) {
 				this.unsubscribe(this.getSubscriptionData(spread.convert, SubscriptionType.Book));
 			}
+			this.originBook = undefined;
+			this.destinationBook = undefined;
+			this.conversionBook = undefined;
 		},
 		subscribe(data: SubscriptionData) {
 			const dash = this;
