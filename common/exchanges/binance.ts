@@ -132,57 +132,34 @@ export class BinanceExchange extends Exchange {
 					});
 				});
 				// Call for snapshots
-				symbols.forEach((symbol: any) => {
-					const parsedSymbols = exchange.parseSymbols(symbol);
-					const book: Book = new Book(this.id, parsedSymbols[0], parsedSymbols[1]);
-					this.books.set(symbol, book);
-					binance.depth(symbol, (error: any, depth: BinaBookSnapshot, sym: string) => {
-						const askDepth = _.toPairs(depth.asks);
-						const bidDepth = _.toPairs(depth.bids);
-						_.forEach(askDepth, (level: BinaBookUpdateLevel) => {
-							book.updateLevel(TradeType.Sell, level[0], level[1]);
-							//						console.log(symbol + " ASKS forEach Price " + level[0] + " Qty " + level[1]);
-						});
-						_.forEach(bidDepth, (level: BinaBookUpdateLevel) => {
-							book.updateLevel(TradeType.Buy, level[0], level[1]);
-							//						console.log(symbol + " BIDS forEach Price " + level[0] + " Qty " + level[1]);
-						});
-						Logger.log({
-							level: "silly",
-							message: `Snapshot asks: ${this.id}.${parsedSymbols[0]}.${parsedSymbols[1]}`,
-							data: askDepth
-						});
-						Logger.log({
-							level: "silly",
-							message: `Snapshot bids: ${this.id}.${parsedSymbols[0]}.${parsedSymbols[1]}`,
-							data: bidDepth
-						});
+				this.initSnapshots(symbols).then(() => {
+					// Joining for book updates
+					binance.websockets.depth(symbols, depth => {
+						const book: Book | undefined = this.books.get(depth.s);
+						//					console.log(depth.s + " ASKS Updates ");
+						//				console.log(symbol + " BIDS Updates ", bidDepth);
+						if (book) {
+							//							book.askLevels.forEach((BookLevel: any) => {
+							//								console.log(depth.s + " ASK Update Price " + BookLevel.price + " Qty " + BookLevel.size);
+							//							});
+							depth.askDepth.forEach((BinaBookUpdateLevel: any) => {
+								book.updateLevel(TradeType.Sell, BinaBookUpdateLevel[0], BinaBookUpdateLevel[1]);
+							});
+							depth.bidDepth.forEach((BinaBookUpdateLevel: any) => {
+								book.updateLevel(TradeType.Buy, BinaBookUpdateLevel[0], BinaBookUpdateLevel[1]);
+							});
+							Logger.log({
+								level: "silly",
+								message: `BookUpdate asks: ${this.id}.${depth.symbol}`,
+								data: depth.askDepth
+							});
+							Logger.log({
+								level: "silly",
+								message: `BookUpdate bids: ${this.id}.${depth.symbol}`,
+								data: depth.bidDepth
+							});
+						}
 					});
-				});
-
-				// Joining for book updates
-				binance.websockets.depth(symbols, (depth: BinaBookUpdate) => {
-					const book: Book | undefined = this.books.get(depth.symbol);
-					//				console.log(symbol + " ASKS Updates ", askDepth);
-					//				console.log(symbol + " BIDS Updates ", bidDepth);
-					if (book) {
-						depth.askDepth.forEach((BinaBookUpdateLevel: any) => {
-							book.updateLevel(TradeType.Sell, BinaBookUpdateLevel[0], BinaBookUpdateLevel[1]);
-						});
-						depth.bidDepth.forEach((BinaBookUpdateLevel: any) => {
-							book.updateLevel(TradeType.Buy, BinaBookUpdateLevel[0], BinaBookUpdateLevel[1]);
-						});
-						Logger.log({
-							level: "silly",
-							message: `BookUpdate asks: ${this.id}.${depth.symbol}`,
-							data: depth.askDepth
-						});
-						Logger.log({
-							level: "silly",
-							message: `BookUpdate bids: ${this.id}.${depth.symbol}`,
-							data: depth.bidDepth
-						});
-					}
 				});
 				resolve();
 			} catch (err) {
@@ -195,6 +172,52 @@ export class BinanceExchange extends Exchange {
 		});
 	}
 
+	initSnapshots(symbols: string[]): Promise<void> {
+		return new Promise((resolve, reject) => {
+			const exchange = this;
+			symbols.forEach((symbol: any) => {
+				const parsedSymbols = exchange.parseSymbols(symbol);
+				const book: Book = new Book(this.id, parsedSymbols[0], parsedSymbols[1]);
+				this.books.set(symbol, book);
+				try {
+					binance.depth(symbol, (error: any, depth: BinaBookSnapshot, sym: string) => {
+						const askDepth = _.toPairs(depth.asks);
+						const bidDepth = _.toPairs(depth.bids);
+						_.forEach(askDepth, (level: BinaBookUpdateLevel) => {
+							book.updateLevel(TradeType.Sell, level[0], level[1]);
+							//							console.log(symbol + " ASKS forEach Price " + level[0] + " Qty " + level[1]);
+						});
+						_.forEach(bidDepth, (level: BinaBookUpdateLevel) => {
+							book.updateLevel(TradeType.Buy, level[0], level[1]);
+							//							console.log(symbol + " BIDS forEach Price " + level[0] + " Qty " + level[1]);
+						});
+						//						book.askLevels.forEach((BookLevel: any) => {
+						//							console.log(symbol + " ASK Snapshot Price " + BookLevel.price + " Qty " + BookLevel.size);
+						//						});
+
+						Logger.log({
+							level: "silly",
+							message: `Snapshot asks: ${this.id}.${parsedSymbols[0]}.${parsedSymbols[1]}`,
+							data: askDepth
+						});
+						Logger.log({
+							level: "silly",
+							message: `Snapshot bids: ${this.id}.${parsedSymbols[0]}.${parsedSymbols[1]}`,
+							data: bidDepth
+						});
+					});
+				} catch (err) {
+					Logger.log({
+						level: "error",
+						message: "BINA Snapshot Error",
+						data: err
+					});
+				}
+			});
+
+			resolve();
+		});
+	}
 	// static binaMarketUpdateLoop(exchange: BinanceExchange){
 	//     // const exchange = this;
 	//     binance.bookTickers(function(tickers: any) {
