@@ -136,16 +136,16 @@ export class BinanceExchange extends Exchange {
 					// Joining for book updates
 					binance.websockets.depth(symbols, depth => {
 						const book: Book | undefined = this.books.get(depth.s);
-						//					console.log(depth.s + " ASKS Updates ");
-						//				console.log(symbol + " BIDS Updates ", bidDepth);
+						//				console.log(depth.s + " ASKS Updates ");
+						//				console.log(depth.e + " EventType ", depth.s);
 						if (book) {
 							//							book.askLevels.forEach((BookLevel: any) => {
 							//								console.log(depth.s + " ASK Update Price " + BookLevel.price + " Qty " + BookLevel.size);
 							//							});
-							depth.askDepth.forEach((BinaBookUpdateLevel: any) => {
+							depth.a.forEach((BinaBookUpdateLevel: any) => {
 								book.updateLevel(TradeType.Sell, BinaBookUpdateLevel[0], BinaBookUpdateLevel[1]);
 							});
-							depth.bidDepth.forEach((BinaBookUpdateLevel: any) => {
+							depth.b.forEach((BinaBookUpdateLevel: any) => {
 								book.updateLevel(TradeType.Buy, BinaBookUpdateLevel[0], BinaBookUpdateLevel[1]);
 							});
 							Logger.log({
