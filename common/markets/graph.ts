@@ -122,7 +122,7 @@ export class Graph {
 		this.bookSubscriptionMap = new Map<string, BookHandler>();
 		this.exchangeReadyCount = 0;
 		this.exchangeMap = new Map<string, Exchange>();
-		this.exchanges = [new PoloniexExchange(this), new GdaxExchange(this) ,new BinanceExchange(this)];
+		this.exchanges = [new PoloniexExchange(this), new GdaxExchange(this), new BinanceExchange(this)];
 		this.exchanges.forEach((exchange: Exchange) => {
 			this.exchangeMap.set(exchange.id, exchange);
 		});
