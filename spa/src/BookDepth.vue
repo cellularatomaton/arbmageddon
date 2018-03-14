@@ -1,11 +1,12 @@
 <template>
 <!-- <div class="flex-grow"> -->
 	<div v-if="book" class="flex-grow flex-col">
-		<div class="flex-grow overflow-hide">
+		<div class="flex-grow overflow-y">
 			<div class="flex-col-reverse">
-				<div v-for="askLevel in book.askLevels"
+				<div v-for="(askLevel, index) in book.askLevels"
 					:key="askLevel.price"
 					class="flex-row">
+					<div v-if="index===0" class="scroller"></div>
 					<div class="depth-cell">
 						<div class="ask-depth"
 							v-bind:style="{width: `${getDepth(askLevel.size)}%`}">
@@ -17,11 +18,12 @@
 			</div>
 		</div>
 		<!-- <div>LTP: {{book.lastPrice}}</div> -->
-		<div class="flex-grow overflow-hide">
+		<div class="flex-grow overflow-y">
 			<div class="flex-col">
-				<div v-for="bidLevel in book.bidLevels"
+				<div v-for="(bidLevel, index) in book.bidLevels"
 					class="flex-row"
 					:key="bidLevel.price">
+					<div v-if="index===0" class="scroller"></div>
 					<div class="depth-cell">
 						<div class="bid-depth" v-bind:style="{width: `${getDepth(bidLevel.size)}%`}"></div>
 					</div>
@@ -80,5 +82,9 @@ export default {
 	/* color: #FFF; */
 	/* text-align: center; */
 	height: 100%;
+}
+.reverse-flow-fix {
+	position: sticky;
+	bottom: 0px;
 }
 </style>

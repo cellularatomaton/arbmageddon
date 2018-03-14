@@ -289,6 +289,12 @@ export default Vue.extend({
 						}
 					}
 				}
+				document.querySelectorAll(".scroller").forEach((element: any) => {
+					element.scrollIntoView();
+				});
+				document.querySelectorAll(".scroller").forEach((element: any) => {
+					element.scrollIntoView();
+				});
 			}
 		},
 		sortLoop() {

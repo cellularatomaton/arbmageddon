@@ -41,9 +41,9 @@ export class Book {
 	}
 
 	updateLevel(type: TradeType, price: number, size: number) {
+		const levels = (type as TradeType) === TradeType.Buy ? this.bidLevels : this.askLevels;
+		let level: BookLevel | undefined = levels.get(price);
 		if (0 < size) {
-			const levels = (type as TradeType) === TradeType.Buy ? this.bidLevels : this.askLevels;
-			let level: BookLevel | undefined = levels.get(price);
 			if (!level) {
 				// Create new level
 				level = { price, size } as BookLevel;
@@ -51,6 +51,9 @@ export class Book {
 			} else {
 				level.size = size;
 			}
+		} else {
+			// Remove levels with 0 price.
+			levels.delete(price);
 		}
 	}
 
