@@ -11,54 +11,38 @@
 			<div class="flex-row flex-stretch elbow-room">
 				<div v-if="selectedSpread && originConversions.includes(selectedSpread.type)"
 					class="flex-col">
-					<div>
-						<execution-operation
-							side="buy" class="buy-convert-op"
-							title="Buy Convert"
-							:operation="selectedSpread.convert"></execution-operation>
-					</div>
-					<div class="flex-grow overflow-y">
-						<book-depth :book="conversionBook"></book-depth>
-					</div>
+					<execution-operation
+						side="buy" class="buy-convert-op"
+						title="Buy Convert"
+						:operation="selectedSpread.convert"></execution-operation>
+					<book-depth :book="conversionBook"></book-depth>
 				</div>
 				<div v-if="selectedSpread"
 					class="flex-col">
-					<div>
-						<execution-operation
-							side="buy"
-							class="buy-op"
-							title="Buy"
-							:operation="selectedSpread ? selectedSpread.buy : null"></execution-operation>
-					</div>
-					<div class="flex-grow overflow-y">
-						<book-depth :book="originBook"></book-depth>
-					</div>
+					<execution-operation
+						side="buy"
+						class="buy-op"
+						title="Buy"
+						:operation="selectedSpread ? selectedSpread.buy : null"></execution-operation>
+					<book-depth :book="originBook"></book-depth>
 				</div>
 				<div v-if="selectedSpread"
 					class="flex-col">
-					<div>
-						<execution-operation 
-							side="sell"
-							class="sell-op"
-							title="Sell"
-							:operation="selectedSpread ? selectedSpread.sell: null"></execution-operation>	
-					</div>
-					<div class="flex-grow overflow-y">
-						<book-depth :book="destinationBook"></book-depth>
-					</div>
+					<execution-operation 
+						side="sell"
+						class="sell-op"
+						title="Sell"
+						:operation="selectedSpread ? selectedSpread.sell: null"></execution-operation>	
+					<book-depth :book="destinationBook"></book-depth>
 				</div>
 				<div v-if="selectedSpread && destinationConversions.includes(selectedSpread.type)"
 					class="flex-col">
-					<div>
-						<execution-operation
-							side="sell"
-							class="sell-convert-op"
-							title="Sell Convert"
-							:operation="selectedSpread.convert"></execution-operation>
-					</div>
-					<div class="flex-grow overflow-y">
-						<book-depth :book="conversionBook"></book-depth>
-					</div>
+					<execution-operation
+						side="sell"
+						class="sell-convert-op"
+						title="Sell Convert"
+						:operation="selectedSpread.convert"></execution-operation>
+					<book-depth :book="conversionBook"></book-depth>
 				</div>
 			</div>
 		</div>
@@ -490,5 +474,8 @@ export default Vue.extend({
 
 .overflow-y {
 	overflow-y: auto;
+}
+.overflow-hide {
+	overflow: hidden;
 }
 </style>

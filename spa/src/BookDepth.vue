@@ -1,31 +1,37 @@
 <template>
-	<div v-if="book" class="flex-col">
-		<div class="flex-grow">
+<!-- <div class="flex-grow"> -->
+	<div v-if="book" class="flex-grow flex-col">
+		<div class="flex-grow overflow-hide">
 			<div class="flex-col-reverse">
 				<div v-for="askLevel in book.askLevels"
 					:key="askLevel.price"
 					class="flex-row">
-					<div class="ask-depth flex-grow" 
-						v-bind:style="{width: `${getDepth(askLevel.size)}%`}"></div>
-					<div class="ask flex-grow">{{askLevel.price}}</div>
-					<div class="ask flex-grow">{{askLevel.size}}</div>
+					<div class="depth-cell">
+						<div class="ask-depth"
+							v-bind:style="{width: `${getDepth(askLevel.size)}%`}">
+						</div>
+					</div>
+					<div class="ask price-cell flex-grow">{{askLevel.price}}</div>
+					<div class="ask size-cell flex-grow">{{askLevel.size}}</div>
 				</div>
 			</div>
 		</div>
 		<!-- <div>LTP: {{book.lastPrice}}</div> -->
-		<div class="flex-grow">
+		<div class="flex-grow overflow-hide">
 			<div class="flex-col">
 				<div v-for="bidLevel in book.bidLevels"
 					class="flex-row"
 					:key="bidLevel.price">
-					<div class="bid-depth flex-grow" 
-						v-bind:style="{width: `${getDepth(bidLevel.size)}%`}"></div>
-					<div class="bid flex-grow">{{bidLevel.price}}</div>
-					<div class="bid flex-grow">{{bidLevel.size}}</div>
+					<div class="depth-cell">
+						<div class="bid-depth" v-bind:style="{width: `${getDepth(bidLevel.size)}%`}"></div>
+					</div>
+					<div class="bid price-cell flex-grow">{{bidLevel.price}}</div>
+					<div class="bid size-cell flex-grow">{{bidLevel.size}}</div>
 				</div>
 			</div>
 		</div>
 	</div>
+<!-- </div> -->
 </template>
 
 <script lang="ts">
@@ -33,7 +39,8 @@ export default {
 	props: ["book"],
 	methods: {
 		getDepth(size: number) {
-			return size / Math.max(this.book.stats.maxBid, this.book.stats.maxAsk);
+			const percent = Math.floor(size / Math.max(this.book.stats.maxBid, this.book.stats.maxAsk) * 100);
+			return percent;
 		}
 	}
 };
@@ -65,13 +72,13 @@ export default {
 	/* padding: 5px 0px; */
 	/* color: #FFF; */
 	/* text-align: center; */
-	/* height: 20px; */
+	height: 100%;
 }
 .bid-depth {
 	background: aqua;
 	/* padding: 5px 0px; */
 	/* color: #FFF; */
 	/* text-align: center; */
-	/* height: 20px; */
+	height: 100%;
 }
 </style>

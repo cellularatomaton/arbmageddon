@@ -90,7 +90,7 @@ export class Book {
 		const sortedAskLevels = _.sortBy(groupedAskLevels, (level: BookLevel) => level.price); // Ascending Asks
 		const topBidLevels = sortedBidLevels.slice(0, take);
 		const topAskLevels = sortedAskLevels.slice(0, take);
-		const askStats = topBidLevels.reduce(
+		const bidStats = topBidLevels.reduce(
 			(agg: BookStats, level: BookLevel) => {
 				agg.maxBid = Math.max(agg.maxBid, level.size);
 				agg.totalBids += level.size;
@@ -102,7 +102,7 @@ export class Book {
 			agg.maxAsk = Math.max(agg.maxAsk, level.size);
 			agg.totalAsks += level.size;
 			return agg;
-		}, askStats);
+		}, bidStats);
 		const snapshot: BookSnapshot = {
 			exchange: this.exchangeSymbol,
 			hub: this.hubSymbol,
