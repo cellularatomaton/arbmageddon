@@ -3,7 +3,22 @@ import { Hub, Market, Graph } from "../markets";
 import { Asset } from "../assets";
 import { Logger } from "../utils/logger";
 import { TradeType, SubscriptionType } from "../utils/enums";
+import { Book } from "../markets/book";
 
+export type BinaBookUpdateLevel = [string, string, any[]];
+export type BinaBookSnapshotLevel = [string, string];
+export interface BinaBookSnapshot {
+	asks: any;
+	bids: any;
+}
+export interface BinaBookUpdate {
+	e: number;
+	E: number;
+	s: string;
+	U: number;
+	b: BinaBookUpdateLevel[];
+	a: BinaBookUpdateLevel[];
+}
 const _ = require("lodash");
 const binance = require("node-binance-api");
 const hubSymbols = new Set(["BTC", "ETH", "BNB", "USDT"]);
@@ -16,12 +31,17 @@ binance.options({
 
 export class BinanceExchange extends Exchange {
 	symbolList: string[];
+	books: Map<string, Book>;
 	constructor(graph: Graph) {
 		super("BIN", "BINANCE", graph);
 		this.symbolList = [];
+		this.books = new Map<string, Book>();
 		this.updateExchangeInfo().then(() => {
-			this.setupWebsockets(this.symbolList);
-			graph.exchangeReady(this);
+			this.setupWebsockets(this.symbolList).then(() => {
+				this.initSnapshots(this.symbolList).then(() => {
+					graph.exchangeReady(this);
+				});
+			});
 		});
 	}
 
@@ -66,85 +86,105 @@ export class BinanceExchange extends Exchange {
 		return [hubSymbol, marketSymbol];
 	}
 
-	setupWebsockets(symbols: string[]) {
-		Logger.log({
-			level: "info",
-			message: "Init BINA Websocket"
-		});
-		const exchange = this;
-		const binaUpdates = 0;
-		try {
-			binance.websockets.trades(symbols, (trades: any) => {
-				Logger.log({
-					level: "silly",
-					message: `BINA  ${trades.s} trade update. price:  ${trades.p}, quantity:  ${trades.q}, maker: ${trades.m}`
-				});
-				const parsedSymbols = exchange.parseSymbols(trades.s);
-
-				exchange.updateTicker({
-					exchangeSymbol: exchange.id,
-					hubSymbol: parsedSymbols[0],
-					marketSymbol: parsedSymbols[1],
-					price: Number(trades.p),
-					side: trades.m ? TradeType.Sell : TradeType.Buy,
-					time: new Date(trades.T),
-					size: Number(trades.q)
-				});
-
-				_.throttle(
-					() => {
-						Logger.log({
-							level: "info",
-							message: "BINA still alive " + Date.now()
+	initSnapshots(symbols: string[]): Promise<void> {
+		return new Promise((resolve, reject) => {
+			const exchange = this;
+			symbols.forEach((symbol: string) => {
+				const parsedSymbols = exchange.parseSymbols(symbol);
+				const book: Book = new Book(this.id, parsedSymbols[0], parsedSymbols[1]);
+				this.books.set(symbol, book);
+				try {
+					binance.depth(symbol, (error: any, depth: BinaBookSnapshot, sym: string) => {
+						const askDepth: BinaBookSnapshotLevel[] = _.toPairs(depth.asks);
+						const bidDepth: BinaBookSnapshotLevel[] = _.toPairs(depth.bids);
+						_.forEach(askDepth, (level: BinaBookUpdateLevel) => {
+							book.updateLevel(TradeType.Sell, Number(level[0]), Number(level[1]));
 						});
-					},
-					1000,
-					{ leading: true }
-				);
+						_.forEach(bidDepth, (level: BinaBookUpdateLevel) => {
+							book.updateLevel(TradeType.Buy, Number(level[0]), Number(level[1]));
+						});
+						this.updateBook(book);
+						Logger.log({
+							level: "silly",
+							message: `BINA Snapshot: ${this.id}.${parsedSymbols[0]}.${parsedSymbols[1]}`,
+							data: book
+						});
+						if (this.books.size === symbols.length) {
+							resolve();
+						}
+					});
+				} catch (err) {
+					Logger.log({
+						level: "error",
+						message: "BINA Snapshot Error",
+						data: err
+					});
+					reject();
+				}
 			});
-		} catch (err) {
-			Logger.log({
-				level: "error",
-				message: "BINA Websocket Error",
-				data: err
-			});
-		}
+		});
 	}
 
-	// static binaMarketUpdateLoop(exchange: BinanceExchange){
-	//     // const exchange = this;
-	//     binance.bookTickers(function(tickers: any) {
-	// log.log({
-	// 	level: "debug",
-	// 	message: "bookTickers",
-	// 	data: ticker
-	// });
-	//         exchange.handleTickers(tickers);
-	//     });
-	//     setTimeout(() => {BinanceExchange.binaMarketUpdateLoop(exchange);}, 1000);
-	// }
+	setupWebsocketTickers(symbols: string[]) {
+		binance.websockets.trades(symbols, (trades: any) => {
+			const parsedSymbols = this.parseSymbols(trades.s);
+			Logger.log({
+				level: "silly",
+				message: `BINA Ticker: ${this.id}.${parsedSymbols[0]}.${parsedSymbols[1]}`,
+				data: trades
+			});
+			this.updateTicker({
+				exchangeSymbol: this.id,
+				hubSymbol: parsedSymbols[0],
+				marketSymbol: parsedSymbols[1],
+				price: Number(trades.p),
+				side: trades.m ? TradeType.Sell : TradeType.Buy,
+				time: new Date(trades.T),
+				size: Number(trades.q)
+			});
+		});
+	}
 
-	// handleTickers(tickers: any){
-	//     const exchange = this;
-	//     Object.keys(tickers).forEach((key) => {
-	//         const ticker = tickers[key];
-	//         const parsedSymbols = this.parseSymbols(key);
-	//         const hubSymbol = parsedSymbols[0];
-	//         const marketSymbol = parsedSymbols[1];
-	//         if(hubSymbol === `NOHUB`){
-	// log.log({
-	// 	level: "debug",
-	// 	message: `Binance malformed symbol ${key}`
-	// });
-	//         }else{
-	//             exchange.updateMarket(
-	//                 hubSymbol,
-	//                 marketSymbol,
-	//                 Number(ticker.bid),
-	//                 Number(ticker.ask)
-	//             );
+	setupWebsocketBooks(symbols: string[]) {
+		binance.websockets.depth(symbols, (depth: BinaBookUpdate) => {
+			const book: Book | undefined = this.books.get(depth.s);
+			if (book) {
+				depth.a.forEach((binaBookUpdateLevel: BinaBookUpdateLevel) => {
+					book.updateLevel(TradeType.Sell, Number(binaBookUpdateLevel[0]), Number(binaBookUpdateLevel[1]));
+				});
+				depth.b.forEach((binaBookUpdateLevel: BinaBookUpdateLevel) => {
+					book.updateLevel(TradeType.Buy, Number(binaBookUpdateLevel[0]), Number(binaBookUpdateLevel[1]));
+				});
+				this.updateBook(book);
+				Logger.log({
+					level: "silly",
+					message: `BINA BookUpdate: ${this.id}.${depth.s}`,
+					data: book
+				});
+			}
+		});
+	}
 
-	//         }
-	//     });
-	// }
+	setupWebsockets(symbols: string[]): Promise<void> {
+		return new Promise((resolve, reject) => {
+			Logger.log({
+				level: "info",
+				message: "Init BINA Websocket"
+			});
+			const exchange = this;
+			const binaUpdates = 0;
+			try {
+				this.setupWebsocketTickers(symbols);
+				this.setupWebsocketBooks(symbols);
+				resolve();
+			} catch (err) {
+				Logger.log({
+					level: "error",
+					message: "BINA Websocket Error",
+					data: err
+				});
+				reject();
+			}
+		});
+	}
 }
