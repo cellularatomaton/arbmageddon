@@ -38,6 +38,10 @@ module.exports = {
 				loader: "babel-loader",
 				exclude: /node_modules/
 			},
+			// {
+			// 	test: /\.(eot|woff|woff2|svg|ttf)([\?]?.*)$/,
+			// 	loader: "file-loader"
+			// },
 			{
 				test: /\.(png|jpg|gif|svg)$/,
 				loader: "file-loader",
@@ -49,7 +53,8 @@ module.exports = {
 	},
 	resolve: {
 		alias: {
-			vue$: "vue/dist/vue.esm.js"
+			vue$: "vue/dist/vue.esm.js",
+			icons: path.resolve(__dirname, "node_modules/vue-ionicons")
 		},
 		extensions: ["*", ".ts", ".js", ".vue", ".json"]
 	},

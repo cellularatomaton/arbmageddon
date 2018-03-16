@@ -1,4 +1,5 @@
 <template>
+<div>
 	<div class="flex-col elbow-room ">
 		<div>
 			<strong v-if="side === 'buy'">{{ title }}: [{{ operation.exchange }}] {{ operation.market }} / {{ operation.hub }}</strong>
@@ -37,6 +38,7 @@
 			</div>
 		</div>
 	</div>
+</div>
 </template>
 
 <script>

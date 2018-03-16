@@ -11,6 +11,14 @@ export function bookOrderSorter(a: BookLevel, b: BookLevel): number {
 export interface BookLevel {
 	price: number;
 	size: number;
+	aggregate: number;
+}
+
+export interface BookStats {
+	maxAsk: number;
+	maxBid: number;
+	totalAsks: number;
+	totalBids: number;
 }
 
 export interface BookSnapshot {
@@ -19,6 +27,7 @@ export interface BookSnapshot {
 	market: string;
 	bidLevels: BookLevel[];
 	askLevels: BookLevel[];
+	stats: BookStats;
 }
 
 export class Book {
@@ -33,9 +42,9 @@ export class Book {
 	}
 
 	updateLevel(type: TradeType, price: number, size: number) {
+		const levels = (type as TradeType) === TradeType.Buy ? this.bidLevels : this.askLevels;
+		let level: BookLevel | undefined = levels.get(price);
 		if (0 < size) {
-			const levels = (type as TradeType) === TradeType.Buy ? this.bidLevels : this.askLevels;
-			let level: BookLevel | undefined = levels.get(price);
 			if (!level) {
 				// Create new level
 				level = { price, size } as BookLevel;
@@ -43,6 +52,9 @@ export class Book {
 			} else {
 				level.size = size;
 			}
+		} else {
+			// Remove levels with 0 price.
+			levels.delete(price);
 		}
 	}
 
@@ -57,7 +69,7 @@ export class Book {
 					agg.size += current.size;
 					return agg;
 				},
-				{ price, size: 0 }
+				{ price, size: 0, aggregate: 0 }
 			);
 		});
 		const values: BookLevel[] = _.values(mappedValues);
@@ -80,12 +92,38 @@ export class Book {
 		const sortedBidLevels = _.sortBy(groupedBidLevels, (level: BookLevel) => -level.price); // Descending Bids
 		const groupedAskLevels = this.getGroupedLevels(precision, Array.from(this.askLevels.values()));
 		const sortedAskLevels = _.sortBy(groupedAskLevels, (level: BookLevel) => level.price); // Ascending Asks
+		const topBidLevels = sortedBidLevels.slice(0, take);
+		const topAskLevels = sortedAskLevels.slice(0, take);
+		const bidStats = topBidLevels.reduce(
+			(agg: BookStats, level: BookLevel, index: number, array: BookLevel[]) => {
+				if (index === 0) {
+					level.aggregate = level.size;
+				} else {
+					level.aggregate = level.size + array[index - 1].aggregate;
+				}
+				agg.maxBid = Math.max(agg.maxBid, level.size);
+				agg.totalBids += level.size;
+				return agg;
+			},
+			{ maxAsk: 0, maxBid: 0, totalAsks: 0, totalBids: 0 }
+		);
+		const combinedStats = topAskLevels.reduce((agg: BookStats, level: BookLevel, index: number, array: BookLevel[]) => {
+			if (index === 0) {
+				level.aggregate = level.size;
+			} else {
+				level.aggregate = level.size + array[index - 1].aggregate;
+			}
+			agg.maxAsk = Math.max(agg.maxAsk, level.size);
+			agg.totalAsks += level.size;
+			return agg;
+		}, bidStats);
 		const snapshot: BookSnapshot = {
 			exchange: this.exchangeSymbol,
 			hub: this.hubSymbol,
 			market: this.marketSymbol,
-			bidLevels: sortedBidLevels.slice(0, take),
-			askLevels: sortedAskLevels.slice(0, take)
+			bidLevels: topBidLevels,
+			askLevels: topAskLevels,
+			stats: combinedStats
 		};
 		Logger.log({
 			level: "silly",

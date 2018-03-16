@@ -3,6 +3,6 @@ import App from "./App.vue";
 import Dashboard from "./Dashboard.vue";
 
 new Vue({
-  el: "#app",
-  render: h => h(Dashboard)
+	el: "#app",
+	render: h => h(Dashboard)
 });
