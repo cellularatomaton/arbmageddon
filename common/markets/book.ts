@@ -11,6 +11,7 @@ export function bookOrderSorter(a: BookLevel, b: BookLevel): number {
 export interface BookLevel {
 	price: number;
 	size: number;
+	aggregate: number;
 }
 
 export interface BookStats {
@@ -68,7 +69,7 @@ export class Book {
 					agg.size += current.size;
 					return agg;
 				},
-				{ price, size: 0 }
+				{ price, size: 0, aggregate: 0 }
 			);
 		});
 		const values: BookLevel[] = _.values(mappedValues);
@@ -94,14 +95,24 @@ export class Book {
 		const topBidLevels = sortedBidLevels.slice(0, take);
 		const topAskLevels = sortedAskLevels.slice(0, take);
 		const bidStats = topBidLevels.reduce(
-			(agg: BookStats, level: BookLevel) => {
+			(agg: BookStats, level: BookLevel, index: number, array: BookLevel[]) => {
+				if (index === 0) {
+					level.aggregate = level.size;
+				} else {
+					level.aggregate = level.size + array[index - 1].aggregate;
+				}
 				agg.maxBid = Math.max(agg.maxBid, level.size);
 				agg.totalBids += level.size;
 				return agg;
 			},
 			{ maxAsk: 0, maxBid: 0, totalAsks: 0, totalBids: 0 }
 		);
-		const combinedStats = topAskLevels.reduce((agg: BookStats, level: BookLevel) => {
+		const combinedStats = topAskLevels.reduce((agg: BookStats, level: BookLevel, index: number, array: BookLevel[]) => {
+			if (index === 0) {
+				level.aggregate = level.size;
+			} else {
+				level.aggregate = level.size + array[index - 1].aggregate;
+			}
 			agg.maxAsk = Math.max(agg.maxAsk, level.size);
 			agg.totalAsks += level.size;
 			return agg;

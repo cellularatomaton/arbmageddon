@@ -11,8 +11,6 @@
 						value="false" 
 						v-model="dash.showDirect">
 					<label for="direct-checkbox">Direct</label>
-				</div>
-				<div>
 					<input 
 						type="checkbox" 
 						id="conversion-checkbox" 
@@ -30,8 +28,6 @@
 						value="false" 
 						v-model="dash.showCrossExchange">
 					<label for="cross-exchange-checkbox">Cross Exchange</label>
-				</div>
-				<div>
 					<input 
 						type="checkbox" 
 						id="same-exchange-checkbox" 
@@ -59,10 +55,10 @@
 					v-on:click="dash.selectSpread(spread)" 
 					v-bind:class="{ selected: spread.selected }">
 					<td class="spread-id">{{ spread.id }}</td>
-					<td>{{ spread.spread.toFixed(8) }}</td>
+					<td>{{ spread.spread.toFixed(4) }}</td>
 					<td>{{ (spread.spreadPercent * 100).toFixed(2) }}</td>
 					<td>{{ spread.spreadsPerMinute }}</td>
-					<td>{{ spread.basisPerMinute.toFixed(8) }}</td>
+					<td>{{ spread.basisPerMinute.toFixed(4) }}</td>
 				</tr>
 			</tbody>
 		</table>
@@ -86,7 +82,7 @@ td {
 }
 
 .spread-id {
-	width: 360px;
+	width: 365px;
 }
 
 .selected {
