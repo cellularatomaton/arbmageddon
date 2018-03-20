@@ -36,13 +36,16 @@ export class BinanceExchange extends Exchange {
 		super("BIN", "BINANCE", graph);
 		this.symbolList = [];
 		this.books = new Map<string, Book>();
-		this.updateExchangeInfo().then(() => {
-			this.setupWebsockets(this.symbolList).then(() => {
-				this.initSnapshots(this.symbolList).then(() => {
-					graph.exchangeReady(this);
-				});
+		this.updateExchangeInfo()
+			.then(() => {
+				return this.setupWebsockets(this.symbolList);
+			})
+			.then(() => {
+				return this.initSnapshots(this.symbolList);
+			})
+			.then(() => {
+				graph.exchangeReady(this);
 			});
-		});
 	}
 
 	updateExchangeInfo(): Promise<void> {
@@ -91,37 +94,40 @@ export class BinanceExchange extends Exchange {
 			const exchange = this;
 			symbols.forEach((symbol: string) => {
 				const parsedSymbols = exchange.parseSymbols(symbol);
-				const book: Book = new Book(this.id, parsedSymbols[0], parsedSymbols[1]);
-				this.books.set(symbol, book);
-				try {
-					binance.depth(symbol, (error: any, depth: BinaBookSnapshot, sym: string) => {
-						const askDepth: BinaBookSnapshotLevel[] = _.toPairs(depth.asks);
-						const bidDepth: BinaBookSnapshotLevel[] = _.toPairs(depth.bids);
-						_.forEach(askDepth, (level: BinaBookUpdateLevel) => {
-							book.updateLevel(TradeType.Sell, Number(level[0]), Number(level[1]));
+				const market: Market | undefined = this.getMarket(parsedSymbols[0], parsedSymbols[1]);
+				if (market) {
+					const book: Book = new Book(market);
+					this.books.set(symbol, book);
+					try {
+						binance.depth(symbol, (error: any, depth: BinaBookSnapshot, sym: string) => {
+							const askDepth: BinaBookSnapshotLevel[] = _.toPairs(depth.asks);
+							const bidDepth: BinaBookSnapshotLevel[] = _.toPairs(depth.bids);
+							_.forEach(askDepth, (level: BinaBookUpdateLevel) => {
+								book.updateLevel(TradeType.Sell, Number(level[0]), Number(level[1]));
+							});
+							_.forEach(bidDepth, (level: BinaBookUpdateLevel) => {
+								book.updateLevel(TradeType.Buy, Number(level[0]), Number(level[1]));
+							});
+							this.updateBook(book);
+							Logger.log({
+								level: "silly",
+								message: `BINA Snapshot: ${this.id}.${parsedSymbols[0]}.${parsedSymbols[1]}`,
+								data: book
+							});
+							// if (this.books.size === symbols.length) {
+							// }
 						});
-						_.forEach(bidDepth, (level: BinaBookUpdateLevel) => {
-							book.updateLevel(TradeType.Buy, Number(level[0]), Number(level[1]));
-						});
-						this.updateBook(book);
+					} catch (err) {
 						Logger.log({
-							level: "silly",
-							message: `BINA Snapshot: ${this.id}.${parsedSymbols[0]}.${parsedSymbols[1]}`,
-							data: book
+							level: "error",
+							message: "BINA Snapshot Error",
+							data: err
 						});
-						if (this.books.size === symbols.length) {
-							resolve();
-						}
-					});
-				} catch (err) {
-					Logger.log({
-						level: "error",
-						message: "BINA Snapshot Error",
-						data: err
-					});
-					reject();
+						reject();
+					}
 				}
 			});
+			resolve();
 		});
 	}
 

@@ -3,9 +3,10 @@ import { Hub, Market, Graph } from "../common/markets";
 import { Exchange, GdaxExchange, BinanceExchange, PoloniexExchange } from "../common/exchanges";
 import { SpreadExecution } from "../common/strategies";
 import { NextFunction, Request, Response, Router } from "express";
-import { GraphParameters, WebsocketMessage, SubscriptionData } from "../common/markets/graph";
+import { GraphParameters, WebsocketMessage } from "../common/markets/graph";
 import { Logger } from "../common/utils/logger";
 import { Book, BookSnapshot } from "../common/markets/book";
+import { SubscriptionData, MarketParameters } from "../common/markets/market";
 
 const express = require("express");
 const path = require("path");
@@ -62,12 +63,12 @@ graphModel.arb.on((spread?: SpreadExecution) => {
 graphModel.book.on((book: Book) => {
 	Logger.log({
 		level: "silly",
-		message: `Book update broadcast ${book.exchangeSymbol}.${book.hubSymbol}.${book.marketSymbol}`
+		message: `Book update broadcast ${book.marketId}`
 	});
 	wss.broadcast({
 		action: "update",
 		type: "book",
-		data: book.getAggregateBook(8, 25)
+		data: book.getAggregateBook(25)
 	} as WebsocketMessage<BookSnapshot>);
 });
 
@@ -78,7 +79,7 @@ wss.on("connection", (ws: any) => {
 			level: "info",
 			message: `Websocket message received: ${JSON.stringify(message)}`
 		});
-		if (message.type === "params") {
+		if (message.type === "graphparams") {
 			if (message.action === "set") {
 				Logger.log({
 					level: "info",
@@ -91,10 +92,14 @@ wss.on("connection", (ws: any) => {
 					message: `Sending graph params: ${JSON.stringify(graphModel.parameters)}`
 				});
 				wss.broadcast({
-					type: "params",
+					type: "graphparams",
 					action: "set",
 					data: graphModel.parameters
 				} as WebsocketMessage<GraphParameters>);
+			}
+		} else if (message.type === "marketparams") {
+			if (message.action === "set") {
+				graphModel.updateMarketParams(message.data as MarketParameters);
 			}
 		} else if (message.type === "book") {
 			if (message.action === "subscribe") {

@@ -188,21 +188,28 @@ export class GdaxExchange extends Exchange {
 	}
 
 	handleBookSnapshot(snapshot: GdaxBookSnapshot) {
-		const book: Book = this.getBookFromSnapshot(snapshot);
-		this.books.set(snapshot.product_id, book);
-		this.updateBook(book);
+		const book: Book | undefined = this.getBookFromSnapshot(snapshot);
+		if (book) {
+			this.books.set(snapshot.product_id, book);
+			this.updateBook(book);
+		}
 	}
 
-	getBookFromSnapshot(snapshot: GdaxBookSnapshot): Book {
+	getBookFromSnapshot(snapshot: GdaxBookSnapshot): Book | undefined {
 		const symbols = snapshot.product_id.split("-");
-		const book: Book = new Book(this.id, symbols[0], symbols[1]);
-		snapshot.bids.forEach((level: GdaxSnapshotLevel) => {
-			book.updateLevel(TradeType.Buy, level[0], level[1]);
-		});
-		snapshot.asks.forEach((level: GdaxSnapshotLevel) => {
-			book.updateLevel(TradeType.Sell, level[0], level[1]);
-		});
-		return book;
+		const market: Market | undefined = this.getMarket(symbols[0], symbols[1]);
+		if (market) {
+			const book: Book = new Book(market);
+			snapshot.bids.forEach((level: GdaxSnapshotLevel) => {
+				book.updateLevel(TradeType.Buy, level[0], level[1]);
+			});
+			snapshot.asks.forEach((level: GdaxSnapshotLevel) => {
+				book.updateLevel(TradeType.Sell, level[0], level[1]);
+			});
+			return book;
+		} else {
+			return undefined;
+		}
 	}
 
 	handleBookUpdate(update: GdaxBookUpdate) {

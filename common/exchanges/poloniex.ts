@@ -41,6 +41,7 @@ export class PoloniexExchange extends Exchange {
 		this.books = new Map<number, Book>();
 		this.updateProducts()
 			.then(() => {
+				this.graph.mapBasis();
 				return this.setupWebsocket();
 			})
 			.then(() => {
@@ -71,7 +72,6 @@ export class PoloniexExchange extends Exchange {
 					// this.subscriptionConfirms.set(ticker.id, false);
 					this.symbolList.push(key);
 				});
-				this.graph.mapBasis();
 				resolve();
 			});
 		});
@@ -166,9 +166,12 @@ export class PoloniexExchange extends Exchange {
 		// });
 		const pair: HubMarketPair | undefined = this.idToSymbolMap.get(productId);
 		if (pair) {
-			const book: Book = new Book(this.id, pair.hubSymbol, pair.marketSymbol);
-			this.books.set(productId, book);
-			this.updateBook(book);
+			const market: Market | undefined = this.getMarket(pair.hubSymbol, pair.marketSymbol);
+			if (market) {
+				const book: Book = new Book(market);
+				this.books.set(productId, book);
+				this.updateBook(book);
+			}
 		}
 	}
 

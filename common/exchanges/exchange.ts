@@ -31,6 +31,12 @@ export abstract class Exchange {
 		return market;
 	}
 
+	getMarket(hubSymbol: string, marketSymbol: string): Market | undefined {
+		const hub = this.getHub(hubSymbol);
+		const market = hub.getMarket(marketSymbol);
+		return market;
+	}
+
 	getHub(symbol: string): Hub {
 		let hub = this.hubs.get(symbol);
 		if (hub) {
@@ -43,14 +49,14 @@ export abstract class Exchange {
 	}
 
 	updateTicker(ticker: Ticker) {
-		const market = this.mapMarket(ticker.hubSymbol, ticker.marketSymbol);
+		const market = this.getMarket(ticker.hubSymbol, ticker.marketSymbol);
 		if (market) {
 			market.updateTicker(ticker);
 		}
 	}
 
 	updateBook(book: Book) {
-		const market = this.mapMarket(book.hubSymbol, book.marketSymbol);
+		const market = this.getMarket(book.marketInfo.hub, book.marketInfo.market);
 		if (market) {
 			market.updateBook(book);
 		}

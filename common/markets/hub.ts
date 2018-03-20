@@ -6,7 +6,7 @@ import { Logger } from "../utils/logger";
 export class Hub {
 	asset: Asset;
 	markets: Map<string, Market>;
-	constructor(symbol: string, public exchange: Exchange, public graph: Graph) {
+	constructor(public symbol: string, public exchange: Exchange, public graph: Graph) {
 		this.asset = Asset.getAsset(symbol, graph.assetMap);
 		this.asset.hubs.push(this);
 		this.markets = new Map<string, Market>();
