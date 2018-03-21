@@ -1,13 +1,30 @@
 import { Hub } from "./hub";
 import { Graph, Ticker } from "../markets";
 import { VolumeStatistics } from "./ticker";
-import { TimeUnit, InitiationType, TradeType } from "../utils/enums";
+import { TimeUnit, InitiationType, TradeType, SubscriptionType } from "../utils/enums";
 import { EventImp, IEvent } from "../utils/event";
 import { Logger } from "../utils/logger";
 import { Asset } from "../assets/asset";
 import { Book } from "./book";
 
+export interface MarketInfo {
+	exchange: string;
+	hub: string;
+	market: string;
+}
+
+export interface MarketParameters extends MarketInfo {
+	pricePrecision: number;
+	sizePrecision: number;
+}
+
+export interface SubscriptionData extends MarketInfo {
+	type: SubscriptionType;
+}
+
 export class Market {
+	pricePrecision: number;
+	sizePrecision: number;
 	asset: Asset;
 	vwapBuyStats: VolumeStatistics;
 	vwapSellStats: VolumeStatistics;
@@ -22,12 +39,29 @@ export class Market {
 		return this.onSell.expose();
 	}
 
-	onBook: EventImp<Book> = new EventImp<Book>();
-	get book(): IEvent<Book> {
-		return this.onBook.expose();
+	onBookUpdate: EventImp<Book> = new EventImp<Book>();
+	get bookUpdate(): IEvent<Book> {
+		return this.onBookUpdate.expose();
+	}
+
+	info: MarketInfo;
+	get marketInfo(): MarketInfo {
+		return this.info;
+	}
+
+	marketBook: Book | undefined;
+	set book(b: Book) {
+		this.marketBook = b;
 	}
 
 	constructor(assetSymbol: string, public hub: Hub, public graph: Graph) {
+		this.pricePrecision = 8;
+		this.sizePrecision = 4;
+		this.info = {
+			exchange: this.hub.exchange.id,
+			hub: this.hub.symbol,
+			market: assetSymbol
+		};
 		this.asset = Asset.getAsset(assetSymbol, graph.assetMap);
 		this.asset.markets.push(this);
 		this.vwapBuyStats = new VolumeStatistics(this);
@@ -76,16 +110,15 @@ export class Market {
 		}
 	}
 
-	// subscribeBook() {
-	// 	// Subscribe to book
-	// }
-
-	// unsubscribeBook() {
-	// 	// Unsubscribe from book
-	// }
-
 	updateBook(book: Book) {
-		// Handle exchange book updates.
-		this.onBook.trigger(book);
+		// Handle exchange book updates:
+		this.onBookUpdate.trigger(book);
+	}
+
+	updateMarketBook() {
+		// Broadcast book update for this market:
+		if (this.marketBook) {
+			this.onBookUpdate.trigger(this.marketBook);
+		}
 	}
 }

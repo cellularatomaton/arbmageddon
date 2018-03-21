@@ -15,7 +15,7 @@
 						side="buy" class="buy-convert-op"
 						title="Buy Convert"
 						:operation="selectedSpread.convert"></execution-operation>
-					<book-depth :book="conversionBook"></book-depth>
+					<book-depth :book="conversionBook" :dash="this"></book-depth>
 				</div>
 				<div v-if="selectedSpread"
 					class="flex-col">
@@ -24,7 +24,7 @@
 						class="buy-op"
 						title="Buy"
 						:operation="selectedSpread ? selectedSpread.buy : null"></execution-operation>
-					<book-depth :book="originBook"></book-depth>
+					<book-depth :book="originBook" :dash="this"></book-depth>
 				</div>
 				<div v-if="selectedSpread"
 					class="flex-col">
@@ -33,7 +33,7 @@
 						class="sell-op"
 						title="Sell"
 						:operation="selectedSpread ? selectedSpread.sell: null"></execution-operation>	
-					<book-depth :book="destinationBook"></book-depth>
+					<book-depth :book="destinationBook" :dash="this"></book-depth>
 				</div>
 				<div v-if="selectedSpread && destinationConversions.includes(selectedSpread.type)"
 					class="flex-col">
@@ -42,7 +42,7 @@
 						class="sell-convert-op"
 						title="Sell Convert"
 						:operation="selectedSpread.convert"></execution-operation>
-					<book-depth :book="conversionBook"></book-depth>
+					<book-depth :book="conversionBook" :dash="this"></book-depth>
 				</div>
 			</div>
 		</div>
@@ -62,6 +62,7 @@ import { ArbType, SubscriptionType } from "../../common/utils/enums";
 import { SpreadExecution, ExecutionOperation as Operation } from "../../common/strategies/arbitrage";
 import { Graph, GraphParameters as GraphProps, WebsocketMessage } from "../../common/markets/graph";
 import { BookSnapshot, BookStats } from "../../common/markets/book";
+import { MarketInfo, MarketParameters } from "../../common/markets/market";
 import { unescape } from "querystring";
 
 export interface SpreadListItem extends SpreadExecution {
@@ -88,6 +89,7 @@ export interface DashboardModel {
 	sortArbsAscending: boolean;
 	basisSize: number;
 	spreadTarget: number;
+	recenterBooks: boolean;
 }
 
 export default Vue.extend({
@@ -119,7 +121,8 @@ export default Vue.extend({
 			showConversion: true,
 			basisSize: 0,
 			spreadTarget: 0,
-			sortArbsAscending: false
+			sortArbsAscending: false,
+			recenterBooks: false
 		} as DashboardModel;
 	},
 	mounted() {
@@ -159,13 +162,44 @@ export default Vue.extend({
 			dash.ws.send(
 				JSON.stringify({
 					action: "set",
-					type: "params",
+					type: "graphparams",
 					data: {
 						basisSize: dash.basisSize,
 						spreadTarget: dash.spreadTarget
 					}
 				} as WebsocketMessage<GraphProps>)
 			);
+		},
+		getMarketParams(pricePrecision: number, sizePrecision: number, book: BookSnapshot) {
+			return {
+				exchange: book.exchange,
+				hub: book.hub,
+				market: book.market,
+				pricePrecision,
+				sizePrecision
+			};
+		},
+		changeBookPrecision(book: BookSnapshot, pricePrecision: number, sizePrecision: number) {
+			const dash = this;
+			dash.ws.send(
+				JSON.stringify({
+					action: "set",
+					type: "marketparams",
+					data: dash.getMarketParams(pricePrecision, sizePrecision, book)
+				} as WebsocketMessage<MarketParameters>)
+			);
+		},
+		increasePricePrecision(book: BookSnapshot) {
+			this.changeBookPrecision(book, book.stats.pricePrecision + 1, book.stats.sizePrecision);
+		},
+		decreasePricePrecision(book: BookSnapshot) {
+			this.changeBookPrecision(book, book.stats.pricePrecision - 1, book.stats.sizePrecision);
+		},
+		increaseSizePrecision(book: BookSnapshot) {
+			this.changeBookPrecision(book, book.stats.pricePrecision, book.stats.sizePrecision + 1);
+		},
+		decreaseSizePrecision(book: BookSnapshot) {
+			this.changeBookPrecision(book, book.stats.pricePrecision, book.stats.sizePrecision - 1);
 		},
 		setGraphProperties(props: GraphProps) {
 			this.basisSize = props.basisSize;
@@ -269,33 +303,57 @@ export default Vue.extend({
 				type
 			};
 		},
-		getMarketId(obj: any) {
+		getMarketId(obj: MarketInfo): string {
 			return `${obj.exchange}.${obj.hub}.${obj.market}`;
 		},
-		updateBook(book: BookSnapshot) {
+		getBook(bookId: string) {
+			if (this.selectedSpread) {
+				const originOpId = this.getMarketId(this.selectedSpread.buy);
+				if (originOpId === bookId) {
+					return this.originBook;
+				} else {
+					const destinationOpId = this.getMarketId(this.selectedSpread.sell);
+					if (destinationOpId === bookId) {
+						return this.destinationBook;
+					} else {
+						const convertOpId = this.getMarketId(this.selectedSpread.convert);
+						if (convertOpId === bookId) {
+							return this.conversionBook;
+						}
+					}
+				}
+			}
+		},
+		setBook(book: BookSnapshot) {
 			if (this.selectedSpread) {
 				const bookId = this.getMarketId(book);
 				const originOpId = this.getMarketId(this.selectedSpread.buy);
 				if (originOpId === bookId) {
+					this.recenterBooks = this.originBook === undefined;
 					this.originBook = book;
 				} else {
 					const destinationOpId = this.getMarketId(this.selectedSpread.sell);
 					if (destinationOpId === bookId) {
+						this.recenterBooks = this.destinationBook === undefined;
 						this.destinationBook = book;
 					} else {
 						const convertOpId = this.getMarketId(this.selectedSpread.convert);
 						if (convertOpId === bookId) {
+							this.recenterBooks = this.conversionBook === undefined;
 							this.conversionBook = book;
 						}
 					}
 				}
-				document.querySelectorAll(".scroller").forEach((element: any) => {
-					element.scrollIntoView();
-				});
-				document.querySelectorAll(".scroller").forEach((element: any) => {
-					element.scrollIntoView();
-				});
 			}
+		},
+		updateBook(book: BookSnapshot) {
+			this.setBook(book);
+			// document.querySelectorAll(".scroller").forEach((element: any) => {
+			// 	element.scrollIntoView();
+			// });
+			// document.querySelectorAll(".scroller").forEach((element: any) => {
+			// 	element.scrollIntoView();
+			// });
 		},
 		sortLoop() {
 			const dash = this;
@@ -306,7 +364,12 @@ export default Vue.extend({
 					return b.basisPerMinute - a.basisPerMinute;
 				}
 			});
-			setTimeout(this.sortLoop, 1000);
+			if (this.recenterBooks) {
+				document.querySelectorAll(".scroller").forEach((element: any) => {
+					element.scrollIntoView();
+				});
+			}
+			setTimeout(this.sortLoop, 250);
 		},
 		updateArb(update: SpreadListItem) {
 			// console.dir(update);
@@ -356,11 +419,11 @@ export default Vue.extend({
 					setTimeout(dash.setupWebsocket, 1000);
 				};
 
-				dash.ws.onmessage = function(message) {
+				dash.ws.onmessage = function(message: any) {
 					const msg = JSON.parse(message.data);
 					if (msg.type === "arb" && msg.action === "update") {
 						dash.updateArb(msg.data);
-					} else if (msg.type === "params" && msg.action === "set") {
+					} else if (msg.type === "graphparams" && msg.action === "set") {
 						dash.setGraphProperties(msg.data);
 						console.log("Set graph params.");
 					} else if (msg.type === "book" && msg.action === "update") {
@@ -372,7 +435,7 @@ export default Vue.extend({
 					console.log("App Websocket opened.");
 					dash.ws.send(
 						JSON.stringify({
-							type: "params",
+							type: "graphparams",
 							action: "get"
 						})
 					);

@@ -1,12 +1,12 @@
 <template>
 <!-- <div class="flex-grow"> -->
-	<div v-if="book" class="flex-grow flex-col">
-		<div class="flex-grow overflow-y">
+	<div v-if="book" class="flex-grow flex-col overflow-y">
+		<div class="flex-grow">
 			<div class="flex-col-reverse">
 				<div v-for="(askLevel, index) in book.askLevels"
 					:key="askLevel.price"
 					class="flex-row">
-					<div v-if="index===0" class="scroller"></div>
+					<div v-if="index===10" class="scroller"></div>
 					<div class="depth-cell">
 						<div v-if="!aggregate"
 							class="ask-depth"
@@ -33,33 +33,33 @@
 					</funnel>
 				</div>
 				<div class="price-cell flex-row">
-					<div>
+					<div v-on:click="dash.decreasePricePrecision(book)">
 						<remove-circle root-class="icon" 
 							class="elbow-room"></remove-circle>
 					</div>
-					<div>
+					<div v-on:click="dash.increasePricePrecision(book)">
 						<add-circle root-class="icon" 
 							class="elbow-room"></add-circle>
 					</div>
 				</div>
 				<div class="size-cell flex-row">
-					<div>
+					<div v-on:click="dash.decreaseSizePrecision(book)">
 						<remove-circle root-class="icon" 
 							class="elbow-room"></remove-circle>
 					</div>
-					<div>
+					<div v-on:click="dash.increaseSizePrecision(book)">
 						<add-circle root-class="icon" 
 							class="elbow-room"></add-circle>
 					</div>
 				</div>
 			</div>
 		</div>
-		<div class="flex-grow overflow-y">
+		<div class="flex-grow">
 			<div class="flex-col">
 				<div v-for="(bidLevel, index) in book.bidLevels"
 					class="flex-row"
 					:key="bidLevel.price">
-					<div v-if="index===0" class="scroller"></div>
+					<!-- <div v-if="index===10" class="scroller"></div> -->
 					<div class="depth-cell">
 						<div v-if="!aggregate" 
 							class="bid-depth" 
@@ -88,7 +88,7 @@ import FunnelIcon from "vue-ionicons/dist/ios-funnel.vue";
 import { BookSnapshot, BookLevel } from "../../common/markets/book";
 
 export default {
-	props: ["book"],
+	props: ["book", "dash"],
 	components: {
 		"add-circle": PlusIcon,
 		"remove-circle": MinusIcon,
@@ -112,10 +112,10 @@ export default {
 			this.aggregate = !this.aggregate;
 		},
 		getDisplayPrice(price: string): string {
-			return parseFloat(price).toFixed(8);
+			return parseFloat(price).toFixed(this.book.stats.pricePrecision);
 		},
 		getDisplaySize(size: string): string {
-			return parseFloat(size).toFixed(4);
+			return parseFloat(size).toFixed(this.book.stats.sizePrecision);
 		}
 	}
 };
@@ -129,18 +129,18 @@ export default {
 	color: red;
 }
 .depth-cell {
-	width: 50px;
+	width: 33%;
 	/* background: #cccccc; */
 	/* position: relative; */
 }
 .price-cell {
-	width: 100px;
+	width: 33%;
 }
 .size-cell {
-	width: 100px;
+	width: 33%;
 }
 .trades-cell {
-	width: 50px;
+	width: 1%;
 }
 .ask-depth {
 	background: red;

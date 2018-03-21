@@ -1,6 +1,8 @@
 import { TradeType } from "../utils/enums";
 import { Logger } from "../utils/logger";
 import * as _ from "lodash";
+import { Market } from ".";
+import { MarketInfo } from "./market";
 
 export type BookOrderSorter = (a: BookLevel, b: BookLevel) => number;
 export function bookOrderSorter(a: BookLevel, b: BookLevel): number {
@@ -19,6 +21,8 @@ export interface BookStats {
 	maxBid: number;
 	totalAsks: number;
 	totalBids: number;
+	pricePrecision: number;
+	sizePrecision: number;
 }
 
 export interface BookSnapshot {
@@ -31,15 +35,26 @@ export interface BookSnapshot {
 }
 
 export class Book {
+	marketInfo: MarketInfo;
+	marketId: string;
 	lastUpdated: Date;
 	bidLevels: Map<number, BookLevel>;
 	askLevels: Map<number, BookLevel>;
 
-	constructor(public exchangeSymbol: string, public hubSymbol: string, public marketSymbol: string) {
+	constructor(public market: Market) {
+		this.marketInfo = this.market.info;
+		this.marketId = `${this.marketInfo.market}.${this.marketInfo.hub}.${this.marketInfo.market}`;
 		this.lastUpdated = new Date();
 		this.bidLevels = new Map<number, BookLevel>();
 		this.askLevels = new Map<number, BookLevel>();
+		market.book = this;
 	}
+
+	// constructor(public exchangeSymbol: string, public hubSymbol: string, public marketSymbol: string) {
+	// 	this.lastUpdated = new Date();
+	// 	this.bidLevels = new Map<number, BookLevel>();
+	// 	this.askLevels = new Map<number, BookLevel>();
+	// }
 
 	updateLevel(type: TradeType, price: number, size: number) {
 		const levels = (type as TradeType) === TradeType.Buy ? this.bidLevels : this.askLevels;
@@ -77,20 +92,20 @@ export class Book {
 	}
 
 	// Grab the top [take] levels after aggregating to [precision].
-	getAggregateBook(precision: number, take: number): BookSnapshot {
+	getAggregateBook(take: number): BookSnapshot {
 		Logger.log({
 			level: "silly",
-			message: `Ask levels: ${this.exchangeSymbol}.${this.hubSymbol}.${this.marketSymbol}`,
+			message: `Ask levels: ${this.marketId}`,
 			data: this.askLevels
 		});
 		Logger.log({
 			level: "silly",
-			message: `Bid levels: ${this.exchangeSymbol}.${this.hubSymbol}.${this.marketSymbol}`,
+			message: `Bid levels: ${this.marketId}`,
 			data: this.bidLevels
 		});
-		const groupedBidLevels = this.getGroupedLevels(precision, Array.from(this.bidLevels.values()));
+		const groupedBidLevels = this.getGroupedLevels(this.market.pricePrecision, Array.from(this.bidLevels.values()));
 		const sortedBidLevels = _.sortBy(groupedBidLevels, (level: BookLevel) => -level.price); // Descending Bids
-		const groupedAskLevels = this.getGroupedLevels(precision, Array.from(this.askLevels.values()));
+		const groupedAskLevels = this.getGroupedLevels(this.market.pricePrecision, Array.from(this.askLevels.values()));
 		const sortedAskLevels = _.sortBy(groupedAskLevels, (level: BookLevel) => level.price); // Ascending Asks
 		const topBidLevels = sortedBidLevels.slice(0, take);
 		const topAskLevels = sortedAskLevels.slice(0, take);
@@ -105,7 +120,14 @@ export class Book {
 				agg.totalBids += level.size;
 				return agg;
 			},
-			{ maxAsk: 0, maxBid: 0, totalAsks: 0, totalBids: 0 }
+			{
+				maxAsk: 0,
+				maxBid: 0,
+				totalAsks: 0,
+				totalBids: 0,
+				pricePrecision: this.market.pricePrecision,
+				sizePrecision: this.market.sizePrecision
+			}
 		);
 		const combinedStats = topAskLevels.reduce((agg: BookStats, level: BookLevel, index: number, array: BookLevel[]) => {
 			if (index === 0) {
@@ -117,17 +139,18 @@ export class Book {
 			agg.totalAsks += level.size;
 			return agg;
 		}, bidStats);
+
 		const snapshot: BookSnapshot = {
-			exchange: this.exchangeSymbol,
-			hub: this.hubSymbol,
-			market: this.marketSymbol,
+			exchange: this.marketInfo.exchange,
+			hub: this.marketInfo.hub,
+			market: this.marketInfo.market,
 			bidLevels: topBidLevels,
 			askLevels: topAskLevels,
 			stats: combinedStats
 		};
 		Logger.log({
 			level: "silly",
-			message: `Snapshot: ${this.exchangeSymbol}.${this.hubSymbol}.${this.marketSymbol}`,
+			message: `Snapshot: ${this.marketId}`,
 			data: snapshot
 		});
 		return snapshot;

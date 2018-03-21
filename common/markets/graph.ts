@@ -14,18 +14,12 @@ import { TakerDirectArb } from "../strategies/takerDirectArb";
 import { TakerOriginConversion } from "../strategies/takerOriginConversion";
 import { TakerDestinationConversion } from "../strategies/takerDestinationConversion";
 import { Book } from "./book";
+import { MarketParameters, SubscriptionData, MarketInfo } from "./market";
 
 export interface GraphParameters {
 	basisAssetSymbol: string;
 	basisSize: number;
 	spreadTarget: number;
-}
-
-export interface SubscriptionData {
-	exchange: string;
-	hub: string;
-	market: string;
-	type: SubscriptionType;
 }
 
 export interface WebsocketMessage<T> {
@@ -129,16 +123,16 @@ export class Graph {
 	}
 
 	exchangeReady(exchange: Exchange) {
+		Logger.log({
+			level: "info",
+			message: `Exchange Ready [${exchange.id}]
+	Exchange Count: ${this.exchanges.length},
+	Asset Count: ${this.assetMap.size},
+	Arb Count: ${this.arbMap.size}`
+		});
 		this.exchangeReadyCount++;
 		if (this.exchangeReadyCount === this.exchanges.length) {
 			this.findArbs();
-			Logger.log({
-				level: "info",
-				message: `Exchange Ready [${exchange.id}]
-		Exchange Count: ${this.exchanges.length},
-		Asset Count: ${this.assetMap.size},
-		Arb Count: ${this.arbMap.size}`
-			});
 		}
 	}
 
@@ -181,6 +175,15 @@ export class Graph {
 	updateParams(params: GraphParameters) {
 		this.parameters = params;
 		this.mapBasis();
+	}
+
+	updateMarketParams(data: MarketParameters) {
+		const market: Market | undefined = this.getMarket(data);
+		if (market) {
+			market.pricePrecision = data.pricePrecision;
+			market.sizePrecision = data.sizePrecision;
+			market.updateMarketBook();
+		}
 	}
 
 	findArbs() {
@@ -237,38 +240,42 @@ export class Graph {
 		}
 	}
 
-	subscribeToBook(data: SubscriptionData) {
+	getMarket(info: MarketInfo): Market | undefined {
 		const graph = this;
-		const exchange = this.exchangeMap.get(data.exchange);
+		const exchange = this.exchangeMap.get(info.exchange);
 		if (exchange) {
-			const market: Market = exchange.mapMarket(data.hub, data.market);
+			const market: Market | undefined = exchange.getMarket(info.hub, info.market);
 			if (market) {
-				// GUI book updates can be throttled to every 250ms.
-				const handler: BookHandler = _.throttle(
-					(book: Book) => {
-						this.onBook.trigger(book);
-					},
-					250,
-					{ leading: true }
-				);
-				market.book.on(handler);
-				this.bookSubscriptionMap.set(market.getId(), handler);
+				return market;
 			}
+		}
+		return undefined;
+	}
+
+	subscribeToBook(data: SubscriptionData) {
+		const market = this.getMarket(data);
+		if (market) {
+			// GUI book updates can be throttled to every 250ms.
+			const handler: BookHandler = _.throttle(
+				(book: Book) => {
+					this.onBook.trigger(book);
+				},
+				250,
+				{ leading: true }
+			);
+			market.bookUpdate.on(handler);
+			this.bookSubscriptionMap.set(market.getId(), handler);
 		}
 	}
 
 	unsubscribeFromBook(data: SubscriptionData) {
-		const graph = this;
-		const exchange = this.exchangeMap.get(data.exchange);
-		if (exchange) {
-			const market: Market = exchange.mapMarket(data.hub, data.market);
-			if (market) {
-				const handler = this.bookSubscriptionMap.get(market.getId());
-				if (handler) {
-					market.book.off(handler);
-				}
-				this.bookSubscriptionMap.delete(market.getId());
+		const market = this.getMarket(data);
+		if (market) {
+			const handler = this.bookSubscriptionMap.get(market.getId());
+			if (handler) {
+				market.bookUpdate.off(handler);
 			}
+			this.bookSubscriptionMap.delete(market.getId());
 		}
 	}
 }
