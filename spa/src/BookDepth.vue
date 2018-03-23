@@ -21,6 +21,10 @@
 					<div v-if="!aggregate" class="ask size-cell flex-grow">{{getDisplaySize(askLevel.size)}}</div>
 					<div v-if="aggregate" 
 						class="ask size-cell flex-grow">{{getDisplaySize(askLevel.aggregate)}}</div>
+					<div class="vwap-cell">
+						<div v-if="Number(askLevel.price) === book.buyVwap" 
+							class="b-vwap">VWAP</div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -73,6 +77,10 @@
 						class="bid size-cell flex-grow">{{getDisplaySize(bidLevel.size)}}</div>
 					<div v-if="aggregate" 
 						class="bid size-cell flex-grow">{{getDisplaySize(bidLevel.aggregate)}}</div>
+					<div class="vwap-cell">
+						<div v-if="Number(bidLevel.price) === book.sellVwap" 
+							class="s-vwap">VWAP</div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -129,18 +137,26 @@ export default {
 	color: red;
 }
 .depth-cell {
-	width: 33%;
+	width: 25%;
 	/* background: #cccccc; */
 	/* position: relative; */
 }
 .price-cell {
-	width: 33%;
+	width: 25%;
 }
 .size-cell {
-	width: 33%;
+	width: 25%;
 }
-.trades-cell {
-	width: 1%;
+.vwap-cell {
+	width: 25%;
+}
+.b-vwap {
+	background: aqua;
+	color: black;
+}
+.s-vwap {
+	background: red;
+	color: white;
 }
 .ask-depth {
 	background: red;

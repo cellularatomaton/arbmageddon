@@ -26,8 +26,9 @@ export class Market {
 	pricePrecision: number;
 	sizePrecision: number;
 	asset: Asset;
-	vwapBuyStats: VolumeStatistics;
-	vwapSellStats: VolumeStatistics;
+
+	public vwapBuyStats: VolumeStatistics;
+	public vwapSellStats: VolumeStatistics;
 
 	onBuy: EventImp<Ticker> = new EventImp<Ticker>();
 	get buy(): IEvent<Ticker> {
