@@ -3,6 +3,7 @@ import { Logger } from "../utils/logger";
 import * as _ from "lodash";
 import { Market } from ".";
 import { MarketInfo } from "./market";
+import { Ticker } from "./ticker";
 
 export type BookOrderSorter = (a: BookLevel, b: BookLevel) => number;
 export function bookOrderSorter(a: BookLevel, b: BookLevel): number {
@@ -14,6 +15,12 @@ export interface BookLevel {
 	price: number;
 	size: number;
 	aggregate: number;
+}
+
+export interface BookTrade {
+	price: number;
+	size: number;
+	index: number;
 }
 
 export interface BookStats {
@@ -31,6 +38,8 @@ export interface BookSnapshot {
 	market: string;
 	bidLevels: BookLevel[];
 	askLevels: BookLevel[];
+	buyVwap: number;
+	sellVwap: number;
 	stats: BookStats;
 }
 
@@ -73,7 +82,7 @@ export class Book {
 		}
 	}
 
-	getGroupedLevels(precision: number, bookLevels: BookLevel[]): BookLevel[] {
+	getGroupedLevels(precision: number, bookLevels: BookLevel[]): any {
 		const groupedLevels: any = _.groupBy(bookLevels, (level: BookLevel) => {
 			return _.round(level.price, precision);
 		});
@@ -87,8 +96,7 @@ export class Book {
 				{ price, size: 0, aggregate: 0 }
 			);
 		});
-		const values: BookLevel[] = _.values(mappedValues);
-		return values;
+		return mappedValues;
 	}
 
 	// Grab the top [take] levels after aggregating to [precision].
@@ -103,12 +111,26 @@ export class Book {
 			message: `Bid levels: ${this.marketId}`,
 			data: this.bidLevels
 		});
-		const groupedBidLevels = this.getGroupedLevels(this.market.pricePrecision, Array.from(this.bidLevels.values()));
+		// Bids / Buys
+		const groupedBidLevelObj = this.getGroupedLevels(this.market.pricePrecision, Array.from(this.bidLevels.values()));
+		const buyVwap: number = _.round(this.market.vwapBuyStats.getVwap(), this.market.pricePrecision);
+		if (!groupedBidLevelObj[buyVwap]) {
+			groupedBidLevelObj[buyVwap] = { price: buyVwap, size: 0, aggregate: 0 };
+		}
+		const groupedBidLevels: BookLevel[] = _.values(groupedBidLevelObj);
 		const sortedBidLevels = _.sortBy(groupedBidLevels, (level: BookLevel) => -level.price); // Descending Bids
-		const groupedAskLevels = this.getGroupedLevels(this.market.pricePrecision, Array.from(this.askLevels.values()));
-		const sortedAskLevels = _.sortBy(groupedAskLevels, (level: BookLevel) => level.price); // Ascending Asks
 		const topBidLevels = sortedBidLevels.slice(0, take);
+
+		// Asks / Sells
+		const groupedAskLevelObj = this.getGroupedLevels(this.market.pricePrecision, Array.from(this.askLevels.values()));
+		const sellVwap: number = _.round(this.market.vwapSellStats.getVwap(), this.market.pricePrecision);
+		if (!groupedAskLevelObj[sellVwap]) {
+			groupedAskLevelObj[sellVwap] = { price: sellVwap, size: 0, aggregate: 0 };
+		}
+		const groupedAskLevels: BookLevel[] = _.values(groupedAskLevelObj);
+		const sortedAskLevels = _.sortBy(groupedAskLevels, (level: BookLevel) => level.price); // Ascending Asks
 		const topAskLevels = sortedAskLevels.slice(0, take);
+
 		const bidStats = topBidLevels.reduce(
 			(agg: BookStats, level: BookLevel, index: number, array: BookLevel[]) => {
 				if (index === 0) {
@@ -146,7 +168,9 @@ export class Book {
 			market: this.marketInfo.market,
 			bidLevels: topBidLevels,
 			askLevels: topAskLevels,
-			stats: combinedStats
+			stats: combinedStats,
+			buyVwap,
+			sellVwap
 		};
 		Logger.log({
 			level: "silly",

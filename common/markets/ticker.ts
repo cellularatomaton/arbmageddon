@@ -21,7 +21,8 @@ export interface Vwap {
 }
 
 export class VolumeStatistics {
-	window: Ticker[] = [];
+	public window: Ticker[] = [];
+
 	vwapNumerator: number = 0;
 	vwapDenominator: number = 0;
 	lastPrice: number = Number.NaN;
