@@ -68,6 +68,7 @@
 
 <script>
 export default {
+	name: "spreadList",
 	props: ["dash"]
 };
 </script>

@@ -43,6 +43,7 @@
 
 <script>
 export default {
+	name: "executionOperation",
 	props: ["title", "side", "operation"]
 };
 </script>

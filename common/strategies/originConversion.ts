@@ -1,6 +1,6 @@
 import { Arb, FillHandler } from "./arb";
 import { ArbType, TradeType, InitiationType } from "../utils/enums";
-import { SpreadExecution, ExecutionOperation } from "./arbitrage";
+import { SpreadExecution, ExecutionOperation } from "../strategies";
 import { Graph } from "../markets/graph";
 import { Market } from "../markets/market";
 import { Ticker } from "../markets/ticker";
@@ -84,7 +84,8 @@ export abstract class OriginConversion extends Arb {
 				this.destinationMarket.hub.asset.symbol,
 				this.destinationMarket.asset.symbol
 			),
-			filled: false
+			filled: false,
+			spreadStatistics: []
 		};
 	}
 

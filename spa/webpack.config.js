@@ -54,7 +54,8 @@ module.exports = {
 	resolve: {
 		alias: {
 			vue$: "vue/dist/vue.esm.js",
-			icons: path.resolve(__dirname, "node_modules/vue-ionicons")
+			icons: path.resolve(__dirname, "node_modules/vue-ionicons"),
+			vuechartjs: path.resolve(__dirname, "node_modules/vue-chartjs")
 		},
 		extensions: ["*", ".ts", ".js", ".vue", ".json"]
 	},

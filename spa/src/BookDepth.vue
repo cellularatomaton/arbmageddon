@@ -96,6 +96,7 @@ import FunnelIcon from "vue-ionicons/dist/ios-funnel.vue";
 import { BookSnapshot, BookLevel } from "../../common/markets/book";
 
 export default {
+	name: "bookDepth",
 	props: ["book", "dash"],
 	components: {
 		"add-circle": PlusIcon,
@@ -138,17 +139,21 @@ export default {
 }
 .depth-cell {
 	width: 25%;
+	margin-left: 3px;
 	/* background: #cccccc; */
 	/* position: relative; */
 }
 .price-cell {
 	width: 25%;
+	margin-left: 3px;
 }
 .size-cell {
 	width: 25%;
+	margin-left: 3px;
 }
 .vwap-cell {
 	width: 25%;
+	margin-left: 3px;
 }
 .b-vwap {
 	background: aqua;

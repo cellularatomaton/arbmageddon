@@ -4,7 +4,8 @@
 
 <script>
 export default {
-  props: ["multichartsUrl"]
+	name: "multiChart",
+	props: ["multichartsUrl"]
 };
 </script>
 

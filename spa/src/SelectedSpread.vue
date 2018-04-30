@@ -14,16 +14,17 @@
 
 <script>
 export default {
-  props: ["selectedSpread", "basisSize", "spreadTarget"],
-  methods: {
-    arbIsGood(spread) {
-      if (spread) {
-        return 0 < spread.spreadsPerMinute;
-      } else {
-        return false;
-      }
-    }
-  }
+	name: "selectedSpread",
+	props: ["selectedSpread", "basisSize", "spreadTarget"],
+	methods: {
+		arbIsGood(spread) {
+			if (spread) {
+				return 0 < spread.spreadsPerMinute;
+			} else {
+				return false;
+			}
+		}
+	}
 };
 </script>
 

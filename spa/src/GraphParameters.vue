@@ -13,7 +13,8 @@
 
 <script>
 export default {
-  props: ["basisSize", "spreadTarget"]
+	name: "graphParameters",
+	props: ["basisSize", "spreadTarget"]
 };
 </script>
 

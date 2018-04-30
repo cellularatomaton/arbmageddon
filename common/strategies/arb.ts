@@ -1,17 +1,22 @@
 import { EventImp, IEvent } from "../utils/event";
-import { SpreadExecution, ExecutionOperation } from "./arbitrage";
+import { SpreadExecution, ExecutionOperation } from "../strategies";
 import { Market } from "../markets/market";
 import { ArbType, TradeType, InitiationType } from "../utils/enums";
 import { Graph } from "../markets/graph";
 import { Vwap, Ticker } from "../markets/ticker";
 import { Logger } from "../utils/logger";
+import { TimeWindow } from "./timeWindow";
+import { SpreadStatistics } from "./spreadExecution";
 
 export type FillHandler = (spread: SpreadExecution | undefined) => void;
 
 export abstract class Arb {
 	static debugCount: number = 0;
 	spread: SpreadExecution | undefined;
-	statisticsWindow: SpreadExecution[];
+	// statisticsWindow: SpreadExecution[];
+	spreadWindow: TimeWindow<SpreadExecution>;
+	statsWindow: TimeWindow<SpreadStatistics>;
+
 	workingBasisPosition: number = 0;
 
 	onUpdated: EventImp<SpreadExecution> = new EventImp<SpreadExecution>();
@@ -20,7 +25,14 @@ export abstract class Arb {
 	}
 
 	constructor(public originMarket: Market, public destinationMarket: Market, public graph: Graph) {
-		this.statisticsWindow = [];
+		// this.statisticsWindow = [];
+		this.spreadWindow = new TimeWindow<SpreadExecution>(60000, (spread: SpreadExecution) => {
+			return spread.end ? spread.end.getTime() : Number.NaN;
+		});
+
+		this.statsWindow = new TimeWindow<SpreadStatistics>(300000, (stat: SpreadStatistics) => {
+			return stat.datetime ? stat.datetime.getTime() : Number.NaN;
+		});
 	}
 
 	abstract getId(): string;
@@ -111,12 +123,21 @@ export abstract class Arb {
 				if (spread.filled && spread.entryBasisSize) {
 					this.workingBasisPosition -= spread.entryBasisSize;
 					spread.end = new Date();
-					this.statisticsWindow.push(spread);
-					this.pruneWindow(this.statisticsWindow);
-					spread.spreadsPerMinute = this.statisticsWindow.length;
+					// this.statisticsWindow.push(spread);
+					// this.pruneWindow(this.statisticsWindow);
+					// spread.spreadsPerMinute = this.statisticsWindow.length;
+					this.spreadWindow.push(spread);
+					spread.spreadsPerMinute = this.spreadWindow.window.length;
 					spread.spread = this.getSpreadPercent(spread);
 					spread.hubSpread = this.getHubSpread(spread);
 					spread.spreadPercent = this.getHubSpreadPercent(spread);
+					this.statsWindow.push({
+						datetime: spread.end,
+						spread: spread.spread,
+						spreadPercent: spread.spreadPercent,
+						spreadsPerMinute: spread.spreadsPerMinute
+					});
+					spread.spreadStatistics = this.statsWindow.window;
 					this.onUpdated.trigger(spread);
 					this.spread = undefined;
 				} else {
@@ -129,6 +150,10 @@ export abstract class Arb {
 			}
 		};
 	}
+
+	// updateSpreadStatisticsWindow(spread: SpreadExecution) {
+	// 	if(spread.)
+	// }
 
 	getLegConvertFilledHandler(): FillHandler {
 		return (spread: SpreadExecution | undefined) => {
@@ -147,29 +172,29 @@ export abstract class Arb {
 		return time;
 	}
 
-	pruneWindow(window: SpreadExecution[]) {
-		const windowLength = 60000;
-		let rolling = true;
-		while (rolling) {
-			const spread = window[0];
-			if (spread) {
-				// const then = this.getSpreadEnd(spread);
-				const then = spread.end ? spread.end.getTime() : Number.NaN;
-				const now = Date.now();
-				const stale = then < now - windowLength;
-				Logger.log({
-					level: "silly",
-					message: `Shift Spread? [${this.getId()}]`,
-					data: { then, now, stale }
-				});
-				if (stale) {
-					window.shift();
-				} else {
-					rolling = false;
-				}
-			} else {
-				rolling = false;
-			}
-		}
-	}
+	// pruneWindow(window: SpreadExecution[]) {
+	// 	const windowLength = 60000;
+	// 	let rolling = true;
+	// 	while (rolling) {
+	// 		const spread = window[0];
+	// 		if (spread) {
+	// 			// const then = this.getSpreadEnd(spread);
+	// 			const then = spread.end ? spread.end.getTime() : Number.NaN;
+	// 			const now = Date.now();
+	// 			const stale = then < now - windowLength;
+	// 			Logger.log({
+	// 				level: "silly",
+	// 				message: `Shift Spread? [${this.getId()}]`,
+	// 				data: { then, now, stale }
+	// 			});
+	// 			if (stale) {
+	// 				window.shift();
+	// 			} else {
+	// 				rolling = false;
+	// 			}
+	// 		} else {
+	// 			rolling = false;
+	// 		}
+	// 	}
+	// }
 }

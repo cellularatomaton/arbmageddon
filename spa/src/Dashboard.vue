@@ -8,7 +8,22 @@
 				:spread-target="spreadTarget"
 				:selected-spread="selectedSpread"></selected-spread>
 			</div>
-			<div class="flex-row flex-stretch elbow-room">
+			<div class="flex-row chart-area">
+				<div class="flex-col">
+					<div v-for="(chart, index) in charts" :key="index">
+						<button v-on:click="setChart(chart)">{{chart}}</button>
+					</div>
+				</div>
+				<div class="flex-grow flex-col flex-hack">
+					<stats-chart
+						v-if="showChart(chart)"
+						v-for="(chart, index) in charts"
+						:key="index"
+						:bus="eventBus"
+						:label="'chart'"></stats-chart>
+				</div>
+			</div>
+			<div class="flex-row elbow-room">
 				<div v-if="selectedSpread && originConversions.includes(selectedSpread.type)"
 					class="flex-col">
 					<execution-operation
@@ -57,13 +72,15 @@ import GraphParameters from "./GraphParameters.vue";
 import MultiChart from "./MultiChart.vue";
 import SelectedSpread from "./SelectedSpread.vue";
 import SpreadList from "./SpreadList.vue";
-import BookDepth from "./BookDepth";
+import LineChart from "./LineChart.vue";
+import BookDepth from "./BookDepth.vue";
 import { ArbType, SubscriptionType } from "../../common/utils/enums";
-import { SpreadExecution, ExecutionOperation as Operation } from "../../common/strategies/arbitrage";
+import { SpreadExecution, SpreadStatistics, ExecutionOperation as Operation } from "../../common/strategies";
 import { Graph, GraphParameters as GraphProps, WebsocketMessage } from "../../common/markets/graph";
 import { BookSnapshot, BookStats } from "../../common/markets/book";
 import { MarketInfo, MarketParameters } from "../../common/markets/market";
-import { unescape } from "querystring";
+
+// import { unescape } from "querystring";
 
 export interface SpreadListItem extends SpreadExecution {
 	selected: boolean;
@@ -71,6 +88,7 @@ export interface SpreadListItem extends SpreadExecution {
 }
 
 export interface DashboardModel {
+	eventBus: Vue;
 	ws: Websocket;
 	directArbs: ArbType[];
 	originConversions: ArbType[];
@@ -90,6 +108,9 @@ export interface DashboardModel {
 	basisSize: number;
 	spreadTarget: number;
 	recenterBooks: boolean;
+	viewableChart: string;
+	// chartData: number[];
+	charts: string[];
 }
 
 export default Vue.extend({
@@ -100,10 +121,12 @@ export default Vue.extend({
 		"multi-chart": MultiChart,
 		"spread-list": SpreadList,
 		"selected-spread": SelectedSpread,
-		"book-depth": BookDepth
+		"book-depth": BookDepth,
+		"stats-chart": LineChart
 	},
 	data() {
 		return {
+			eventBus: new Vue(),
 			ws: new WebSocket("ws://localhost:8081/"),
 			directArbs: [ArbType.MakerDirect, ArbType.TakerDirect],
 			originConversions: [ArbType.MakerOriginConversion, ArbType.TakerOriginConversion],
@@ -122,7 +145,10 @@ export default Vue.extend({
 			basisSize: 0,
 			spreadTarget: 0,
 			sortArbsAscending: false,
-			recenterBooks: false
+			recenterBooks: false,
+			viewableChart: "spread",
+			// chartData: [],
+			charts: ["spread", "percent", "spm"]
 		} as DashboardModel;
 	},
 	mounted() {
@@ -157,6 +183,36 @@ export default Vue.extend({
 		}
 	},
 	methods: {
+		getChartData(update: SpreadListItem) {
+			let data: any[] = [];
+			if (this.viewableChart === "spread") {
+				data = update.spreadStatistics.map((stat: SpreadStatistics) => {
+					return { x: new Date(stat.datetime), y: stat.spread };
+				});
+			} else if (this.viewableChart === "percent") {
+				data = update.spreadStatistics.map((stat: SpreadStatistics) => {
+					return { x: new Date(stat.datetime), y: stat.spreadPercent };
+				});
+			} else if (this.viewableChart === "spm") {
+				data = update.spreadStatistics.map((stat: SpreadStatistics) => {
+					return { x: new Date(stat.datetime), y: stat.spreadsPerMinute };
+				});
+			}
+			return data;
+		},
+		setChart(chartName: string) {
+			this.viewableChart = chartName;
+			// this.chartData = [];
+			if (this.selectedSpread) {
+				const chartData = this.getChartData(this.selectedSpread);
+				this.eventBus.$emit("chart-data-update", chartData);
+			} else {
+				this.eventBus.$emit("chart-data-update", []);
+			}
+		},
+		showChart(chartName: string) {
+			return this.viewableChart === chartName;
+		},
 		updateGraphProperties() {
 			const dash = this;
 			dash.ws.send(
@@ -185,7 +241,7 @@ export default Vue.extend({
 				JSON.stringify({
 					action: "set",
 					type: "marketparams",
-					data: dash.getMarketParams(pricePrecision, sizePrecision, book)
+					data: dash.getMarketParams(Math.max(pricePrecision, 1), Math.max(sizePrecision, 1), book)
 				} as WebsocketMessage<MarketParameters>)
 			);
 		},
@@ -398,17 +454,18 @@ export default Vue.extend({
 						arb.convert.hubSize = update.convert.hubSize;
 						arb.convert.basisSize = update.convert.basisSize;
 					}
+					if (arb.selected) {
+						const chartData = this.getChartData(update);
+						this.eventBus.$emit("chart-data-update", chartData);
+					}
 				} else {
 					this.arbMap.set(update.id, update);
 					this.arbList.push(update);
 				}
 				// console.dir(arb);
 				if (!this.selectedSpread) {
-					// this.setMulticharts(this.arbList[0]);
 					this.selectSpread(this.arbList[0]);
 				}
-			} else {
-				// Only update selected spread:
 			}
 		},
 		setupWebsocket() {
@@ -546,5 +603,13 @@ export default Vue.extend({
 }
 .overflow-hide {
 	overflow: hidden;
+}
+
+.chart-area {
+	height: 400px;
+}
+
+.flex-hack {
+	flex-basis: 1px;
 }
 </style>
